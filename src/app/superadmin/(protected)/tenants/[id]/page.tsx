@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation'
 interface Admin { id: string; user_id: string; email: string; role: string }
 interface Source { id: string; type: string; config: Record<string, string>; is_active: boolean }
 interface Tenant { id: string; name: string; slug: string; domain: string; logo_url: string | null }
+interface DomainVerification { type: string; domain: string; value: string }
+interface DomainStatus { verified: boolean; misconfigured?: boolean; verification: DomainVerification[]; error?: { message: string } | null }
 
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -17,6 +19,8 @@ export default function TenantDetailPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [admins, setAdmins] = useState<Admin[]>([])
   const [sources, setSources] = useState<Source[]>([])
+  const [domainStatus, setDomainStatus] = useState<DomainStatus | null>(null)
+  const [domainLoading, setDomainLoading] = useState(false)
   const [name, setName] = useState('')
   const [domain, setDomain] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
@@ -35,6 +39,29 @@ export default function TenantDetailPage() {
     setAdmins(data.admins)
     setSources(data.sources)
     setLoading(false)
+    // Load domain status in background
+    loadDomainStatus()
+  }
+
+  async function loadDomainStatus() {
+    setDomainLoading(true)
+    const res = await fetch(`/api/superadmin/tenants/${id}/domain`)
+    if (res.ok) { const d = await res.json(); setDomainStatus(d.status) }
+    setDomainLoading(false)
+  }
+
+  async function addToVercel() {
+    setDomainLoading(true)
+    const res = await fetch(`/api/superadmin/tenants/${id}/domain`, { method: 'POST' })
+    if (res.ok) { const d = await res.json(); setDomainStatus(d.status) }
+    setDomainLoading(false)
+  }
+
+  async function recheckVercel() {
+    setDomainLoading(true)
+    const res = await fetch(`/api/superadmin/tenants/${id}/domain`, { method: 'PUT' })
+    if (res.ok) { const d = await res.json(); setDomainStatus(d.status) }
+    setDomainLoading(false)
   }
 
   useEffect(() => { load() }, [id])
@@ -123,6 +150,74 @@ export default function TenantDetailPage() {
             {saveError && <span style={{ fontSize: 13, color: '#f87171' }}>{saveError}</span>}
           </div>
         </form>
+      </Section>
+
+      {/* Domain / Vercel */}
+      <Section title="Dominio en Vercel">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <code style={{ fontSize: 14, color: '#e2e8f0', background: '#0f0f0f', padding: '4px 10px', borderRadius: 6 }}>
+              {tenant?.domain}
+            </code>
+            {domainLoading ? (
+              <span style={{ fontSize: 12, color: '#555' }}>Verificando…</span>
+            ) : domainStatus === null ? (
+              <span style={{ fontSize: 12, color: '#f59e0b' }}>⚠ No agregado a Vercel</span>
+            ) : domainStatus.verified ? (
+              <span style={{ fontSize: 12, color: '#4ade80' }}>✓ Verificado</span>
+            ) : (
+              <span style={{ fontSize: 12, color: '#f87171' }}>✗ Pendiente de DNS</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {domainStatus === null && (
+              <button onClick={addToVercel} disabled={domainLoading} style={btnStyle}>
+                Agregar a Vercel
+              </button>
+            )}
+            {domainStatus && !domainStatus.verified && (
+              <button onClick={recheckVercel} disabled={domainLoading} style={btnStyle}>
+                Reverificar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* DNS instructions */}
+        {domainStatus && !domainStatus.verified && domainStatus.verification?.length > 0 && (
+          <div style={{ background: '#0f0f0f', borderRadius: 8, padding: '14px 16px', marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+              Agregá estos registros DNS en el panel de tu registrar (GoDaddy, Cloudflare, etc.):
+            </div>
+            {domainStatus.verification.map((v, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 1fr', gap: 8, marginBottom: 6, fontSize: 12 }}>
+                <span style={{ color: '#60a5fa', fontWeight: 600 }}>{v.type}</span>
+                <span style={{ color: '#aaa', fontFamily: 'monospace' }}>{v.domain}</span>
+                <span style={{ color: '#e2e8f0', fontFamily: 'monospace', wordBreak: 'break-all' }}>{v.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {domainStatus && !domainStatus.verified && (domainStatus.verification?.length === 0 || !domainStatus.verification) && (
+          <div style={{ background: '#0f0f0f', borderRadius: 8, padding: '14px 16px', fontSize: 12, color: '#aaa' }}>
+            <div style={{ marginBottom: 8 }}>Apuntá el dominio a Vercel con estos registros DNS:</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '60px 80px 1fr', gap: 8, marginBottom: 6 }}>
+              <span style={{ color: '#60a5fa', fontWeight: 600 }}>A</span>
+              <span style={{ color: '#aaa', fontFamily: 'monospace' }}>{tenant?.domain}</span>
+              <span style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>76.76.21.21</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '60px 80px 1fr', gap: 8 }}>
+              <span style={{ color: '#60a5fa', fontWeight: 600 }}>CNAME</span>
+              <span style={{ color: '#aaa', fontFamily: 'monospace' }}>www</span>
+              <span style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>cname.vercel-dns.com</span>
+            </div>
+          </div>
+        )}
+
+        {domainStatus?.error && (
+          <div style={{ fontSize: 12, color: '#f87171', marginTop: 8 }}>{domainStatus.error.message}</div>
+        )}
       </Section>
 
       {/* Admins */}
