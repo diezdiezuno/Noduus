@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { useFilteredProperties } from '@/contexts/FilterContext'
 import type { Property } from '@/types'
 
 interface MapViewProps {
@@ -18,36 +19,95 @@ function getMapLightPreset(): string {
   return 'night'
 }
 
-function fmtPrice(price: number, currency: string): string {
+function fmtShort(price: number, currency: string): string {
+  const sym = currency === 'CRC' ? '₡' : '$'
   if (currency === 'CRC') {
-    return '₡' + (price >= 1_000_000
-      ? (price / 1_000_000).toFixed(1).replace('.0', '') + 'M'
-      : (price / 1_000).toFixed(0) + 'K')
+    if (price >= 1e9) return sym + (price / 1e9).toFixed(1).replace('.0', '') + 'B'
+    if (price >= 1e6) return sym + Math.round(price / 1e6) + 'M'
+    return sym + Math.round(price / 1000) + 'K'
   }
-  return '$' + (price >= 1_000_000
-    ? (price / 1_000_000).toFixed(1).replace('.0', '') + 'M'
-    : (price / 1_000).toFixed(0) + 'K')
+  if (price >= 1e6) return sym + (price / 1e6).toFixed(1).replace('.0', '') + 'M'
+  if (price >= 1000) return sym + Math.round(price / 1000) + 'K'
+  return sym + price.toLocaleString()
+}
+
+function fmtFull(price: number, currency: string): string {
+  if (!price) return 'Precio a consultar'
+  if (currency === 'CRC') return '₡' + Number(price).toLocaleString('es-CR')
+  return '$' + Number(price).toLocaleString('en-US')
 }
 
 export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([])
+  const allPropsRef = useRef<Property[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const [count, setCount] = useState<number | null>(null)
+
+  // All properties from API
+  const [allProperties, setAllProperties] = useState<Property[]>([])
+  const filtered = useFilteredProperties(allProperties)
+
+  const updateMarkers = useCallback((props: Property[], map: any) => {
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
+
+    const bounds = map.getBounds()
+    let visibleCount = 0
+
+    props.forEach(p => {
+      if (!p.lat || !p.lng) return
+      if (bounds.contains([p.lng, p.lat])) visibleCount++
+
+      const label = fmtShort(p.price, p.currency)
+      const loc = p.city?.split(',')[0].trim() ?? ''
+
+      const pinEl = document.createElement('div')
+      pinEl.className = 'map-pin'
+      pinEl.innerHTML = `<div class="mp-price">${label}</div>${loc ? `<div class="mp-loc">${loc}</div>` : ''}`
+
+      const popupHtml = `
+        <div class="map-popup">
+          ${p.images[0] ? `<img src="${p.images[0]}" alt="">` : ''}
+          <div class="mp-body">
+            <div class="mp-type">${p.type ?? ''}</div>
+            <div class="mp-title">${p.title}</div>
+            <div class="mp-loc-popup">📍 ${[p.city, p.country].filter(Boolean).join(', ')}</div>
+            <div class="mp-price-popup">${fmtFull(p.price, p.currency)}</div>
+            <button class="mp-btn" onclick="window.location.href='/listings/${p.id}'">Ver propiedad →</button>
+          </div>
+        </div>`
+
+      const mapboxgl = (window as any).mapboxgl
+      const popup = new mapboxgl.Popup({ maxWidth: '240px', offset: 10 }).setHTML(popupHtml)
+      const marker = new mapboxgl.Marker({ element: pinEl, anchor: 'center' })
+        .setLngLat([p.lng, p.lat])
+        .setPopup(popup)
+        .addTo(map)
+      markersRef.current.push(marker)
+    })
+
+    setCount(visibleCount)
+  }, [])
+
+  // Update markers when filter changes
+  useEffect(() => {
+    if (!mapRef.current || status !== 'ready') return
+    updateMarkers(filtered, mapRef.current)
+  }, [filtered, status, updateMarkers])
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return
-    if (!mapboxToken) {
-      setErrorMsg('Mapbox token missing')
-      setStatus('error')
-      return
-    }
+    if (!mapboxToken) { setErrorMsg('Mapbox token missing'); setStatus('error'); return }
 
-    let map: any
+    let map: any;
 
-    ;(async () => {
+    (async () => {
       try {
         const mapboxgl = (await import('mapbox-gl')).default
+        ;(window as any).mapboxgl = mapboxgl
         mapboxgl.accessToken = mapboxToken
 
         map = new mapboxgl.Map({
@@ -56,7 +116,6 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
           center: mapCenter ?? [-84.0, 9.9],
           zoom: mapZoom ?? 7,
         })
-
         mapRef.current = map
 
         map.addControl(new mapboxgl.NavigationControl(), 'top-right')
@@ -70,48 +129,33 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
           try { map.setConfigProperty('basemap', 'lightPreset', getMapLightPreset()) } catch {}
           setStatus('ready')
 
+          // Load properties
           try {
             const res = await fetch('/api/properties')
-            if (!res.ok) return
-            const properties: Property[] = await res.json()
-
-            properties.forEach(p => {
-              if (!p.lat || !p.lng) return
-              const pinEl = document.createElement('div')
-              pinEl.className = 'map-pin'
-              const loc = p.city?.split(',')[0].trim() ?? ''
-              pinEl.innerHTML = `<div class="mp-price">${fmtPrice(p.price, p.currency)}</div>${loc ? `<div class="mp-loc">${loc}</div>` : ''}`
-
-              const popup = new mapboxgl.Popup({ maxWidth: '240px', offset: 10 })
-                .setHTML(`
-                  <div style="font-family:sans-serif;min-width:200px">
-                    ${p.images[0] ? `<img src="${p.images[0]}" style="width:100%;height:110px;object-fit:cover;display:block" />` : ''}
-                    <div style="padding:10px 12px 12px">
-                      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#999;margin-bottom:3px">${p.type}</div>
-                      <div style="font-size:14px;font-weight:600;color:#111;margin-bottom:4px">${p.title}</div>
-                      <div style="font-size:16px;font-weight:700;color:#111">${fmtPrice(p.price, p.currency)}</div>
-                    </div>
-                  </div>
-                `)
-
-              new mapboxgl.Marker({ element: pinEl, anchor: 'center' })
-                .setLngLat([p.lng, p.lat])
-                .setPopup(popup)
-                .addTo(map)
-            })
+            if (res.ok) {
+              const props: Property[] = await res.json()
+              setAllProperties(props)
+              allPropsRef.current = props
+              updateMarkers(props, map)
+            }
           } catch (e) {
             console.error('[MapView] error loading properties:', e)
           }
         })
 
+        // Update count on pan/zoom
+        map.on('moveend', () => {
+          if (!mapRef.current) return
+          const bounds = mapRef.current.getBounds()
+          const visible = markersRef.current.filter(m => bounds.contains(m.getLngLat())).length
+          setCount(visible)
+        })
+
         map.on('error', (e: any) => {
-          console.error('[MapView] map error:', e)
           setErrorMsg(e?.error?.message ?? 'Map error')
           setStatus('error')
         })
-
       } catch (e: any) {
-        console.error('[MapView] init error:', e)
         setErrorMsg(e?.message ?? 'Failed to load map')
         setStatus('error')
       }
@@ -121,36 +165,49 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
       map?.remove()
       mapRef.current = null
     }
-  }, [mapStyle, mapboxToken])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: 'calc(100vh - 68px)', minHeight: '400px' }}>
+    <div style={{ position: 'relative', width: '100%', height: 'calc(100vh - var(--nav-h, 68px))' }}>
       <div ref={mapContainerRef} style={{ position: 'absolute', inset: 0 }} />
 
-      {status === 'loading' && (
+      {/* Property count overlay */}
+      {status === 'ready' && count !== null && (
         <div style={{
-          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.8)', zIndex: 10
+          position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.45)', color: '#fff', padding: '7px 16px',
+          borderRadius: 24, fontSize: 13, fontWeight: 500, zIndex: 400,
+          pointerEvents: 'none', whiteSpace: 'nowrap', backdropFilter: 'blur(4px)',
         }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            border: '3px solid #e5e5e5', borderTopColor: '#555',
-            animation: 'spin 0.8s linear infinite', marginBottom: 12
-          }} />
-          <span style={{ fontSize: 14, color: '#888' }}>Cargando mapa...</span>
+          {count} propiedades en esta zona
         </div>
       )}
 
+      {/* Loading */}
+      {status === 'loading' && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(248,248,248,0.96)', zIndex: 500, backdropFilter: 'blur(6px)',
+          transition: 'opacity .5s',
+        }}>
+          <div className="map-loading-ring" />
+          <p style={{ fontSize: 14, color: '#8a8a9a', fontWeight: 500, letterSpacing: '0.02em' }}>
+            Cargando propiedades...
+          </p>
+        </div>
+      )}
+
+      {/* Error */}
       {status === 'error' && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', background: '#fff', zIndex: 10
+          alignItems: 'center', justifyContent: 'center', background: '#fff', zIndex: 10,
         }}>
           <p style={{ color: '#e00', fontSize: 14 }}>Error: {errorMsg}</p>
         </div>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

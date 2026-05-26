@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { getTenantByDomain, getTenantConfig, DEFAULT_THEME } from '@/lib/tenant'
 import Nav from '@/components/Nav/Nav'
 import Footer from '@/components/Footer/Footer'
+import { FilterProvider } from '@/contexts/FilterContext'
 import type { Tenant, TenantConfig } from '@/types'
 
 function googleFontsUrl(heading: string, body: string): string {
@@ -41,9 +42,11 @@ export default async function PublicLayout({ children }: { children: React.React
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link href={fontsUrl} rel="stylesheet" />
-      <Nav tenant={tenant} />
-      <main className="flex-1">{children}</main>
-      <Footer config={config} tenant={tenant} />
+      <FilterProvider>
+        <Nav tenant={tenant} />
+        <main className="flex-1">{children}</main>
+        <Footer config={config} tenant={tenant} />
+      </FilterProvider>
     </div>
   )
 }

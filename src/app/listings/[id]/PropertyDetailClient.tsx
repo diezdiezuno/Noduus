@@ -1,22 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Property } from '@/types'
 
-interface Props {
-  id: string
-}
+interface Props { id: string }
 
-function fmtPrice(price: number, currency: string): string {
-  if (currency === 'CRC') {
-    return '₡' + (price >= 1_000_000
-      ? (price / 1_000_000).toFixed(1).replace('.0', '') + 'M'
-      : (price / 1_000).toFixed(0) + 'K')
-  }
-  return price >= 1_000_000
-    ? '$' + (price / 1_000_000).toFixed(1).replace('.0', '') + 'M'
-    : '$' + (price / 1_000).toFixed(0) + 'K'
+function fmtFull(price: number, currency: string): string {
+  if (!price) return 'Precio a consultar'
+  if (currency === 'CRC') return '₡' + Number(price).toLocaleString('es-CR')
+  return '$' + Number(price).toLocaleString('en-US')
 }
 
 export default function PropertyDetailClient({ id }: Props) {
@@ -24,45 +17,55 @@ export default function PropertyDetailClient({ id }: Props) {
   const [property, setProperty] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [activeIdx, setActiveIdx] = useState(0)
+  // Lightbox
+  const [lbOpen, setLbOpen] = useState(false)
+  const [lbIdx, setLbIdx] = useState(0)
+  const rightRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/properties')
-      .then(r => r.json())
-      .then((data: Property[]) => {
-        const found = data.find(p => p.id === id)
-        if (found) {
-          setProperty(found)
-        } else {
-          setNotFound(true)
-        }
-        setLoading(false)
+    fetch(`/api/properties/${id}`)
+      .then(r => { if (!r.ok) throw new Error('not found'); return r.json() })
+      .then((data: Property) => { setProperty(data); setLoading(false) })
+      .catch(() => {
+        // fallback: fetch all and find
+        fetch('/api/properties')
+          .then(r => r.json())
+          .then((data: Property[]) => {
+            const found = data.find(p => p.id === id)
+            if (found) setProperty(found)
+            else setNotFound(true)
+            setLoading(false)
+          })
+          .catch(() => { setNotFound(true); setLoading(false) })
       })
-      .catch(() => { setNotFound(true); setLoading(false) })
   }, [id])
+
+  // Keyboard lightbox nav
+  useEffect(() => {
+    if (!lbOpen || !property) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLbOpen(false)
+      if (e.key === 'ArrowRight') setLbIdx(i => Math.min(i + 1, property.images.length - 1))
+      if (e.key === 'ArrowLeft') setLbIdx(i => Math.max(i - 1, 0))
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [lbOpen, property])
 
   if (loading) {
     return (
-      <div style={{ paddingTop: 68, minHeight: '100vh', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: '50%',
-          border: '3px solid #e5e5e5', borderTopColor: '#555',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <div style={{ paddingTop: 'var(--nav-h,68px)', minHeight: '100vh', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="map-loading-ring" />
       </div>
     )
   }
 
   if (notFound || !property) {
     return (
-      <div style={{ paddingTop: 68, minHeight: '100vh', background: '#f5f5f7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+      <div style={{ paddingTop: 'var(--nav-h,68px)', minHeight: '100vh', background: '#f5f5f7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <div style={{ fontSize: 48 }}>🏠</div>
         <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>Propiedad no encontrada</div>
-        <button
-          onClick={() => router.push('/listings')}
-          style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
-        >
+        <button onClick={() => router.push('/listings')} style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
           Ver todas las propiedades
         </button>
       </div>
@@ -70,173 +73,136 @@ export default function PropertyDetailClient({ id }: Props) {
   }
 
   const p = property
-  const imgs = p.images.length > 0 ? p.images : []
-  const location = [p.address, p.city, p.country].filter(Boolean).join(', ')
+  const imgs = p.images.length > 0 ? p.images : ['https://via.placeholder.com/1200x800/e2e2e8/8a8a9a?text=Sin+imagen']
+  const location = [p.city, p.country].filter(Boolean).join(', ')
+  const address = p.address ?? ''
   const whatsappMsg = encodeURIComponent(`Hola, me interesa la propiedad: ${p.title}`)
   const whatsappUrl = p.agent_phone
     ? `https://wa.me/${p.agent_phone.replace(/\D/g, '')}?text=${whatsappMsg}`
     : null
 
+  const openLb = (i: number) => { setLbIdx(i); setLbOpen(true) }
+
   return (
-    <div style={{ paddingTop: 68, minHeight: '100vh', background: '#f5f5f7' }}>
+    <>
+      {/* ── Split-screen container ── */}
+      <div style={{
+        position: 'fixed',
+        top: 'var(--nav-h, 68px)',
+        left: 0, right: 0, bottom: 0,
+        display: 'grid',
+        gridTemplateColumns: '58% 42%',
+      }}>
 
-      {/* Back button */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px 0' }}>
-        <button
-          onClick={() => router.back()}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 13, color: '#666', padding: '6px 0', fontFamily: 'inherit',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          Volver a propiedades
-        </button>
-      </div>
+        {/* ══ LEFT — stacked photos (scrollable) ══ */}
+        <div className="det-left">
+          {imgs.map((img, i) => (
+            <div
+              key={i}
+              className="det-photo"
+              onClick={() => openLb(i)}
+              style={{ width: '100%', aspectRatio: i === 0 ? '16/10' : '16/9' }}
+            >
+              <img src={img} alt={`${p.title} ${i + 1}`} style={{ height: '100%', objectFit: 'cover' }} />
+              <div className="det-photo-zoom">⤢</div>
+            </div>
+          ))}
+          {/* bottom padding so last photo doesn't touch bottom */}
+          <div style={{ height: 40 }} />
+        </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '16px 24px 60px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 32, alignItems: 'start' }}>
+        {/* ══ RIGHT — info panel ══ */}
+        <div ref={rightRef} className="det-right">
 
-          {/* LEFT */}
-          <div>
-            {/* Main image */}
-            <div style={{
-              borderRadius: 16, overflow: 'hidden', background: '#e5e5e5',
-              position: 'relative', paddingTop: '60%', marginBottom: 12,
-            }}>
-              {imgs[activeIdx] ? (
-                <img
-                  src={imgs[activeIdx]}
-                  alt={p.title}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div style={{
-                  position: 'absolute', inset: 0, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14,
-                }}>
-                  Sin imágenes
-                </div>
-              )}
-              {/* Transaction badge */}
-              <div style={{
-                position: 'absolute', top: 16, left: 16,
-                background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)',
-                color: '#fff', fontSize: 11, fontWeight: 600,
-                letterSpacing: '.1em', textTransform: 'uppercase',
-                padding: '4px 10px', borderRadius: 20,
-              }}>
-                {p.transaction === 'rent' ? 'Alquiler' : 'Venta'}
-              </div>
-              {imgs.length > 1 && (
-                <div style={{
-                  position: 'absolute', bottom: 16, right: 16,
-                  background: 'rgba(0,0,0,0.5)', color: '#fff',
-                  fontSize: 12, padding: '3px 10px', borderRadius: 20,
-                }}>
-                  {activeIdx + 1} / {imgs.length}
-                </div>
-              )}
+          {/* Back button */}
+          <div style={{ padding: '20px 28px 0', flexShrink: 0 }}>
+            <button
+              onClick={() => router.back()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 12, color: '#999', padding: 0, fontFamily: 'inherit',
+                letterSpacing: '.02em',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 5l-7 7 7 7" />
+              </svg>
+              Volver
+            </button>
+          </div>
+
+          {/* Content */}
+          <div style={{ padding: '16px 28px 40px', flex: 1 }}>
+
+            {/* Type tag */}
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent, #f5a623)', marginBottom: 8 }}>
+              {p.type ?? ''}
+              {p.transaction === 'rent'
+                ? <span style={{ marginLeft: 8, color: '#bbb' }}>· Alquiler</span>
+                : <span style={{ marginLeft: 8, color: '#bbb' }}>· Venta</span>
+              }
             </div>
 
-            {/* Thumbnail strip */}
-            {imgs.length > 1 && (
-              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                {imgs.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveIdx(i)}
-                    style={{
-                      flexShrink: 0, width: 80, height: 56,
-                      borderRadius: 8, overflow: 'hidden',
-                      border: i === activeIdx ? '2px solid #222' : '2px solid transparent',
-                      padding: 0, cursor: 'pointer', background: '#e5e5e5',
-                    }}
-                  >
-                    <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </button>
-                ))}
+            {/* Title */}
+            <h1 style={{ fontFamily: 'var(--font-heading, "Playfair Display", serif)', fontSize: 'clamp(22px, 2.5vw, 30px)', fontWeight: 700, color: '#1e1e2a', lineHeight: 1.25, margin: '0 0 12px' }}>
+              {p.title}
+            </h1>
+
+            {/* Location */}
+            {(location || address) && (
+              <div style={{ fontSize: 13, color: '#8a8a9a', marginBottom: 18, display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                  <circle cx="12" cy="9" r="2.5" />
+                </svg>
+                {[address, location].filter(Boolean).join(' · ')}
               </div>
             )}
 
-            {/* Title & location */}
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: '#aaa', marginBottom: 6 }}>
-                {p.type}
+            {/* Price */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 'clamp(26px, 3vw, 34px)', fontWeight: 700, color: '#1e1e2a', letterSpacing: '-.02em', lineHeight: 1 }}>
+                {fmtFull(p.price, p.currency)}
               </div>
-              <h1 style={{ fontSize: 26, fontWeight: 700, color: '#111', margin: '0 0 10px', lineHeight: 1.25 }}>
-                {p.title}
-              </h1>
-              {location && (
-                <div style={{ fontSize: 14, color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
-                  {location}
-                </div>
-              )}
+              <div style={{ fontSize: 11, color: '#bbb', marginTop: 4 }}>
+                {p.currency}{p.transaction === 'rent' ? ' / mes' : ' · precio de venta'}
+              </div>
             </div>
 
-            {/* Stats row */}
+            {/* Stats */}
             {(p.bedrooms != null || p.bathrooms != null || p.area_m2 != null) && (
               <div style={{
-                display: 'flex', gap: 24, marginTop: 20,
-                padding: '16px 0', borderTop: '1px solid #ebebeb', borderBottom: '1px solid #ebebeb',
+                display: 'flex', gap: 0,
+                border: '1px solid #f0f0f0', borderRadius: 10,
+                overflow: 'hidden', marginBottom: 24,
               }}>
                 {p.bedrooms != null && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 20 }}>🛏</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>{p.bedrooms}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>Hab.</div>
+                  <div style={{ flex: 1, padding: '14px 0', textAlign: 'center', borderRight: p.bathrooms != null || p.area_m2 != null ? '1px solid #f0f0f0' : 'none' }}>
+                    <div style={{ fontSize: 18, marginBottom: 2 }}>🛏</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#1e1e2a' }}>{p.bedrooms}</div>
+                    <div style={{ fontSize: 10, color: '#bbb', letterSpacing: '.05em', textTransform: 'uppercase' }}>Hab.</div>
                   </div>
                 )}
                 {p.bathrooms != null && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 20 }}>🚿</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>{p.bathrooms}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>Baños</div>
+                  <div style={{ flex: 1, padding: '14px 0', textAlign: 'center', borderRight: p.area_m2 != null ? '1px solid #f0f0f0' : 'none' }}>
+                    <div style={{ fontSize: 18, marginBottom: 2 }}>🚿</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#1e1e2a' }}>{p.bathrooms}</div>
+                    <div style={{ fontSize: 10, color: '#bbb', letterSpacing: '.05em', textTransform: 'uppercase' }}>Baños</div>
                   </div>
                 )}
                 {p.area_m2 != null && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 20 }}>📐</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>{p.area_m2}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>m²</div>
+                  <div style={{ flex: 1, padding: '14px 0', textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, marginBottom: 2 }}>📐</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#1e1e2a' }}>{p.area_m2}</div>
+                    <div style={{ fontSize: 10, color: '#bbb', letterSpacing: '.05em', textTransform: 'uppercase' }}>m²</div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Description */}
-            {p.description && (
-              <div style={{ marginTop: 24 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 10 }}>Descripción</h2>
-                <p style={{ fontSize: 14, color: '#555', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>
-                  {p.description}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* RIGHT — sticky price + agent */}
-          <div style={{ position: 'sticky', top: 88 }}>
-
-            {/* Price card */}
-            <div style={{
-              background: '#fff', borderRadius: 16, padding: '24px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.07)', marginBottom: 16,
-            }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#111', marginBottom: 4 }}>
-                {fmtPrice(p.price, p.currency)}
-              </div>
-              <div style={{ fontSize: 12, color: '#aaa', marginBottom: 20 }}>
-                {p.currency} · {p.transaction === 'rent' ? 'por mes' : 'precio de venta'}
-              </div>
-
+            {/* CTA buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
               {whatsappUrl && (
                 <a
                   href={whatsappUrl}
@@ -244,9 +210,9 @@ export default function PropertyDetailClient({ id }: Props) {
                   rel="noopener noreferrer"
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    background: '#25D366', color: '#fff', borderRadius: 10,
-                    padding: '12px 16px', textDecoration: 'none',
-                    fontSize: 14, fontWeight: 600, marginBottom: 10,
+                    background: '#25D366', color: '#fff', borderRadius: 8,
+                    padding: '13px 16px', textDecoration: 'none',
+                    fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
                   }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -255,15 +221,15 @@ export default function PropertyDetailClient({ id }: Props) {
                   Consultar por WhatsApp
                 </a>
               )}
-
               {p.agent_email && (
                 <a
-                  href={`mailto:${p.agent_email}?subject=Consulta sobre propiedad&body=${whatsappMsg}`}
+                  href={`mailto:${p.agent_email}?subject=Consulta: ${encodeURIComponent(p.title)}&body=${whatsappMsg}`}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    background: '#fff', color: '#333', borderRadius: 10,
-                    padding: '11px 16px', textDecoration: 'none',
-                    fontSize: 14, fontWeight: 600, border: '1px solid #e0e0e0',
+                    background: '#fff', color: '#333', borderRadius: 8,
+                    padding: '12px 16px', textDecoration: 'none',
+                    fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
+                    border: '1px solid #e5e5e5',
                   }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -275,38 +241,86 @@ export default function PropertyDetailClient({ id }: Props) {
               )}
             </div>
 
+            {/* Description */}
+            {p.description && (
+              <div style={{ marginBottom: 28 }}>
+                <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#1e1e2a', marginBottom: 10 }}>
+                  Descripción
+                </h2>
+                <p style={{ fontSize: 14, color: '#555', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {p.description}
+                </p>
+              </div>
+            )}
+
             {/* Agent card */}
             {p.agent_name && (
-              <div style={{
-                background: '#fff', borderRadius: 16, padding: '20px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#aaa', marginBottom: 12 }}>
-                  Agente
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: 10, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent,#f5a623), var(--primary,#6b2fa0))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                  👤
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 18, flexShrink: 0,
-                  }}>
-                    👤
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{p.agent_name}</div>
-                    {p.agent_phone && (
-                      <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{p.agent_phone}</div>
-                    )}
-                  </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#bbb', marginBottom: 3 }}>Agente</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e1e2a' }}>{p.agent_name}</div>
+                  {p.agent_phone && <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{p.agent_phone}</div>}
+                  {p.agent_email && <div style={{ fontSize: 12, color: '#999' }}>{p.agent_email}</div>}
                 </div>
               </div>
             )}
 
-          </div>
-        </div>
-      </div>
+            {/* Map preview (if lat/lng available) */}
+            {p.lat && p.lng && (
+              <div style={{ marginTop: 24 }}>
+                <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#1e1e2a', marginBottom: 10 }}>
+                  Ubicación
+                </h2>
+                <a
+                  href={`https://www.google.com/maps?q=${p.lat},${p.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'block', borderRadius: 10, overflow: 'hidden', position: 'relative' }}
+                >
+                  <img
+                    src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s+f5a623(${p.lng},${p.lat})/${p.lng},${p.lat},13,0/480x220@2x?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''}`}
+                    alt="Mapa"
+                    style={{ width: '100%', display: 'block' }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                  <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 11, padding: '4px 10px', borderRadius: 20, backdropFilter: 'blur(4px)' }}>
+                    Ver en Google Maps ↗
+                  </div>
+                </a>
+              </div>
+            )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-    </div>
+          </div>{/* /content */}
+        </div>{/* /right */}
+      </div>{/* /split */}
+
+      {/* ── Lightbox ── */}
+      <div className={`lightbox${lbOpen ? ' open' : ''}`} onClick={() => setLbOpen(false)}>
+        <button className="lb-close" onClick={() => setLbOpen(false)}>✕</button>
+        {imgs.length > 1 && (
+          <>
+            <button
+              className="lb-prev"
+              onClick={e => { e.stopPropagation(); setLbIdx(i => Math.max(i - 1, 0)) }}
+            >‹</button>
+            <button
+              className="lb-next"
+              onClick={e => { e.stopPropagation(); setLbIdx(i => Math.min(i + 1, imgs.length - 1)) }}
+            >›</button>
+          </>
+        )}
+        <img
+          src={imgs[lbIdx]}
+          alt=""
+          onClick={e => e.stopPropagation()}
+        />
+        {imgs.length > 1 && (
+          <div className="lb-counter">{lbIdx + 1} / {imgs.length}</div>
+        )}
+      </div>
+    </>
   )
 }
