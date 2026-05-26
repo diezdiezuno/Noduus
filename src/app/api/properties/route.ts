@@ -9,53 +9,66 @@ const supabase = createClient(
 )
 
 export async function GET(request: NextRequest) {
-  const domain = request.headers.get('x-tenant-domain') ?? 'localhost'
+  try {
+    const domain = request.headers.get('x-tenant-domain') ?? 'localhost'
+    console.log('[properties] domain:', domain)
 
-  // Get tenant — fallback to first tenant for preview/dev domains
-  let { data: tenant } = await supabase
-    .from('tenants')
-    .select('id, slug')
-    .eq('domain', domain)
-    .single()
-
-  if (!tenant) {
-    const { data: fallback } = await supabase
+    // Exact match first, then fallback to first tenant
+    let { data: tenant, error: e1 } = await supabase
       .from('tenants')
       .select('id, slug')
-      .limit(1)
+      .eq('domain', domain)
       .single()
-    tenant = fallback
-  }
 
-  if (!tenant) {
-    return NextResponse.json({ error: 'No tenant found' }, { status: 404 })
-  }
+    if (!tenant) {
+      console.log('[properties] no exact match, trying fallback. error:', e1?.message)
+      const { data: fallback, error: e2 } = await supabase
+        .from('tenants')
+        .select('id, slug')
+        .limit(1)
+        .single()
+      console.log('[properties] fallback result:', fallback, e2?.message)
+      tenant = fallback
+    }
 
-  // Get property sources for this tenant
-  const { data: sources } = await supabase
-    .from('property_sources')
-    .select('*')
-    .eq('tenant_id', tenant.id)
-    .eq('is_active', true)
+    if (!tenant) {
+      console.error('[properties] no tenant found for domain:', domain)
+      return NextResponse.json([], { status: 200 })
+    }
 
-  if (!sources || sources.length === 0) {
-    return NextResponse.json([])
-  }
+    console.log('[properties] using tenant:', tenant.slug)
 
-  let properties: Property[] = []
+    const { data: sources } = await supabase
+      .from('property_sources')
+      .select('*')
+      .eq('tenant_id', tenant.id)
+      .eq('is_active', true)
 
-  for (const source of sources) {
-    if (source.type === 'remax_cca') {
-      const officeId = source.config?.officeId
-      if (officeId) {
-        const props = await fetchRemaxCCAProperties(officeId, tenant.id)
-        properties = [...properties, ...props]
+    if (!sources || sources.length === 0) {
+      console.log('[properties] no sources for tenant:', tenant.slug)
+      return NextResponse.json([])
+    }
+
+    let properties: Property[] = []
+
+    for (const source of sources) {
+      if (source.type === 'remax_cca') {
+        const officeId = source.config?.officeId
+        if (officeId) {
+          console.log('[properties] fetching CCA for officeId:', officeId)
+          const props = await fetchRemaxCCAProperties(officeId, tenant.id)
+          console.log('[properties] fetched', props.length, 'properties')
+          properties = [...properties, ...props]
+        }
       }
     }
-    // TODO: manual and custom_api providers
-  }
 
-  return NextResponse.json(properties, {
-    headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=60' }
-  })
+    return NextResponse.json(properties, {
+      headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=60' }
+    })
+
+  } catch (err) {
+    console.error('[properties] unexpected error:', err)
+    return NextResponse.json([], { status: 200 })
+  }
 }

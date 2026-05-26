@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import './globals.css'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import { getTenantByDomain, DEFAULT_THEME } from '@/lib/tenant'
 import Nav from '@/components/Nav/Nav'
 import type { Tenant } from '@/types'
