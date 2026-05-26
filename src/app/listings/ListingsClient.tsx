@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFilteredProperties } from '@/contexts/FilterContext'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Property } from '@/types'
 
 type ViewMode = 'grid' | 'hover' | 'dual' | 'list'
@@ -22,6 +23,7 @@ function fmtPrice(price: number, currency: string) {
 
 export default function ListingsClient({ defaultView = 'grid', defaultSort = 'price_asc' }: Props) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [allProperties, setAllProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>(defaultView === 'list' ? 'list' : 'grid')
@@ -47,7 +49,7 @@ export default function ListingsClient({ defaultView = 'grid', defaultSort = 'pr
 
   return (
     <div style={{ paddingTop: 'var(--nav-h, 68px)', minHeight: '100vh', background: '#f5f5f7' }}>
-      <section style={{ padding: '40px 40px 64px' }}>
+      <section style={{ padding: isMobile ? '24px 16px 64px' : '40px 40px 64px' }}>
 
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
@@ -94,17 +96,17 @@ export default function ListingsClient({ defaultView = 'grid', defaultSort = 'pr
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>Sin resultados con esos filtros</div>
         ) : view === 'grid' ? (
           // Masonry
-          <div style={{ columns: 4, columnGap: 8 }}>
+          <div style={{ columns: isMobile ? 1 : 4, columnGap: 8 }}>
             {sorted.map(p => <MasonryCard key={p.id} p={p} onClick={() => go(p.id)} />)}
           </div>
         ) : view === 'hover' ? (
-          // Hover grid (4 col square)
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+          // Hover grid
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 6 }}>
             {sorted.map(p => <HoverCard key={p.id} p={p} onClick={() => go(p.id)} />)}
           </div>
         ) : view === 'dual' ? (
-          // Dual 2-col
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+          // Dual
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 20 }}>
             {sorted.map(p => <DualCard key={p.id} p={p} onClick={() => go(p.id)} />)}
           </div>
         ) : (

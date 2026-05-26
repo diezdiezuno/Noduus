@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useFilters, USD_STEPS, CRC_STEPS, stepToPrice, fmtPrice } from '@/contexts/FilterContext'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Tenant } from '@/types'
 
 const PROPERTY_TYPES = [
@@ -16,14 +17,14 @@ const PROPERTY_TYPES = [
   { value: 'Bodega', label: 'Bodega' },
 ]
 
-interface NavProps {
-  tenant: Tenant | null
-}
+interface NavProps { tenant: Tenant | null }
 
 export default function Nav({ tenant }: NavProps) {
   const f = useFilters()
+  const isMobile = useIsMobile(768)
   const [advOpen, setAdvOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [compact, setCompact] = useState(false)
   const navRef = useRef<HTMLElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -34,7 +35,18 @@ export default function Nav({ tenant }: NavProps) {
   const isMax = f.isMaxPrice()
   const maxLabel = f.currency === 'CRC' ? '₡1B+' : '$5M+'
 
-  // Update --nav-h whenever nav size changes
+  // Contar filtros activos (para el badge del botón)
+  const activeFilters = [
+    f.tab !== 'sale',
+    f.priceMinStep > 0,
+    f.priceMaxStep < 100,
+    f.minBeds > 0,
+    f.minBaths > 0,
+    f.propertyType !== '',
+    f.keyword !== '',
+  ].filter(Boolean).length
+
+  // Update --nav-h
   useEffect(() => {
     const nav = navRef.current
     if (!nav) return
@@ -61,6 +73,13 @@ export default function Nav({ tenant }: NavProps) {
     return () => document.removeEventListener('click', onClick)
   }, [])
 
+  // Close mobile filter on ESC
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileFilterOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   function handleMin(v: number) {
     f.setPriceRange(Math.min(v, f.priceMaxStep - 1), f.priceMaxStep)
   }
@@ -68,6 +87,215 @@ export default function Nav({ tenant }: NavProps) {
     f.setPriceRange(f.priceMinStep, Math.max(v, f.priceMinStep + 1))
   }
 
+  // ── MOBILE NAV ──────────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <>
+        <nav ref={navRef} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000,
+          background: '#fff', borderBottom: '1px solid #e0e0e0',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 16px', height: 56,
+        }}>
+          {/* Logo */}
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            {tenant?.logo_url ? (
+              <img src={tenant.logo_url} alt={tenant.name} style={{ height: 30, objectFit: 'contain' }} />
+            ) : (
+              <span style={{ fontWeight: 800, fontSize: 16, color: '#111', letterSpacing: '-.02em' }}>{tenant?.name ?? 'PropCLOUD'}</span>
+            )}
+          </Link>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Filtros button */}
+            <button
+              onClick={() => setMobileFilterOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: activeFilters > 0 ? '#1a1a1a' : '#fff',
+                border: `1px solid ${activeFilters > 0 ? '#1a1a1a' : '#ddd'}`,
+                borderRadius: 22, padding: '7px 14px', fontSize: 13,
+                fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                color: activeFilters > 0 ? '#fff' : '#333',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              Filtros
+              {activeFilters > 0 && (
+                <span style={{ background: 'var(--accent,#f5a623)', color: '#111', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 2 }}>
+                  {activeFilters}
+                </span>
+              )}
+            </button>
+
+            {/* Menu */}
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                style={{ width: 36, height: 36, background: '#fff', border: '1px solid #ddd', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 15 }}
+              >
+                ☰
+              </button>
+              {menuOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.15)', minWidth: 200,
+                  zIndex: 10001, padding: 8, animation: 'dropdownFade .18s ease',
+                }}>
+                  {[
+                    { href: '/listings', icon: '🏠', label: 'Propiedades' },
+                    { href: '/about', icon: '👥', label: 'Nosotros' },
+                    { href: '/contact', icon: '✉️', label: 'Contacto' },
+                  ].map(item => (
+                    <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', textDecoration: 'none', color: '#222', fontSize: 14, fontWeight: 500, borderRadius: 8 }}
+                    >
+                      <span>{item.icon}</span> {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </nav>
+
+        {/* Mobile filter drawer */}
+        {mobileFilterOpen && (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 20000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setMobileFilterOpen(false)}
+          >
+            <div
+              style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                background: '#fff', borderRadius: '20px 20px 0 0',
+                padding: '0 0 32px',
+                maxHeight: '90vh', overflowY: 'auto',
+                animation: 'slideUp .25s cubic-bezier(0.4,0,0.2,1)',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px' }}>
+                <div style={{ width: 40, height: 4, background: '#e0e0e0', borderRadius: 2, margin: '0 auto' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>Filtros</span>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {activeFilters > 0 && (
+                    <button onClick={f.resetFilters} style={{ fontSize: 12, color: '#999', background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      ✕ Limpiar
+                    </button>
+                  )}
+                  <button onClick={() => setMobileFilterOpen(false)} style={{ fontSize: 12, fontWeight: 600, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ padding: '20px 20px 0' }}>
+
+                {/* Tabs */}
+                <div style={{ marginBottom: 24 }}>
+                  <FilterLabel>Tipo de transacción</FilterLabel>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[{ v: 'sale', l: 'Compra' }, { v: 'rent', l: 'Alquiler' }].map(t => (
+                      <button key={t.v} onClick={() => f.setTab(t.v as 'sale' | 'rent')} style={{
+                        flex: 1, padding: '10px 0', borderRadius: 8, border: `1px solid ${f.tab === t.v ? '#1a1a1a' : '#e0e0e0'}`,
+                        background: f.tab === t.v ? '#1a1a1a' : '#fff',
+                        color: f.tab === t.v ? '#fff' : '#555',
+                        fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{t.l}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Currency + price */}
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <FilterLabel>Precio</FilterLabel>
+                    <div style={{ display: 'flex', background: '#efefef', borderRadius: 10, padding: 2, gap: 1 }}>
+                      {(['USD', 'CRC'] as const).map(c => (
+                        <button key={c} onClick={() => f.setCurrency(c)} style={{
+                          padding: '3px 10px', border: 'none',
+                          background: f.currency === c ? '#fff' : 'transparent',
+                          borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                          color: f.currency === c ? '#111' : '#999', fontFamily: 'inherit',
+                          boxShadow: f.currency === c ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                        }}>
+                          {c === 'USD' ? 'USD $' : 'CRC ₡'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 10, textAlign: 'center' }}>
+                    {fmtPrice(pMin, f.currency)} — {isMax ? maxLabel : fmtPrice(pMax, f.currency)}
+                  </div>
+                  <div style={{ position: 'relative', height: 28, display: 'flex', alignItems: 'center' }}>
+                    <div style={{ position: 'absolute', left: 0, right: 0, height: 3, background: '#ddd', borderRadius: 2 }} />
+                    <div style={{ position: 'absolute', left: f.priceMinStep + '%', width: (f.priceMaxStep - f.priceMinStep) + '%', height: 3, background: 'linear-gradient(90deg, var(--accent, #f5a623), var(--primary, #6b2fa0))', borderRadius: 2 }} />
+                    <input type="range" min={0} max={100} value={f.priceMinStep} onChange={e => handleMin(Number(e.target.value))} style={{ position: 'absolute', width: '100%' }} />
+                    <input type="range" min={0} max={100} value={f.priceMaxStep} onChange={e => handleMax(Number(e.target.value))} style={{ position: 'absolute', width: '100%' }} />
+                  </div>
+                </div>
+
+                {/* Keyword */}
+                <div style={{ marginBottom: 20 }}>
+                  <FilterLabel>Palabra clave</FilterLabel>
+                  <input value={f.keyword} onChange={e => f.setKeyword(e.target.value)}
+                    placeholder="Ej: piscina, condominio..."
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', background: '#fafafa', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+
+                {/* Beds / Baths */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                  <div>
+                    <FilterLabel>Cuartos mín.</FilterLabel>
+                    <select value={f.minBeds} onChange={e => f.setMinBeds(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', background: '#fafafa' }}>
+                      <option value={0}>Cualquiera</option>
+                      {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}+</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <FilterLabel>Baños mín.</FilterLabel>
+                    <select value={f.minBaths} onChange={e => f.setMinBaths(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', background: '#fafafa' }}>
+                      <option value={0}>Cualquiera</option>
+                      {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}+</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Property type chips */}
+                <div style={{ marginBottom: 8 }}>
+                  <FilterLabel>Tipo de propiedad</FilterLabel>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {PROPERTY_TYPES.map(t => (
+                      <button key={t.value} onClick={() => f.setPropertyType(t.value)} style={{
+                        padding: '8px 14px', borderRadius: 24, fontSize: 13, fontFamily: 'inherit',
+                        background: f.propertyType === t.value ? '#1a1a1a' : '#f7f7f7',
+                        border: `1px solid ${f.propertyType === t.value ? '#1a1a1a' : '#e8e8e8'}`,
+                        color: f.propertyType === t.value ? '#fff' : '#444',
+                        cursor: 'pointer', fontWeight: f.propertyType === t.value ? 500 : 400,
+                      }}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`@keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }`}</style>
+      </>
+    )
+  }
+
+  // ── DESKTOP NAV ─────────────────────────────────────────────────────────────
   return (
     <nav
       ref={navRef}
@@ -107,7 +335,6 @@ export default function Nav({ tenant }: NavProps) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Precio</span>
-              {/* Currency toggle */}
               <div style={{ display: 'flex', background: '#efefef', borderRadius: 10, padding: 2, gap: 1 }}>
                 {(['USD', 'CRC'] as const).map(c => (
                   <button key={c} onClick={() => f.setCurrency(c)} style={{
@@ -127,7 +354,6 @@ export default function Nav({ tenant }: NavProps) {
               {fmtPrice(pMin, f.currency)} — {isMax ? maxLabel : fmtPrice(pMax, f.currency)}
             </span>
           </div>
-          {/* Dual range */}
           <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
             <div style={{ position: 'absolute', left: 0, right: 0, height: 3, background: '#ddd', borderRadius: 2 }} />
             <div style={{
@@ -241,7 +467,6 @@ export default function Nav({ tenant }: NavProps) {
           </button>
         </div>
 
-        {/* Property type chips */}
         <div style={{ paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#aaa', marginBottom: 8 }}>
             Tipo de Propiedad
@@ -265,6 +490,12 @@ export default function Nav({ tenant }: NavProps) {
       </div>
     </nav>
   )
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function FilterLabel({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: '#999', marginBottom: 8 }}>{children}</div>
 }
 
 function NavSep() {

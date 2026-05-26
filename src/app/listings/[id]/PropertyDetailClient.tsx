@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Property } from '@/types'
 
 interface Props { id: string }
@@ -14,6 +15,7 @@ function fmtFull(price: number, currency: string): string {
 
 export default function PropertyDetailClient({ id }: Props) {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [property, setProperty] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -85,8 +87,12 @@ export default function PropertyDetailClient({ id }: Props) {
 
   return (
     <>
-      {/* ── Split-screen container ── */}
-      <div style={{
+      {/* ── Split-screen / stacked container ── */}
+      <div style={isMobile ? {
+        paddingTop: 'var(--nav-h, 56px)',
+        minHeight: '100vh',
+        background: '#fff',
+      } : {
         position: 'fixed',
         top: 'var(--nav-h, 68px)',
         left: 0, right: 0, bottom: 0,
@@ -94,28 +100,33 @@ export default function PropertyDetailClient({ id }: Props) {
         gridTemplateColumns: '58% 42%',
       }}>
 
-        {/* ══ LEFT — stacked photos (scrollable) ══ */}
-        <div className="det-left">
-          {imgs.map((img, i) => (
+        {/* ══ LEFT — stacked photos ══ */}
+        <div className={isMobile ? '' : 'det-left'}>
+          {/* Mobile: show only first photo unless tapping for more */}
+          {(isMobile ? imgs.slice(0, 1) : imgs).map((img, i) => (
             <div
               key={i}
-              className="det-photo"
+              className={isMobile ? '' : 'det-photo'}
               onClick={() => openLb(i)}
-              style={{ width: '100%', aspectRatio: i === 0 ? '16/10' : '16/9' }}
+              style={{ width: '100%', aspectRatio: isMobile ? '4/3' : (i === 0 ? '16/10' : '16/9'), position: 'relative', overflow: 'hidden', cursor: 'pointer', background: '#e5e5e5' }}
             >
-              <img src={img} alt={`${p.title} ${i + 1}`} style={{ height: '100%', objectFit: 'cover' }} />
-              <div className="det-photo-zoom">⤢</div>
+              <img src={img} alt={`${p.title} ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              {isMobile && imgs.length > 1 && (
+                <div style={{ position: 'absolute', bottom: 12, right: 12, background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 12, padding: '4px 12px', borderRadius: 20, backdropFilter: 'blur(4px)' }}>
+                  📷 {imgs.length} fotos
+                </div>
+              )}
+              {!isMobile && <div className="det-photo-zoom">⤢</div>}
             </div>
           ))}
-          {/* bottom padding so last photo doesn't touch bottom */}
-          <div style={{ height: 40 }} />
+          {!isMobile && <div style={{ height: 40 }} />}
         </div>
 
         {/* ══ RIGHT — info panel ══ */}
-        <div ref={rightRef} className="det-right">
+        <div ref={rightRef} className={isMobile ? '' : 'det-right'} style={isMobile ? { background: '#fff' } : undefined}>
 
           {/* Back button */}
-          <div style={{ padding: '20px 28px 0', flexShrink: 0 }}>
+          <div style={{ padding: isMobile ? '16px 16px 0' : '20px 28px 0', flexShrink: 0 }}>
             <button
               onClick={() => router.back()}
               style={{
@@ -133,7 +144,7 @@ export default function PropertyDetailClient({ id }: Props) {
           </div>
 
           {/* Content */}
-          <div style={{ padding: '16px 28px 40px', flex: 1 }}>
+          <div style={{ padding: isMobile ? '16px 16px 60px' : '16px 28px 40px', flex: 1 }}>
 
             {/* Type tag */}
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent, #f5a623)', marginBottom: 8 }}>
