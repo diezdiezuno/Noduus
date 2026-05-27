@@ -28,9 +28,9 @@ const FIXED_NAV_DEFS = [
   { href: '/listings', slug: 'propiedades', order: 1 },
 ]
 const CONFIGURABLE_NAV_DEFS = [
-  { href: '/about',         slug: 'nosotros',      defaultVisible: true,  defaultOrder: 2 },
+  { href: '/nosotros',      slug: 'nosotros',      defaultVisible: true,  defaultOrder: 2 },
   { href: '/listar',        slug: 'listar',        defaultVisible: true,  defaultOrder: 3 },
-  { href: '/contact',       slug: 'contacto',      defaultVisible: true,  defaultOrder: 4 },
+  { href: '/contacto',      slug: 'contacto',      defaultVisible: true,  defaultOrder: 4 },
   { href: '/reclutamiento', slug: 'reclutamiento', defaultVisible: false, defaultOrder: 5 },
 ]
 

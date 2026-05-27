@@ -37,10 +37,10 @@ interface NavProps {
 
 // Default page link slugs / hrefs — labels are resolved from t at render time
 const DEFAULT_LINK_DEFS = [
-  { href: '/about',         slug: 'nosotros',       defaultVisible: true },
+  { href: '/nosotros',      slug: 'nosotros',       defaultVisible: true },
   { href: '/listar',        slug: 'listar',         defaultVisible: true },
   { href: '/reclutamiento', slug: 'reclutamiento',  defaultVisible: false },
-  { href: '/contact',       slug: 'contacto',       defaultVisible: true },
+  { href: '/contacto',      slug: 'contacto',       defaultVisible: true },
 ]
 
 function getPageLinks(pagesConfig: PageConfig[] | null | undefined, t: UIStrings) {
