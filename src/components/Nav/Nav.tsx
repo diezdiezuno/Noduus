@@ -103,6 +103,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
   const f = useFilters()
   const isMobile = useIsMobile(768)
   const [advOpen, setAdvOpen] = useState(false)
+  const [advAnimate, setAdvAnimate] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const navRef = useRef<HTMLElement>(null)
@@ -166,9 +167,10 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
   }, [])
 
   // Auto-open advanced panel on listings page, close on map page
+  // When navigating TO map: close instantly (no transition) so --nav-h is correct before Mapbox init
   useEffect(() => {
-    if (isListings) setAdvOpen(true)
-    if (isMap) setAdvOpen(false)
+    if (isListings) { setAdvAnimate(true); setAdvOpen(true) }
+    if (isMap) { setAdvAnimate(false); setAdvOpen(false) }
   }, [isListings, isMap])
 
   // Focus price input when editing starts
@@ -555,7 +557,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
         overflow: 'hidden',
         padding: advOpen ? '16px 24px' : '0 24px',
         borderTop: advOpen ? '1px solid #ebebeb' : '0px solid #ebebeb',
-        transition: 'max-height .35s cubic-bezier(0.4,0,0.2,1), padding .35s',
+        transition: advAnimate ? 'max-height .35s cubic-bezier(0.4,0,0.2,1), padding .35s' : 'none',
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 12, alignItems: 'end', marginBottom: 12 }}>
           <AdvField label="Palabra clave">
