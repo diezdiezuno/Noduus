@@ -168,18 +168,48 @@ export default function MapView({
         })
 
         map.on('load', async () => {
-          // Light preset
+          // ── Standard style config properties (mapbox://styles/mapbox/standard) ──
           try {
             if (autoLightPreset) {
               map.setConfigProperty('basemap', 'lightPreset', getMapLightPreset())
             }
           } catch {}
-          // Layer visibility
           try { map.setConfigProperty('basemap', 'show3dObjects', show3dObjects) } catch {}
           try { map.setConfigProperty('basemap', 'showPointOfInterestLabels', showPoiLabels) } catch {}
           try { map.setConfigProperty('basemap', 'showTransitLabels', showTransitLabels) } catch {}
           try { map.setConfigProperty('basemap', 'showPlaceLabels', showPlaceLabels) } catch {}
           try { map.setConfigProperty('basemap', 'showRoadLabels', showRoadLabels) } catch {}
+
+          // ── Classic style layer visibility (streets-v12, light-v11, etc.) ──
+          const vis = (v: boolean) => v ? 'visible' : 'none'
+          const layers = map.getStyle()?.layers ?? []
+          for (const layer of layers) {
+            const id: string = layer.id ?? ''
+            const type: string = layer.type ?? ''
+            const srcLayer: string = (layer['source-layer'] ?? '') as string
+
+            // 3D objects → all fill-extrusion layers
+            if (type === 'fill-extrusion') {
+              try { map.setLayoutProperty(id, 'visibility', vis(show3dObjects)) } catch {}
+            }
+            // POI labels → symbol layers with source-layer containing 'poi'
+            if (type === 'symbol' && srcLayer.includes('poi')) {
+              try { map.setLayoutProperty(id, 'visibility', vis(showPoiLabels)) } catch {}
+            }
+            // Transit labels
+            if (type === 'symbol' && (srcLayer.includes('transit') || srcLayer.includes('train') || srcLayer.includes('bus'))) {
+              try { map.setLayoutProperty(id, 'visibility', vis(showTransitLabels)) } catch {}
+            }
+            // Place labels → symbol layers with source-layer 'place_label'
+            if (type === 'symbol' && srcLayer.includes('place_label')) {
+              try { map.setLayoutProperty(id, 'visibility', vis(showPlaceLabels)) } catch {}
+            }
+            // Road labels → symbol layers with source-layer 'road'
+            if (type === 'symbol' && srcLayer.includes('road')) {
+              try { map.setLayoutProperty(id, 'visibility', vis(showRoadLabels)) } catch {}
+            }
+          }
+
           setStatus('ready')
 
           // Load properties
