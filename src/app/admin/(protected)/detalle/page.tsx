@@ -3,14 +3,6 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 
-const ALL_SECTIONS = [
-  { key: 'gallery',     label: 'Galería de imágenes' },
-  { key: 'info',        label: 'Título y ubicación' },
-  { key: 'stats',       label: 'Habitaciones / Baños / m²' },
-  { key: 'description', label: 'Descripción' },
-  { key: 'map',         label: 'Mini mapa de ubicación' },
-  { key: 'agent',       label: 'Tarjeta del agente' },
-]
 
 type ContactMode = 'agent' | 'office'
 type DetailLayout = 'A' | 'B' | 'C' | 'D'
@@ -99,7 +91,6 @@ export default function DetallePage() {
   const [saved, setSaved] = useState(false)
   const [tenantId, setTenantId] = useState('')
   const [detailLayout, setDetailLayout] = useState<DetailLayout>('C')
-  const [sections, setSections] = useState<string[]>(['gallery', 'info', 'stats', 'description', 'agent'])
   const [contactMode, setContactMode] = useState<ContactMode>('agent')
 
   useEffect(() => {
@@ -111,20 +102,13 @@ export default function DetallePage() {
       if (!adminRec) return
       setTenantId(adminRec.tenant_id)
       const { data: cfg } = await supabase
-        .from('tenant_config').select('detail_layout, detail_sections, detail_contact_mode')
+        .from('tenant_config').select('detail_layout, detail_contact_mode')
         .eq('tenant_id', adminRec.tenant_id).single()
       if (cfg?.detail_layout) setDetailLayout(cfg.detail_layout as DetailLayout)
-      if (cfg?.detail_sections) setSections(cfg.detail_sections)
       if (cfg?.detail_contact_mode) setContactMode(cfg.detail_contact_mode as ContactMode)
       setLoading(false)
     })
   }, [])
-
-  function toggle(key: string) {
-    setSections(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    )
-  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -133,7 +117,6 @@ export default function DetallePage() {
     await supabase.from('tenant_config').upsert({
       tenant_id: tenantId,
       detail_layout: detailLayout,
-      detail_sections: sections,
       detail_contact_mode: contactMode,
     }, { onConflict: 'tenant_id' })
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)
@@ -217,46 +200,6 @@ export default function DetallePage() {
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: active ? '#fff' : '#111', marginBottom: 3 }}>{label}</div>
                     <div style={{ fontSize: 12, color: active ? 'rgba(255,255,255,0.6)' : '#aaa' }}>{desc}</div>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
-        </Section>
-
-        {/* ── Visible sections ── */}
-        <Section title="Secciones visibles">
-          <p style={{ fontSize: 13, color: '#888', marginTop: 0, marginBottom: 16 }}>
-            Activá o desactivá cada sección. El orden de arriba hacia abajo refleja el orden en la página.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {ALL_SECTIONS.map(({ key, label }) => {
-              const active = sections.includes(key)
-              return (
-                <label key={key} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', borderRadius: 10,
-                  border: `1px solid ${active ? '#d1d5db' : '#f0f0f0'}`,
-                  background: active ? '#fff' : '#fafafa', cursor: 'pointer',
-                }}>
-                  <span style={{ fontSize: 14, color: active ? '#111' : '#aaa', fontWeight: active ? 500 : 400 }}>
-                    {label}
-                  </span>
-                  <div
-                    onClick={() => toggle(key)}
-                    style={{
-                      width: 44, height: 24, borderRadius: 12,
-                      background: active ? '#111' : '#e0e0e0',
-                      position: 'relative', transition: 'background .2s', cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{
-                      width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                      position: 'absolute', top: 3,
-                      left: active ? 23 : 3,
-                      transition: 'left .2s',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                    }} />
                   </div>
                 </label>
               )
