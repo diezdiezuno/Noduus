@@ -179,7 +179,7 @@ export default function PropertyDetailClient({
 
         {/* ══ RIGHT — info panel ══ */}
         <div className={isMobile ? '' : 'det-right'} style={isMobile ? { background: '#fff' } : undefined}>
-          <div style={{ padding: isMobile ? '24px 20px 60px' : '36px 36px 48px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div style={{ padding: isMobile ? '24px 20px 60px' : '36px 36px 48px', display: 'flex', flexDirection: 'column', gap: 0, minHeight: '100%' }}>
 
             {/* Type · Location */}
             <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '.16em', textTransform: 'uppercase', color: '#aaa', marginBottom: 10 }}>
@@ -258,8 +258,8 @@ export default function PropertyDetailClient({
               </>
             )}
 
-            {/* Agent + contact form sidebar */}
-            <div ref={formRef} style={{ background: '#f9f9f9', borderRadius: 10, padding: 22, border: '1px solid #eee', marginTop: 4 }}>
+            {/* Agent + contact form sidebar — margin-top:auto pushes to bottom when content is short */}
+            <div ref={formRef} style={{ background: '#f9f9f9', borderRadius: 10, padding: 22, border: '1px solid #eee', marginTop: 'auto' }}>
               {/* Agent */}
               {agentName && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #eee' }}>

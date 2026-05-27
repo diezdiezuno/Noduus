@@ -161,6 +161,12 @@ input[type=range]::-moz-range-thumb {
 .det-photo-zoom { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0); background: rgba(0,0,0,.45); backdrop-filter: blur(6px); color: #fff; font-size: 20px; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: transform .25s, opacity .25s; opacity: 0; pointer-events: none; }
 .det-photo:hover .det-photo-zoom { transform: translate(-50%,-50%) scale(1); opacity: 1; }
 
+/* ── Detail form inputs ── */
+.det-inp { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 10px 13px; font-size: 13px; font-family: inherit; background: #fff; outline: none; resize: none; transition: border-color .2s; margin-bottom: 9px; box-sizing: border-box; }
+.det-inp:focus { border-color: var(--primary, #6b2fa0); }
+.det-submit { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .2s; }
+.det-submit:hover { background: #333; }
+
 /* ── Lightbox ── */
 .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.93); z-index: 20000; align-items: center; justify-content: center; }
 .lightbox.open { display: flex; }
