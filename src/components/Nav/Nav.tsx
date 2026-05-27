@@ -96,7 +96,10 @@ function priceToStep(price: number, steps: number[]): number {
 export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
   const pathname = usePathname()
   const isMap = pathname === '/'
-  const isDetail = !isMap && /^\/listings\/.+/.test(pathname)
+  const isListings = pathname === '/listings'
+  const isDetail = !isMap && !isListings && /^\/listings\/.+/.test(pathname)
+  // sec-nav pages: detail + static pages (not map, not listings)
+  const isSecNav = !isMap && !isListings
 
   const f = useFilters()
   const isMobile = useIsMobile(768)
@@ -163,6 +166,12 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Auto-open advanced panel on listings page, close on map page
+  useEffect(() => {
+    if (isListings) setAdvOpen(true)
+    if (isMap) setAdvOpen(false)
+  }, [isListings, isMap])
+
   // Focus price input when editing starts
   useEffect(() => {
     if ((editingMin || editingMax) && editInputRef.current) {
@@ -204,8 +213,8 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
     setEditingMax(false)
   }
 
-  // ── SEC-NAV (non-map pages) ──────────────────────────────────────────────────
-  if (!isMap) {
+  // ── SEC-NAV (detail + static pages, NOT map or listings) ────────────────────
+  if (isSecNav) {
     const pageLinks = getPageLinks(pagesConfig)
     return (
       <>

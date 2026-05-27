@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { useFilteredProperties, useFilters } from '@/contexts/FilterContext'
+import { useFilteredProperties } from '@/contexts/FilterContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Property } from '@/types'
 
@@ -22,21 +22,9 @@ function fmtPrice(price: number, currency: string) {
   return sym + (price >= 1e6 ? (price / 1e6).toFixed(1).replace('.0', '') + 'M' : Math.round(price / 1000) + 'K')
 }
 
-const PROPERTY_TYPES = [
-  { value: '', label: 'Todos' },
-  { value: 'Casa', label: 'Casa / Villa' },
-  { value: 'Apto', label: 'Apto / Condo' },
-  { value: 'Lote', label: 'Lote / Terreno' },
-  { value: 'Multifamiliar', label: 'Multifamiliar' },
-  { value: 'Comercial', label: 'Comercial' },
-  { value: 'Oficina', label: 'Oficina' },
-  { value: 'Bodega', label: 'Bodega' },
-]
-
 export default function ListingsClient({ defaultView = 'grid', defaultSort = 'price_asc', enabledViews = ['grid', 'hover', 'dual', 'list'] }: Props) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const f = useFilters()
   const [allProperties, setAllProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>(defaultView === 'list' ? 'list' : 'grid')
@@ -77,60 +65,7 @@ export default function ListingsClient({ defaultView = 'grid', defaultSort = 'pr
           </p>
         </div>
 
-        {/* ── Filter strip ── */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, alignItems: 'center' }}>
-          {/* Sale / Rent */}
-          {[{ v: 'sale', l: 'Venta' }, { v: 'rent', l: 'Alquiler' }].map(t => (
-            <button key={t.v} onClick={() => f.setTab(t.v as 'sale' | 'rent')} style={{
-              padding: '8px 18px', border: `1px solid ${f.tab === t.v ? '#1a1a1a' : '#e0e0e0'}`,
-              background: f.tab === t.v ? '#1a1a1a' : '#fff',
-              color: f.tab === t.v ? '#fff' : '#555',
-              borderRadius: 24, fontSize: 13, fontWeight: f.tab === t.v ? 600 : 400,
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s',
-            }}>{t.l}</button>
-          ))}
-
-          {/* Separator */}
-          <div style={{ width: 1, height: 24, background: '#e0e0e0', flexShrink: 0, margin: '0 4px' }} />
-
-          {/* Property type */}
-          {PROPERTY_TYPES.map(t => (
-            <button key={t.value} onClick={() => f.setPropertyType(t.value)} style={{
-              padding: '8px 18px', border: `1px solid ${f.propertyType === t.value ? '#1a1a1a' : '#e0e0e0'}`,
-              background: f.propertyType === t.value ? '#1a1a1a' : '#fff',
-              color: f.propertyType === t.value ? '#fff' : '#555',
-              borderRadius: 24, fontSize: 13, fontWeight: f.propertyType === t.value ? 500 : 400,
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s',
-            }}>{t.label}</button>
-          ))}
-
-          {/* Search */}
-          <input
-            value={f.keyword}
-            onChange={e => f.setKeyword(e.target.value)}
-            placeholder="Buscar..."
-            style={{
-              flex: 1, minWidth: 160, maxWidth: 280,
-              padding: '8px 18px', border: '1px solid #e0e0e0', borderRadius: 24,
-              fontSize: 13, fontFamily: 'inherit', outline: 'none',
-              transition: 'border-color .2s',
-            }}
-            onFocus={e => (e.currentTarget as HTMLInputElement).style.borderColor = 'var(--accent,#f5a623)'}
-            onBlur={e => (e.currentTarget as HTMLInputElement).style.borderColor = '#e0e0e0'}
-          />
-
-          {/* Reset */}
-          {(f.tab !== 'sale' || f.propertyType !== '' || f.keyword !== '' || f.minBeds > 0 || f.minBaths > 0 || f.zone !== '') && (
-            <button onClick={f.resetFilters} style={{
-              padding: '8px 14px', border: '1px solid #e0e0e0', background: '#fff',
-              borderRadius: 24, fontSize: 13, color: '#999', cursor: 'pointer', fontFamily: 'inherit',
-            }}>
-              ✕ Limpiar
-            </button>
-          )}
-        </div>
-
-        {/* ── View toggle ── */}
+        {/* View toggle */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
           <div style={{ display: 'flex', gap: 3, background: '#f0f0f0', borderRadius: 8, padding: 3 }}>
             {[
