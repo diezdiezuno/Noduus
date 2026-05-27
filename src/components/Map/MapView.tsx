@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useFilteredProperties } from '@/contexts/FilterContext'
+import { useFilters, useFilteredProperties } from '@/contexts/FilterContext'
 import type { Property } from '@/types'
 
 interface MapViewProps {
@@ -45,6 +45,7 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
   const [count, setCount] = useState<number | null>(null)
+  const f = useFilters()
 
   // All properties from API
   const [allProperties, setAllProperties] = useState<Property[]>([])
@@ -124,6 +125,25 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
           trackUserLocation: true,
           showUserHeading: false,
         }), 'top-right')
+
+        // Register zone fly-to handlers for Nav zone pills
+        f.registerMapFlyTo(([lng, lat, zoom]) => {
+          map?.flyTo({ center: [lng, lat], zoom, duration: 800 })
+        })
+        f.registerMapFitZone((zone) => {
+          const props = allPropsRef.current.filter(p => {
+            const loc = [p.city, p.country, p.address].filter(Boolean).join(' ').toLowerCase()
+            return loc.includes(zone.toLowerCase()) && p.lat && p.lng
+          })
+          if (props.length) {
+            const lats = props.map(p => p.lat!)
+            const lngs = props.map(p => p.lng!)
+            map?.fitBounds(
+              [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+              { padding: 80, maxZoom: 14, duration: 800 }
+            )
+          }
+        })
 
         map.on('load', async () => {
           try { map.setConfigProperty('basemap', 'lightPreset', getMapLightPreset()) } catch {}

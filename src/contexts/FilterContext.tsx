@@ -1,12 +1,12 @@
 'use client'
 
-import { createContext, useContext, useState, useMemo, ReactNode } from 'react'
+import { createContext, useContext, useState, useMemo, useRef, ReactNode } from 'react'
 import type { Property } from '@/types'
 
 export type Tab = 'sale' | 'rent'
 export type Currency = 'USD' | 'CRC'
 
-// Non-linear price steps (same as Sunrise)
+// Non-linear price steps (same as Sunrise reference)
 export const USD_STEPS = [0,50000,100000,150000,200000,250000,300000,400000,500000,600000,750000,1000000,1500000,2000000,3000000,5000000,99000000]
 export const CRC_STEPS = [0,10000000,20000000,40000000,60000000,80000000,100000000,150000000,200000000,300000000,500000000,750000000,1000000000,9900000000]
 
@@ -35,6 +35,7 @@ interface FilterState {
   minBeds: number
   minBaths: number
   propertyType: string
+  zone: string   // location text filter
 }
 
 const DEFAULT: FilterState = {
@@ -46,7 +47,11 @@ const DEFAULT: FilterState = {
   minBeds: 0,
   minBaths: 0,
   propertyType: '',
+  zone: '',
 }
+
+// [lng, lat, zoom] — optional predefined coordinates for a zone
+export type ZoneCenter = [number, number, number]
 
 interface FilterContextValue extends FilterState {
   setTab: (t: Tab) => void
@@ -56,17 +61,23 @@ interface FilterContextValue extends FilterState {
   setMinBeds: (n: number) => void
   setMinBaths: (n: number) => void
   setPropertyType: (t: string) => void
+  setZone: (zone: string, center?: ZoneCenter) => void
   resetFilters: () => void
   getSteps: () => number[]
   getPriceMin: () => number
   getPriceMax: () => number
   isMaxPrice: () => boolean
+  // Map fly-to: MapView registers this, Nav calls it
+  registerMapFlyTo: (fn: (center: ZoneCenter) => void) => void
+  registerMapFitZone: (fn: (zone: string) => void) => void
 }
 
 const FilterContext = createContext<FilterContextValue | null>(null)
 
 export function FilterProvider({ children }: { children: ReactNode }) {
   const [s, setS] = useState<FilterState>(DEFAULT)
+  const flyToRef = useRef<((center: ZoneCenter) => void) | null>(null)
+  const fitZoneRef = useRef<((zone: string) => void) | null>(null)
 
   const getSteps = () => s.currency === 'CRC' ? CRC_STEPS : USD_STEPS
   const getPriceMin = () => stepToPrice(s.priceMinStep, getSteps())
@@ -82,7 +93,23 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     setMinBeds: (minBeds) => setS(f => ({ ...f, minBeds })),
     setMinBaths: (minBaths) => setS(f => ({ ...f, minBaths })),
     setPropertyType: (propertyType) => setS(f => ({ ...f, propertyType })),
-    resetFilters: () => setS(DEFAULT),
+    setZone: (zone, center) => {
+      setS(f => ({ ...f, zone }))
+      if (zone && center) {
+        flyToRef.current?.(center)
+      } else if (zone) {
+        fitZoneRef.current?.(zone)
+      } else {
+        // Reset to default map center
+        flyToRef.current?.([-84.2, 9.7, 8])
+      }
+    },
+    resetFilters: () => {
+      setS(DEFAULT)
+      flyToRef.current?.([-84.2, 9.7, 8])
+    },
+    registerMapFlyTo: (fn) => { flyToRef.current = fn },
+    registerMapFitZone: (fn) => { fitZoneRef.current = fn },
     getSteps,
     getPriceMin,
     getPriceMax,
@@ -117,6 +144,11 @@ export function useFilteredProperties(properties: Property[]) {
         const type = (p.type ?? '').toLowerCase()
         if (!type.includes(f.propertyType.toLowerCase())) return false
       }
+      if (f.zone) {
+        const q = f.zone.toLowerCase()
+        const loc = [p.city, p.country, p.address].filter(Boolean).join(' ').toLowerCase()
+        if (!loc.includes(q)) return false
+      }
       if (f.keyword) {
         const q = f.keyword.toLowerCase()
         const hay = [p.title, p.city, p.type, p.description, p.address].filter(Boolean).join(' ').toLowerCase()
@@ -125,5 +157,5 @@ export function useFilteredProperties(properties: Property[]) {
       return true
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [properties, f.tab, f.currency, f.priceMinStep, f.priceMaxStep, f.minBeds, f.minBaths, f.propertyType, f.keyword])
+  }, [properties, f.tab, f.currency, f.priceMinStep, f.priceMaxStep, f.minBeds, f.minBaths, f.propertyType, f.zone, f.keyword])
 }

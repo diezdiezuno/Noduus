@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useFilters, USD_STEPS, CRC_STEPS, stepToPrice, fmtPrice } from '@/contexts/FilterContext'
+import type { ZoneCenter } from '@/contexts/FilterContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Tenant } from '@/types'
 
@@ -15,6 +16,25 @@ const PROPERTY_TYPES = [
   { value: 'Comercial', label: 'Comercial' },
   { value: 'Oficina', label: 'Oficina' },
   { value: 'Bodega', label: 'Bodega' },
+]
+
+// Zone pills: [display label, search term, optional fixed center [lng, lat, zoom]]
+const ZONES: [string, string, ZoneCenter?][] = [
+  ['Curridabat', 'Curridabat'],
+  ['Tres Ríos', 'La union'],
+  ['San Pedro', 'Montes de Oca'],
+  ['Escalante', 'Escalante', [-84.06344934624333, 9.936704621817613, 15]],
+  ['Tibás', 'Tibas'],
+  ['Moravia', 'Moravia'],
+  ['Coronado', 'Coronado'],
+  ['Escazú', 'Escazu'],
+  ['Santa Ana', 'Santa Ana'],
+  ['Rohrmoser', 'Pavas'],
+  ['Nunciatura', 'Nunciatura', [-84.10319412103462, 9.936022992526121, 15]],
+  ['La Garita', 'La Garita'],
+  ['Cartago', 'Cartago'],
+  ['Heredia', 'Heredia'],
+  ['Alajuela', 'Alajuela'],
 ]
 
 interface NavProps { tenant: Tenant | null }
@@ -44,6 +64,7 @@ export default function Nav({ tenant }: NavProps) {
     f.minBaths > 0,
     f.propertyType !== '',
     f.keyword !== '',
+    f.zone !== '',
   ].filter(Boolean).length
 
   // Update --nav-h
@@ -269,7 +290,7 @@ export default function Nav({ tenant }: NavProps) {
                 </div>
 
                 {/* Property type chips */}
-                <div style={{ marginBottom: 8 }}>
+                <div style={{ marginBottom: 20 }}>
                   <FilterLabel>Tipo de propiedad</FilterLabel>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {PROPERTY_TYPES.map(t => (
@@ -283,6 +304,27 @@ export default function Nav({ tenant }: NavProps) {
                         {t.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Zone pills */}
+                <div style={{ marginBottom: 8 }}>
+                  <FilterLabel>Zona</FilterLabel>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {ZONES.map(([label, search, center]) => {
+                      const active = f.zone === search
+                      return (
+                        <button key={search} onClick={() => f.setZone(active ? '' : search, active ? undefined : center)} style={{
+                          padding: '8px 14px', borderRadius: 24, fontSize: 13, fontFamily: 'inherit',
+                          background: active ? '#1a1a1a' : '#f7f7f7',
+                          border: `1px solid ${active ? '#1a1a1a' : '#e8e8e8'}`,
+                          color: active ? '#fff' : '#444',
+                          cursor: 'pointer', fontWeight: active ? 500 : 400,
+                        }}>
+                          {label}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -485,6 +527,30 @@ export default function Nav({ tenant }: NavProps) {
                 {t.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div style={{ paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#aaa', marginBottom: 8 }}>
+            Zona
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {ZONES.map(([label, search, center]) => {
+              const active = f.zone === search
+              return (
+                <button key={search} onClick={() => f.setZone(active ? '' : search, active ? undefined : center)} style={{
+                  padding: '7px 14px',
+                  background: active ? '#1a1a1a' : '#f7f7f7',
+                  border: `1px solid ${active ? '#1a1a1a' : '#e8e8e8'}`,
+                  borderRadius: 24, fontSize: 13, fontFamily: 'inherit',
+                  color: active ? '#fff' : '#444',
+                  cursor: 'pointer', fontWeight: active ? 500 : 400,
+                  transition: 'all .2s',
+                }}>
+                  {label}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
