@@ -5,11 +5,12 @@ import { createClient } from '@/lib/supabase-browser'
 import type { ZoneConfigItem } from '@/types'
 
 const MAP_STYLES = [
-  { value: 'mapbox://styles/mapbox/streets-v12',         label: 'Streets',  color: '#e8ddd0', desc: 'Calles, edificios y puntos de interés. El más completo para propiedades urbanas.' },
-  { value: 'mapbox://styles/mapbox/light-v11',           label: 'Light',    color: '#f2f0ec', desc: 'Fondo claro y minimalista. Los markers de propiedades destacan sin distracción.' },
-  { value: 'mapbox://styles/mapbox/dark-v11',            label: 'Dark',     color: '#1a1c23', desc: 'Fondo oscuro elegante. Perfecto para inmobiliarias premium o de nicho.' },
-  { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: 'Satélite', color: '#3a5a3a', desc: 'Fotografía aérea real con calles superpuestas. Ideal para lotes y propiedades grandes.' },
-  { value: 'mapbox://styles/mapbox/outdoors-v12',        label: 'Outdoors', color: '#d6e8cc', desc: 'Topografía y terreno natural. Para propiedades rurales, de playa o de montaña.' },
+  { value: 'mapbox://styles/ssolorzano/cmp04iyh7000t01rw07qhd7eh', label: 'Default', color: '#dde8f0', desc: 'Estilo personalizado con objetos 3D, POI, iluminación dinámica y todas las capas activas. ✦ Recomendado', default: true },
+  { value: 'mapbox://styles/mapbox/streets-v12',         label: 'Streets',  color: '#e8ddd0', desc: 'Estilo estándar de Mapbox. Los toggles de capas pueden no aplicar.' },
+  { value: 'mapbox://styles/mapbox/light-v11',           label: 'Light',    color: '#f2f0ec', desc: 'Fondo claro y minimalista.' },
+  { value: 'mapbox://styles/mapbox/dark-v11',            label: 'Dark',     color: '#1a1c23', desc: 'Fondo oscuro elegante.' },
+  { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: 'Satélite', color: '#3a5a3a', desc: 'Fotografía aérea real con calles superpuestas.' },
+  { value: 'mapbox://styles/mapbox/outdoors-v12',        label: 'Outdoors', color: '#d6e8cc', desc: 'Topografía y terreno natural.' },
 ]
 
 // Predefined zones included in every install
@@ -310,7 +311,7 @@ export default function MapaPage() {
   const [lat, setLat] = useState('9.9281')
   const [lng, setLng] = useState('-84.0907')
   const [zoom, setZoom] = useState(12)
-  const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/streets-v12')
+  const [mapStyle, setMapStyle] = useState('mapbox://styles/ssolorzano/cmp04iyh7000t01rw07qhd7eh')
   const [autoLightPreset, setAutoLightPreset] = useState(false)
   // Layer visibility
   const [show3dObjects, setShow3dObjects] = useState(true)

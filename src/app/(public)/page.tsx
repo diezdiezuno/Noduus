@@ -14,7 +14,7 @@ export default async function HomePage() {
   const config = await getTenantConfig(tenant.id).catch(() => null)
 
   const theme = tenant.theme ?? {}
-  const mapStyle = theme.mapStyle ?? 'mapbox://styles/mapbox/streets-v12'
+  const mapStyle = theme.mapStyle ?? 'mapbox://styles/ssolorzano/cmp04iyh7000t01rw07qhd7eh'
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
   const mapCenter: [number, number] = [
     config?.map_center_lng ?? -84.0,

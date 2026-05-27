@@ -168,47 +168,13 @@ export default function MapView({
         })
 
         map.on('load', async () => {
-          // ── Debug: log layer types and setConfigProperty support ──
-          const allLayers = map.getStyle()?.layers ?? []
-          const extrusionLayers = allLayers.filter((l: any) => l.type === 'fill-extrusion')
-          console.log('[MapView] total layers:', allLayers.length, '| fill-extrusion layers:', extrusionLayers.map((l: any) => l.id))
-          try {
-            map.setConfigProperty('basemap', 'show3dObjects', show3dObjects)
-            console.log('[MapView] setConfigProperty OK — show3dObjects:', show3dObjects)
-          } catch (e) {
-            console.warn('[MapView] setConfigProperty failed:', e)
-          }
-
-          // ── Standard style config properties ──
+          // ── setConfigProperty — works with Standard-based styles (custom Studio styles, etc.) ──
           try { if (autoLightPreset) map.setConfigProperty('basemap', 'lightPreset', getMapLightPreset()) } catch {}
+          try { map.setConfigProperty('basemap', 'show3dObjects', show3dObjects) } catch {}
           try { map.setConfigProperty('basemap', 'showPointOfInterestLabels', showPoiLabels) } catch {}
           try { map.setConfigProperty('basemap', 'showTransitLabels', showTransitLabels) } catch {}
           try { map.setConfigProperty('basemap', 'showPlaceLabels', showPlaceLabels) } catch {}
           try { map.setConfigProperty('basemap', 'showRoadLabels', showRoadLabels) } catch {}
-
-          // ── Classic style layer visibility (streets-v12, light-v11, etc.) ──
-          const vis = (v: boolean) => v ? 'visible' : 'none'
-          for (const layer of allLayers) {
-            const id: string = (layer as any).id ?? ''
-            const type: string = (layer as any).type ?? ''
-            const srcLayer: string = ((layer as any)['source-layer'] ?? '') as string
-
-            if (type === 'fill-extrusion') {
-              try { map.setLayoutProperty(id, 'visibility', vis(show3dObjects)) } catch {}
-            }
-            if (type === 'symbol' && srcLayer.includes('poi')) {
-              try { map.setLayoutProperty(id, 'visibility', vis(showPoiLabels)) } catch {}
-            }
-            if (type === 'symbol' && (srcLayer.includes('transit') || srcLayer.includes('train') || srcLayer.includes('bus'))) {
-              try { map.setLayoutProperty(id, 'visibility', vis(showTransitLabels)) } catch {}
-            }
-            if (type === 'symbol' && srcLayer.includes('place_label')) {
-              try { map.setLayoutProperty(id, 'visibility', vis(showPlaceLabels)) } catch {}
-            }
-            if (type === 'symbol' && srcLayer.includes('road')) {
-              try { map.setLayoutProperty(id, 'visibility', vis(showRoadLabels)) } catch {}
-            }
-          }
 
           setStatus('ready')
 
