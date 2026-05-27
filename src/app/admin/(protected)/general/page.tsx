@@ -490,9 +490,9 @@ function LogoUploader({
         onMouseEnter={e => { if (!uploading) (e.currentTarget as HTMLElement).style.borderColor = '#bbb' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e0e0e0' }}
       >
-        {/* Preview or placeholder */}
+        {/* Thumbnail (square) */}
         <div style={{
-          width: 72, height: 48, flexShrink: 0, borderRadius: 7, overflow: 'hidden',
+          width: 64, height: 64, flexShrink: 0, borderRadius: 8, overflow: 'hidden',
           background: darkPreview ? '#1a1a1a' : '#f0f0f0',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           border: '1px solid #e8e8e8',
@@ -500,7 +500,7 @@ function LogoUploader({
           {uploading ? (
             <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid #ddd', borderTopColor: '#888', animation: 'spin 0.7s linear infinite' }} />
           ) : url ? (
-            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
+            <img src={url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: 6 }} />
           ) : (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -537,6 +537,22 @@ function LogoUploader({
         style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }}
       />
+
+      {/* Full preview */}
+      {url && !uploading && (
+        <div style={{
+          marginTop: 10, borderRadius: 8, padding: '16px 20px',
+          background: darkPreview ? '#1a1a1a' : '#f7f7f7',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          minHeight: 72, border: `1px solid ${darkPreview ? '#333' : '#ebebeb'}`,
+        }}>
+          <img
+            src={url}
+            alt="Logo preview"
+            style={{ maxHeight: 60, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+          />
+        </div>
+      )}
 
       {/* URL fallback */}
       <div style={{ marginTop: 10 }}>

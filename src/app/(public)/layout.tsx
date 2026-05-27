@@ -3,7 +3,18 @@ import { getTenantByDomain, getTenantConfig, DEFAULT_THEME } from '@/lib/tenant'
 import Nav from '@/components/Nav/Nav'
 import Footer from '@/components/Footer/Footer'
 import { FilterProvider } from '@/contexts/FilterContext'
+import type { Metadata } from 'next'
 import type { Tenant, TenantConfig } from '@/types'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = await headers()
+  const domain = headersList.get('x-tenant-domain') ?? 'localhost'
+  try {
+    const tenant = await getTenantByDomain(domain)
+    if (tenant?.name) return { title: { default: tenant.name, template: `%s · ${tenant.name}` } }
+  } catch {}
+  return { title: 'PropCLOUD' }
+}
 
 function googleFontsUrl(heading: string, body: string): string {
   const encode = (f: string) => encodeURIComponent(f).replace(/%20/g, '+')
