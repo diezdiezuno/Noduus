@@ -14,13 +14,16 @@ const PRESET_STYLES = [
 const PRESET_VALUES = new Set(PRESET_STYLES.map(s => s.value))
 
 // What each preset style actually supports via setConfigProperty
-const STYLE_CAPS: Record<string, { lightPreset: boolean; show3dObjects: boolean }> = {
-  'mapbox://styles/mapbox/streets-v12':           { lightPreset: true,  show3dObjects: false },
-  'mapbox://styles/mapbox/light-v11':             { lightPreset: true,  show3dObjects: false },
-  'mapbox://styles/mapbox/dark-v11':              { lightPreset: false, show3dObjects: false },
-  'mapbox://styles/mapbox/satellite-streets-v12': { lightPreset: false, show3dObjects: false },
-  'mapbox://styles/mapbox/outdoors-v12':          { lightPreset: true,  show3dObjects: false },
+interface StyleCaps { lightPreset: boolean; show3dObjects: boolean; showPoiLabels: boolean; showTransitLabels: boolean; showPlaceLabels: boolean; showRoadLabels: boolean }
+const STYLE_CAPS: Record<string, StyleCaps> = {
+  //                                              light   3d      poi    transit place  road
+  'mapbox://styles/mapbox/streets-v12':           { lightPreset: true,  show3dObjects: false, showPoiLabels: true,  showTransitLabels: true,  showPlaceLabels: true,  showRoadLabels: true  },
+  'mapbox://styles/mapbox/light-v11':             { lightPreset: true,  show3dObjects: false, showPoiLabels: true,  showTransitLabels: true,  showPlaceLabels: true,  showRoadLabels: true  },
+  'mapbox://styles/mapbox/dark-v11':              { lightPreset: false, show3dObjects: false, showPoiLabels: true,  showTransitLabels: true,  showPlaceLabels: true,  showRoadLabels: true  },
+  'mapbox://styles/mapbox/satellite-streets-v12': { lightPreset: false, show3dObjects: false, showPoiLabels: true,  showTransitLabels: false, showPlaceLabels: true,  showRoadLabels: true  },
+  'mapbox://styles/mapbox/outdoors-v12':          { lightPreset: true,  show3dObjects: false, showPoiLabels: false, showTransitLabels: false, showPlaceLabels: true,  showRoadLabels: true  },
 }
+const ALL_CAPS: StyleCaps = { lightPreset: true, show3dObjects: true, showPoiLabels: true, showTransitLabels: true, showPlaceLabels: true, showRoadLabels: true }
 
 // Predefined zones included in every install
 const PREDEFINED: ZoneConfigItem[] = [
@@ -410,9 +413,7 @@ export default function MapaPage() {
   }
 
   const isCustomStyle = !!customStyleUrl.trim()
-  const caps = isCustomStyle
-    ? { lightPreset: true, show3dObjects: true }
-    : (STYLE_CAPS[mapStyle] ?? { lightPreset: true, show3dObjects: false })
+  const caps: StyleCaps = isCustomStyle ? ALL_CAPS : (STYLE_CAPS[mapStyle] ?? ALL_CAPS)
 
   const predefinedZones = zones.filter(z => !z.custom)
   const customZones = zones.filter(z => z.custom)
@@ -528,11 +529,11 @@ export default function MapaPage() {
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>Capas visibles</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                     {([
-                      ...(caps.show3dObjects ? [[show3dObjects, setShow3dObjects, '🏢', 'Objetos 3D', 'Edificios y estructuras 3D']] : []),
-                      [showPoiLabels,      setShowPoiLabels,      '📍', 'Negocios',         'Restaurantes, tiendas, hoteles…'],
-                      [showTransitLabels,  setShowTransitLabels,  '🚌', 'Transporte',        'Paradas y líneas'],
-                      [showPlaceLabels,    setShowPlaceLabels,    '🗺️', 'Lugares',           'Barrios, ciudades, países'],
-                      [showRoadLabels,     setShowRoadLabels,     '🛣️', 'Calles',            'Nombre de cada vía'],
+                      ...(caps.show3dObjects    ? [[show3dObjects,     setShow3dObjects,     '🏢', 'Objetos 3D',  'Edificios y estructuras 3D']]   : []),
+                      ...(caps.showPoiLabels    ? [[showPoiLabels,     setShowPoiLabels,     '📍', 'Negocios',    'Restaurantes, tiendas, hoteles…']] : []),
+                      ...(caps.showTransitLabels? [[showTransitLabels, setShowTransitLabels, '🚌', 'Transporte',  'Paradas y líneas']]              : []),
+                      ...(caps.showPlaceLabels  ? [[showPlaceLabels,   setShowPlaceLabels,   '🗺️', 'Lugares',     'Barrios, ciudades, países']]      : []),
+                      ...(caps.showRoadLabels   ? [[showRoadLabels,    setShowRoadLabels,    '🛣️', 'Calles',      'Nombre de cada vía']]            : []),
                     ] as [boolean, (v: boolean) => void, string, string, string][]).map(([value, setter, icon, label, desc], i, arr) => (
                       <div key={label} style={{
                         display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0',
