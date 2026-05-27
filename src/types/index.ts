@@ -63,6 +63,8 @@ export interface TenantConfig {
   listing_cols: number | null
   listing_sort: 'price_asc' | 'price_desc' | 'newest' | null
   listing_views: string[] | null          // which view modes to show in the toggle
+  // Language
+  default_language: 'es' | 'en' | null
   // Detail
   detail_layout: 'A' | 'B' | 'C' | 'D' | null
   detail_sections: string[] | null
@@ -97,9 +99,15 @@ export interface Property {
   external_id: string | null
   source: 'remax_cca' | 'manual' | 'custom_api'
   type: string
+  type_es: string | null
+  type_en: string | null
   transaction: 'sale' | 'rent'
   title: string
+  title_es: string | null
+  title_en: string | null
   description: string | null
+  description_es: string | null
+  description_en: string | null
   price: number
   currency: 'USD' | 'CRC'
   bedrooms: number | null

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useFilters, useFilteredProperties } from '@/contexts/FilterContext'
+import { useLang, locProp } from '@/contexts/LanguageContext'
 import type { Property } from '@/types'
 
 interface MapViewProps {
@@ -46,6 +47,9 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
   const [errorMsg, setErrorMsg] = useState('')
   const [count, setCount] = useState<number | null>(null)
   const f = useFilters()
+  const { lang } = useLang()
+  const langRef = useRef(lang)
+  langRef.current = lang
 
   // All properties from API
   const [allProperties, setAllProperties] = useState<Property[]>([])
@@ -69,15 +73,17 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
       pinEl.className = 'map-pin'
       pinEl.innerHTML = `<div class="mp-price">${label}</div>${loc ? `<div class="mp-loc">${loc}</div>` : ''}`
 
+      const lp = locProp(p, langRef.current)
+      const viewLabel = langRef.current === 'en' ? 'View property →' : 'Ver propiedad →'
       const popupHtml = `
         <div class="map-popup">
           ${p.images[0] ? `<img src="${p.images[0]}" alt="">` : ''}
           <div class="mp-body">
-            <div class="mp-type">${p.type ?? ''}</div>
-            <div class="mp-title">${p.title}</div>
+            <div class="mp-type">${lp.type ?? ''}</div>
+            <div class="mp-title">${lp.title}</div>
             <div class="mp-loc-popup">📍 ${[p.city, p.country].filter(Boolean).join(', ')}</div>
             <div class="mp-price-popup">${fmtFull(p.price, p.currency)}</div>
-            <button class="mp-btn" onclick="window.open('/listings/${p.id}','_blank','noopener')">Ver propiedad →</button>
+            <button class="mp-btn" onclick="window.open('/listings/${p.id}','_blank','noopener')">${viewLabel}</button>
           </div>
         </div>`
 

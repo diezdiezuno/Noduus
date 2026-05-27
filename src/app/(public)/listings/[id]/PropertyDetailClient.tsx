@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useLang, locProp } from '@/contexts/LanguageContext'
 import type { Property } from '@/types'
 
 interface Props {
@@ -23,6 +24,7 @@ export default function PropertyDetailClient({
   id, layout = 'C', contactMode = 'agent', officeWhatsapp, officeEmail, mapboxToken,
 }: Props) {
   const isMobile = useIsMobile()
+  const { lang } = useLang()
   const [property, setProperty] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -110,7 +112,7 @@ export default function PropertyDetailClient({
     )
   }
 
-  const p = property
+  const p = locProp(property, lang)
   const imgs = p.images.length > 0 ? p.images : ['https://via.placeholder.com/1200x800/e2e2e8/8a8a9a?text=Sin+imagen']
   const loc = [p.city, p.country].filter(Boolean).join(', ')
   const type = p.type ?? 'Propiedad'

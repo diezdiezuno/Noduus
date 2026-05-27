@@ -36,6 +36,7 @@ export default function GeneralPage() {
   const [name, setName] = useState('')
   const [domain, setDomain] = useState('')
   const [tagline, setTagline] = useState('')
+  const [defaultLang, setDefaultLang] = useState<'es' | 'en'>('es')
 
   // Branding
   const [logoUrl, setLogoUrl] = useState('')
@@ -95,7 +96,7 @@ export default function GeneralPage() {
 
       const [{ data: tenant }, { data: cfg }] = await Promise.all([
         supabase.from('tenants').select('name, domain, tagline, logo_url, favicon_url, theme').eq('id', adminRec.tenant_id).single(),
-        supabase.from('tenant_config').select('footer_logo_url').eq('tenant_id', adminRec.tenant_id).single(),
+        supabase.from('tenant_config').select('footer_logo_url, default_language').eq('tenant_id', adminRec.tenant_id).single(),
       ])
 
       if (tenant) {
@@ -113,6 +114,7 @@ export default function GeneralPage() {
         setFooterLogoMode('custom')
         setFooterLogoUrl(cfg.footer_logo_url)
       }
+      if (cfg?.default_language) setDefaultLang(cfg.default_language as 'es' | 'en')
       setLoading(false)
     })
   }, [])
@@ -133,6 +135,10 @@ export default function GeneralPage() {
         setSaving(false)
         return
       }
+      await supabase.from('tenant_config').upsert(
+        { tenant_id: tenantId, default_language: defaultLang },
+        { onConflict: 'tenant_id' }
+      )
     } else {
       // Fetch current theme first so we don't overwrite mapStyle (managed in Mapa)
       const { data: tenantRow } = await supabase.from('tenants').select('theme').eq('id', tenantId).single()
@@ -185,6 +191,25 @@ export default function GeneralPage() {
             <Field label="Nombre de la inmobiliaria">
               <input value={name} onChange={e => setName(e.target.value)} required style={inputStyle} />
               <p style={hintStyle}>Aparece en el título del browser, el footer y el panel.</p>
+            </Field>
+            <div style={{ height: 16 }} />
+            <Field label="Idioma predeterminado del sitio">
+              <div style={{ display: 'flex', gap: 10 }}>
+                {([['es', 'Español', 'Títulos y descripciones en español por defecto'], ['en', 'English', 'Titles and descriptions in English by default']] as const).map(([v, label, desc]) => {
+                  const active = defaultLang === v
+                  return (
+                    <button key={v} type="button" onClick={() => setDefaultLang(v)} style={{
+                      flex: 1, padding: '10px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                      border: `2px solid ${active ? '#111' : '#e5e5e5'}`,
+                      background: active ? '#111' : '#fff',
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? '#fff' : '#111', marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 11, color: active ? 'rgba(255,255,255,.55)' : '#aaa' }}>{desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              <p style={hintStyle}>Los visitantes pueden cambiar el idioma en cualquier momento usando el toggle ES | EN en la navegación.</p>
             </Field>
             <div style={{ height: 16 }} />
             <Field label="Slogan / descripción corta">

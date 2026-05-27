@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFilteredProperties } from '@/contexts/FilterContext'
+import { useLang, locProp } from '@/contexts/LanguageContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Property } from '@/types'
 
@@ -29,6 +30,7 @@ export default function ListingsClient({ defaultView = 'grid', defaultSort = 'pr
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>(defaultView === 'list' ? 'list' : 'grid')
 
+  const { lang } = useLang()
   const filtered = useFilteredProperties(allProperties)
 
   const sorted = useMemo(() => {
@@ -98,22 +100,22 @@ export default function ListingsClient({ defaultView = 'grid', defaultSort = 'pr
         ) : view === 'grid' ? (
           // Masonry
           <div style={{ columns: isMobile ? 1 : 4, columnGap: 8 }}>
-            {sorted.map(p => <MasonryCard key={p.id} p={p} onClick={() => go(p.id)} />)}
+            {sorted.map(p => <MasonryCard key={p.id} p={locProp(p, lang)} onClick={() => go(p.id)} />)}
           </div>
         ) : view === 'hover' ? (
           // Hover grid
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 6 }}>
-            {sorted.map(p => <HoverCard key={p.id} p={p} onClick={() => go(p.id)} />)}
+            {sorted.map(p => <HoverCard key={p.id} p={locProp(p, lang)} onClick={() => go(p.id)} />)}
           </div>
         ) : view === 'dual' ? (
           // Dual
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 20 }}>
-            {sorted.map(p => <DualCard key={p.id} p={p} onClick={() => go(p.id)} />)}
+            {sorted.map(p => <DualCard key={p.id} p={locProp(p, lang)} onClick={() => go(p.id)} />)}
           </div>
         ) : (
           // List
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {sorted.map(p => <ListRow key={p.id} p={p} onClick={() => go(p.id)} />)}
+            {sorted.map(p => <ListRow key={p.id} p={locProp(p, lang)} onClick={() => go(p.id)} />)}
           </div>
         )}
       </section>

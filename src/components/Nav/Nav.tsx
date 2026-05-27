@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useFilters, USD_STEPS, CRC_STEPS, stepToPrice, fmtPrice } from '@/contexts/FilterContext'
 import type { ZoneCenter } from '@/contexts/FilterContext'
+import { useLang } from '@/contexts/LanguageContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Tenant, ZoneConfigItem, PageConfig } from '@/types'
 
@@ -101,6 +102,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
   const isSecNav = !isMap && !isListings
 
   const f = useFilters()
+  const { lang, setLang } = useLang()
   const isMobile = useIsMobile(768)
   const [advOpen, setAdvOpen] = useState(false)
   const [advAnimate, setAdvAnimate] = useState(true)
@@ -275,6 +277,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <LangToggle lang={lang} setLang={setLang} />
             <button onClick={() => setMobileFilterOpen(true)} style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: activeFilters > 0 ? '#1a1a1a' : '#fff',
@@ -525,8 +528,9 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
         </button>
       </div>
 
-      {/* Right: menu */}
-      <div ref={menuRef} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative', minWidth: 60, justifyContent: 'flex-end' }}>
+      {/* Right: lang + menu */}
+      <div ref={menuRef} style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, position: 'relative', justifyContent: 'flex-end' }}>
+        <LangToggle lang={lang} setLang={setLang} />
         <button onClick={() => setMenuOpen(o => !o)} style={{ width: 40, height: 40, background: '#fff', border: '1px solid #ddd', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16 }}>
           ☰
         </button>
@@ -729,5 +733,23 @@ function KeyIcon() {
       <path d="M17 12.5V9l-3 2.5" />
       <path d="M20 12.5V9" />
     </svg>
+  )
+}
+
+function LangToggle({ lang, setLang }: { lang: string; setLang: (l: 'es' | 'en') => void }) {
+  return (
+    <div style={{ display: 'flex', background: '#f0f0f0', borderRadius: 20, padding: 2, gap: 1 }}>
+      {(['es', 'en'] as const).map(l => (
+        <button key={l} onClick={() => setLang(l)} style={{
+          padding: '3px 9px', borderRadius: 18, border: 'none', cursor: 'pointer',
+          fontSize: 11, fontWeight: 600, fontFamily: 'inherit', letterSpacing: '0.04em',
+          background: lang === l ? '#111' : 'transparent',
+          color: lang === l ? '#fff' : '#888',
+          transition: 'background .15s, color .15s',
+        }}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
   )
 }

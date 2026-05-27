@@ -3,7 +3,9 @@ import { getTenantByDomain, getTenantConfig, DEFAULT_THEME } from '@/lib/tenant'
 import Nav from '@/components/Nav/Nav'
 import Footer from '@/components/Footer/Footer'
 import { FilterProvider } from '@/contexts/FilterContext'
+import { LanguageProvider } from '@/contexts/LanguageContext'
 import type { Metadata } from 'next'
+import type { Lang } from '@/contexts/LanguageContext'
 import type { Tenant, TenantConfig } from '@/types'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,7 +40,7 @@ export default async function PublicLayout({ children }: { children: React.React
   // No tenant → wrap with FilterProvider so client pages don't crash,
   // but skip Nav/Footer (LandingPage has its own layout)
   if (!tenant) {
-    return <FilterProvider>{children}</FilterProvider>
+    return <LanguageProvider><FilterProvider>{children}</FilterProvider></LanguageProvider>
   }
 
   const theme = tenant.theme ?? DEFAULT_THEME
@@ -57,11 +59,13 @@ export default async function PublicLayout({ children }: { children: React.React
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link href={fontsUrl} rel="stylesheet" />
-      <FilterProvider>
-        <Nav tenant={tenant} zones={config?.zone_config ?? null} pagesConfig={config?.pages_config ?? null} />
-        <main>{children}</main>
-        <Footer config={config} tenant={tenant} />
-      </FilterProvider>
+      <LanguageProvider defaultLang={(config?.default_language ?? 'es') as Lang}>
+        <FilterProvider>
+          <Nav tenant={tenant} zones={config?.zone_config ?? null} pagesConfig={config?.pages_config ?? null} />
+          <main>{children}</main>
+          <Footer config={config} tenant={tenant} />
+        </FilterProvider>
+      </LanguageProvider>
     </div>
   )
 }
