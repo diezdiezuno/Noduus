@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useFilters, USD_STEPS, CRC_STEPS, stepToPrice, fmtPrice } from '@/contexts/FilterContext'
 import type { ZoneCenter } from '@/contexts/FilterContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import type { Tenant, ZoneConfigItem } from '@/types'
+import type { Tenant, ZoneConfigItem, PageConfig } from '@/types'
 
 const PROPERTY_TYPES = [
   { value: '', label: 'Todas' },
@@ -39,7 +40,34 @@ const ALL_ZONES: [string, string, ZoneCenter?][] = [
 
 interface NavProps {
   tenant: Tenant | null
-  zones?: ZoneConfigItem[] | null  // null = show all predefined zones
+  zones?: ZoneConfigItem[] | null      // null = show all predefined zones
+  pagesConfig?: PageConfig[] | null    // null = use defaults
+}
+
+// Default page link order (predefined)
+const DEFAULT_LINKS = [
+  { href: '/about',         label: 'Nosotros',          slug: 'nosotros',       defaultVisible: true },
+  { href: '/listar',        label: 'Listar propiedad',  slug: 'listar',         defaultVisible: true },
+  { href: '/reclutamiento', label: 'Reclutamiento',     slug: 'reclutamiento',  defaultVisible: false },
+  { href: '/contact',       label: 'Contacto',          slug: 'contacto',       defaultVisible: true },
+]
+
+function getPageLinks(pagesConfig: PageConfig[] | null | undefined) {
+  // Fixed links always shown in sec-nav
+  const fixed = [
+    { href: '/', label: 'Mapa' },
+    { href: '/listings', label: 'Propiedades' },
+  ]
+  const configurable = DEFAULT_LINKS.filter(link => {
+    if (!pagesConfig) return link.defaultVisible
+    const match = pagesConfig.find(p => p.slug === link.slug)
+    return match ? match.visible : link.defaultVisible
+  })
+  // Custom pages from config
+  const customs = (pagesConfig ?? []).filter(p => p.custom && p.visible).map(p => ({
+    href: `/${p.slug}`, label: p.title,
+  }))
+  return [...fixed, ...configurable, ...customs]
 }
 
 // Parse user-typed price string: "2M" → 2000000, "500K" → 500000
@@ -65,7 +93,11 @@ function priceToStep(price: number, steps: number[]): number {
   return best
 }
 
-export default function Nav({ tenant, zones }: NavProps) {
+export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
+  const pathname = usePathname()
+  const isMap = pathname === '/'
+  const isDetail = !isMap && /^\/listings\/.+/.test(pathname)
+
   const f = useFilters()
   const isMobile = useIsMobile(768)
   const [advOpen, setAdvOpen] = useState(false)
@@ -172,7 +204,103 @@ export default function Nav({ tenant, zones }: NavProps) {
     setEditingMax(false)
   }
 
-  // ── MOBILE NAV ──────────────────────────────────────────────────────────────
+  // ── SEC-NAV (non-map pages) ──────────────────────────────────────────────────
+  if (!isMap) {
+    const pageLinks = getPageLinks(pagesConfig)
+    return (
+      <>
+        <nav ref={navRef} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000,
+          background: '#fff', borderBottom: '1px solid #e0e0e0',
+          display: 'flex', alignItems: 'center',
+          height: 60, padding: '0 24px', gap: 6,
+        }}>
+          {/* Logo */}
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0, marginRight: 8 }}>
+            {tenant?.logo_url ? (
+              <img src={tenant.logo_url} alt={tenant.name} style={{ height: 32, objectFit: 'contain' }} />
+            ) : (
+              <span style={{ fontWeight: 800, fontSize: 16, color: '#111', letterSpacing: '-.02em' }}>{tenant?.name ?? 'PropCLOUD'}</span>
+            )}
+          </Link>
+
+          <div style={{ flex: 1 }} />
+
+          {/* Detail: back link */}
+          {isDetail && (
+            <Link href="/listings" style={{
+              display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none',
+              fontSize: 13, fontWeight: 500, color: '#666', padding: '8px 4px',
+              transition: 'color .2s',
+            }}
+              onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = '#111'}
+              onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = '#666'}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Propiedades
+            </Link>
+          )}
+
+          {/* Desktop: page links */}
+          {!isMobile && pageLinks.map(link => (
+            <Link key={link.href} href={link.href}
+              style={{
+                fontSize: 13, fontWeight: pathname === link.href ? 600 : 400,
+                color: pathname === link.href ? '#111' : '#666',
+                textDecoration: 'none', padding: '8px 12px', borderRadius: 8,
+                background: pathname === link.href ? '#f5f5f7' : 'transparent',
+                transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = '#f5f5f7' }}
+              onMouseLeave={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
+            >
+              {link.label}
+            </Link>
+          ))}
+
+          {/* Hamburger menu (mobile + desktop overflow) */}
+          <div ref={menuRef} style={{ position: 'relative', marginLeft: isMobile ? 0 : 8 }}>
+            <button onClick={() => setMenuOpen(o => !o)} style={{
+              width: 40, height: 40, background: '#fff', border: '1px solid #ddd',
+              borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer', fontSize: 16,
+            }}>
+              ☰
+            </button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 10px)', right: 0,
+                background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.15)', minWidth: 220,
+                zIndex: 10001, padding: 8,
+              }}>
+                {pageLinks.map(link => (
+                  <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 16px', textDecoration: 'none', color: '#222',
+                      fontSize: 14, fontWeight: pathname === link.href ? 600 : 500,
+                      borderRadius: 8, transition: 'background .15s',
+                      background: pathname === link.href ? '#f5f5f7' : 'transparent',
+                    }}
+                    onMouseEnter={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = '#f7f7f7' }}
+                    onMouseLeave={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
+        <style>{`@keyframes dropdownFade { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }`}</style>
+      </>
+    )
+  }
+
+  // ── MOBILE NAV (map page only) ───────────────────────────────────────────────
   if (isMobile) {
     return (
       <>
