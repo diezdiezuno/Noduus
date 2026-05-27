@@ -46,7 +46,7 @@ export default function ListingsClient({ defaultView = 'grid', defaultSort = 'pr
       .catch(() => setLoading(false))
   }, [])
 
-  const go = (id: string) => router.push(`/listings/${id}`)
+  const go = (id: string) => window.open(`/listings/${id}`, '_blank', 'noopener')
 
   return (
     <div style={{ paddingTop: 'var(--nav-h, 68px)', background: '#f5f5f7' }}>

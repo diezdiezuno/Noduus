@@ -77,7 +77,7 @@ export default function MapView({ mapStyle, mapboxToken, mapCenter, mapZoom }: M
             <div class="mp-title">${p.title}</div>
             <div class="mp-loc-popup">📍 ${[p.city, p.country].filter(Boolean).join(', ')}</div>
             <div class="mp-price-popup">${fmtFull(p.price, p.currency)}</div>
-            <button class="mp-btn" onclick="window.location.href='/listings/${p.id}'">Ver propiedad →</button>
+            <button class="mp-btn" onclick="window.open('/listings/${p.id}','_blank','noopener')">Ver propiedad →</button>
           </div>
         </div>`
 
