@@ -260,7 +260,7 @@ export default function PropertyDetailClient({
                 <a
                   href={`https://maps.google.com/?q=${p.lat},${p.lng}`}
                   target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'block', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}
+                  style={{ display: 'block', borderRadius: 10, overflow: 'hidden', marginBottom: 8, flexShrink: 0 }}
                 >
                   <img
                     className="det-map-static"
