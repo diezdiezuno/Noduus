@@ -248,36 +248,6 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
             >{link.label}</Link>
           ))}
 
-          {/* Hamburger — hidden on detail pages (links already visible in full) */}
-          {!/^\/listings\/.+/.test(pathname ?? '') && <div ref={menuRef} style={{ position: 'relative', marginLeft: isMobile ? 0 : 8 }}>
-            <button onClick={() => setMenuOpen(o => !o)} style={{
-              width: 40, height: 40, background: '#fff', border: '1px solid #ddd',
-              borderRadius: '50%', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', cursor: 'pointer', fontSize: 16,
-            }}>☰</button>
-            {menuOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-                background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.15)', minWidth: 220,
-                zIndex: 10001, padding: 8,
-              }}>
-                {pageLinks.map(link => (
-                  <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 16px', textDecoration: 'none', color: '#222',
-                      fontSize: 14, fontWeight: pathname === link.href ? 600 : 500,
-                      borderRadius: 8, transition: 'background .15s',
-                      background: pathname === link.href ? '#f5f5f7' : 'transparent',
-                    }}
-                    onMouseEnter={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = '#f7f7f7' }}
-                    onMouseLeave={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
-                  >{link.label}</Link>
-                ))}
-              </div>
-            )}
-          </div>}
         </nav>
         <style>{`@keyframes dropdownFade{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}`}</style>
       </>
@@ -328,15 +298,18 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
               </button>
               {menuOpen && (
                 <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', minWidth: 200, zIndex: 10001, padding: 8 }}>
-                  {[
-                    { href: '/listings', icon: '🏠', label: 'Propiedades' },
-                    { href: '/about', icon: '👥', label: 'Nosotros' },
-                    { href: '/contact', icon: '✉️', label: 'Contacto' },
-                  ].map(item => (
-                    <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', textDecoration: 'none', color: '#222', fontSize: 14, fontWeight: 500, borderRadius: 8 }}>
-                      <span>{item.icon}</span> {item.label}
-                    </Link>
+                  {getPageLinks(pagesConfig).map(link => (
+                    <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}
+                      style={{
+                        display: 'block', padding: '12px 16px', textDecoration: 'none',
+                        color: pathname === link.href ? '#111' : '#444', fontSize: 14,
+                        fontWeight: pathname === link.href ? 600 : 500, borderRadius: 8,
+                        background: pathname === link.href ? '#f5f5f7' : 'transparent',
+                        transition: 'background .15s',
+                      }}
+                      onMouseEnter={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = '#f7f7f7' }}
+                      onMouseLeave={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
+                    >{link.label}</Link>
                   ))}
                 </div>
               )}
@@ -557,18 +530,18 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
         </button>
         {menuOpen && (
           <div style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', minWidth: 220, zIndex: 10001, padding: 8, animation: 'dropdownFade .18s ease' }}>
-            {[
-              { href: '/listings', icon: '🏠', label: 'Propiedades' },
-              { href: '/about', icon: '👥', label: 'Nosotros' },
-              { href: '/contact', icon: '✉️', label: 'Contacto' },
-            ].map(item => (
-              <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', textDecoration: 'none', color: '#222', fontSize: 14, fontWeight: 500, borderRadius: 8, transition: 'background .15s' }}
-                onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = '#f7f7f7'}
-                onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
-              >
-                <span>{item.icon}</span> {item.label}
-              </Link>
+            {getPageLinks(pagesConfig).map(link => (
+              <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}
+                style={{
+                  display: 'block', padding: '12px 16px', textDecoration: 'none',
+                  color: pathname === link.href ? '#111' : '#444', fontSize: 14,
+                  fontWeight: pathname === link.href ? 600 : 500, borderRadius: 8,
+                  background: pathname === link.href ? '#f5f5f7' : 'transparent',
+                  transition: 'background .15s',
+                }}
+                onMouseEnter={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = '#f7f7f7' }}
+                onMouseLeave={e => { if (pathname !== link.href) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
+              >{link.label}</Link>
             ))}
           </div>
         )}
