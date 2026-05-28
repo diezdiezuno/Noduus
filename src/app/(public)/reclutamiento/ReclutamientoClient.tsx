@@ -88,7 +88,7 @@ export default function ReclutamientoClient() {
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section style={{
         display: 'flex', flexDirection: 'column',
-        alignItems: 'flex-start',
+        alignItems: 'center', textAlign: 'center',
         padding: 'clamp(36px,4vw,56px) clamp(24px,3vw,48px) clamp(44px,5vw,68px)',
         maxWidth: 1440, margin: '0 auto',
       }}>
@@ -98,26 +98,24 @@ export default function ReclutamientoClient() {
           fontWeight: 900, lineHeight: .93,
           letterSpacing: '-.03em', marginBottom: 28,
         }}>
-          Tu carrera en<br />
+          Tu carrera en{' '}
           <span style={{
             background: 'linear-gradient(90deg,var(--primary,#6b2fa0),#D44E2A,#E8920A)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-          }}>
-            bienes raíces
-          </span><br />
+          }}>bienes raíces</span><br />
           empieza aquí.
         </h1>
 
         <p style={{
           fontSize: 'clamp(16px,1.8vw,20px)', fontWeight: 300,
-          color: '#888480', maxWidth: 540, lineHeight: 1.65, marginBottom: 44,
+          color: '#888480', maxWidth: 720, lineHeight: 1.65, marginBottom: 44,
         }}>
           Únete a <strong style={{ fontWeight: 500, color: '#111' }}>SUNRISE | REMAX Central</strong> — el equipo especializado en el este de San José, en la oficina más grande y con más experiencia del GAM.
         </p>
 
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 72 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 64 }}>
           <a href="#aplicar" style={{
             background: '#111', color: '#fff', fontSize: 15, fontWeight: 500,
             padding: '16px 36px', borderRadius: 100, textDecoration: 'none', display: 'inline-block',
@@ -129,13 +127,13 @@ export default function ReclutamientoClient() {
           }}>Conocé más</a>
         </div>
 
-        <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 64, flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
             { num: '+30',  label: 'Agentes activos' },
             { num: '#1',   label: 'Oficina en el GAM' },
             { num: '100%', label: 'Apoyo y entrenamiento' },
           ].map(({ num, label }) => (
-            <div key={label}>
+            <div key={label} style={{ textAlign: 'center' }}>
               <div style={{
                 fontFamily: 'var(--font-heading,serif)',
                 fontSize: 44, fontWeight: 700, lineHeight: 1,
