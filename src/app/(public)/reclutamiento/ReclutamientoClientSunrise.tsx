@@ -397,33 +397,33 @@ export default function ReclutamientoClient() {
                 />
               </div>
 
-              {/* Fila 3 — Perfil | Ocupación */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
-                <div>
-                  <label style={labelSt}>¿Cuál es tu perfil? *</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[
-                      { value: 'nuevo',       label: 'Nuevo en bienes raíces' },
-                      { value: 'experiencia', label: 'Agente con experiencia' },
-                      { value: 'otro',        label: 'Explorando opciones' },
-                    ].map(opt => (
-                      <label key={opt.value} style={{
-                        display: 'block', textAlign: 'center',
-                        padding: '11px 14px', cursor: 'pointer',
-                        border: `1.5px solid ${perfil === opt.value ? '#111' : '#e8e4df'}`,
-                        borderRadius: 12,
-                        fontSize: 13, fontWeight: perfil === opt.value ? 500 : 400,
-                        color: perfil === opt.value ? '#111' : '#888480',
-                        background: '#fff', textTransform: 'none',
-                      }}>
-                        <input type="radio" name="perfil" value={opt.value} checked={perfil === opt.value} onChange={() => setPerfil(opt.value)} style={{ display: 'none' }} />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
+              {/* Fila 3a — Perfil (fila completa, opciones en horizontal) */}
+              <div>
+                <label style={labelSt}>¿Cuál es tu perfil? *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+                  {[
+                    { value: 'nuevo',       label: 'Nuevo en bienes raíces' },
+                    { value: 'experiencia', label: 'Agente con experiencia' },
+                    { value: 'otro',        label: 'Explorando opciones' },
+                  ].map(opt => (
+                    <label key={opt.value} style={{
+                      display: 'block', textAlign: 'center',
+                      padding: '11px 14px', cursor: 'pointer',
+                      border: `1.5px solid ${perfil === opt.value ? '#111' : '#e8e4df'}`,
+                      borderRadius: 12,
+                      fontSize: 13, fontWeight: perfil === opt.value ? 500 : 400,
+                      color: perfil === opt.value ? '#111' : '#888480',
+                      background: '#fff', textTransform: 'none',
+                    }}>
+                      <input type="radio" name="perfil" value={opt.value} checked={perfil === opt.value} onChange={() => setPerfil(opt.value)} style={{ display: 'none' }} />
+                      {opt.label}
+                    </label>
+                  ))}
                 </div>
-                <FInp label="¿A qué te dedicás actualmente?" value={ocupacion} onChange={setOcupacion} placeholder="Ej: vendedor, administrador, estudiante..." />
               </div>
+
+              {/* Fila 3b — Ocupación (fila completa) */}
+              <FInp label="¿A qué te dedicás actualmente?" value={ocupacion} onChange={setOcupacion} placeholder="Ej: vendedor, administrador, estudiante..." />
 
               {/* Fila 4 — Motivación */}
               <div>
