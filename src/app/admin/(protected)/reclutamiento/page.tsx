@@ -17,6 +17,7 @@ interface Application {
     ocupacion?: string
     cv_link?: string
     linkedin?: string
+    notes?: string
   } | null
 }
 
@@ -27,9 +28,14 @@ const PERFIL_LABEL: Record<string, string> = {
 }
 
 export default function AdminReclutamientoPage() {
-  const [loading, setLoading]   = useState(true)
-  const [apps, setApps]         = useState<Application[]>([])
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const [loading, setLoading]           = useState(true)
+  const [apps, setApps]                 = useState<Application[]>([])
+  const [expanded, setExpanded]         = useState<string | null>(null)
+  const [notes, setNotes]               = useState<Record<string, string>>({})
+  const [savingNote, setSavingNote]     = useState<string | null>(null)
+  const [savedNote, setSavedNote]       = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [deleting, setDeleting]         = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -46,13 +52,19 @@ export default function AdminReclutamientoPage() {
         .eq('source', 'reclutamiento')
         .order('created_at', { ascending: false })
 
-      setApps((data as Application[]) ?? [])
+      const list = (data as Application[]) ?? []
+      setApps(list)
+      // Pre-fill notes from metadata
+      const n: Record<string, string> = {}
+      list.forEach(a => { n[a.id] = a.metadata?.notes ?? '' })
+      setNotes(n)
       setLoading(false)
     })
   }, [])
 
   function toggle(id: string) {
     setExpanded(prev => prev === id ? null : id)
+    setConfirmDelete(null)
   }
 
   function formatDate(iso: string) {
@@ -60,6 +72,28 @@ export default function AdminReclutamientoPage() {
       year: 'numeric', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit',
     })
+  }
+
+  async function saveNote(app: Application) {
+    setSavingNote(app.id)
+    const supabase = createClient()
+    const updatedMeta = { ...(app.metadata ?? {}), notes: notes[app.id] ?? '' }
+    await supabase.from('leads').update({ metadata: updatedMeta }).eq('id', app.id)
+    // Update local state
+    setApps(prev => prev.map(a => a.id === app.id ? { ...a, metadata: updatedMeta } : a))
+    setSavingNote(null)
+    setSavedNote(app.id)
+    setTimeout(() => setSavedNote(null), 2500)
+  }
+
+  async function deleteApp(id: string) {
+    setDeleting(id)
+    const supabase = createClient()
+    await supabase.from('leads').delete().eq('id', id)
+    setApps(prev => prev.filter(a => a.id !== id))
+    setExpanded(null)
+    setConfirmDelete(null)
+    setDeleting(null)
   }
 
   if (loading) return <div style={{ padding: 40, color: '#aaa', fontSize: 14 }}>Cargando…</div>
@@ -100,11 +134,13 @@ export default function AdminReclutamientoPage() {
 
           {apps.map(app => {
             const meta = app.metadata ?? {}
-            const fullName = [app.name, meta.apellido].filter(Boolean).join(' ')
-            // app.name already includes apellido if set via `${nombre} ${apellido}`
-            // so just use app.name directly
             const isOpen = expanded === app.id
             const perfilLabel = PERFIL_LABEL[meta.perfil ?? ''] ?? meta.perfil ?? '—'
+            const isConfirming = confirmDelete === app.id
+            const isDeleting = deleting === app.id
+            const isSaving = savingNote === app.id
+            const noteSaved = savedNote === app.id
+            const hasNote = (meta.notes ?? '').trim().length > 0
 
             return (
               <div key={app.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #ebebeb', overflow: 'hidden' }}>
@@ -120,7 +156,10 @@ export default function AdminReclutamientoPage() {
                     alignItems: 'center',
                   }}
                 >
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{app.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {app.name}
+                    {hasNote && <span title="Tiene nota" style={{ fontSize: 10, background: 'rgba(107,63,160,.12)', color: 'var(--primary,#6b2fa0)', padding: '2px 7px', borderRadius: 100, fontWeight: 500 }}>nota</span>}
+                  </span>
                   <span style={{ fontSize: 13, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.email ?? '—'}</span>
                   <span style={{ fontSize: 13, color: '#555' }}>{app.phone ?? '—'}</span>
                   <span>
@@ -140,22 +179,13 @@ export default function AdminReclutamientoPage() {
 
                 {/* Expanded detail */}
                 {isOpen && (
-                  <div style={{ borderTop: '1px solid #f0f0f0', padding: '20px 20px 24px', background: '#fafafa' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+                  <div style={{ borderTop: '1px solid #f0f0f0', padding: '20px 24px 24px', background: '#fafafa' }}>
 
-                      {meta.zona && (
-                        <Field label="Zona" value={meta.zona} />
-                      )}
-                      {meta.ocupacion && (
-                        <Field label="Ocupación actual" value={meta.ocupacion} />
-                      )}
-
-                      {app.message && (
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <Field label="Motivación" value={app.message} multiline />
-                        </div>
-                      )}
-
+                    {/* Fields grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 20 }}>
+                      {meta.zona     && <Field label="Zona"             value={meta.zona} />}
+                      {meta.ocupacion && <Field label="Ocupación actual" value={meta.ocupacion} />}
+                      {app.message   && <div style={{ gridColumn: '1 / -1' }}><Field label="Motivación" value={app.message} multiline /></div>}
                       {(meta.cv_link || meta.linkedin) && (
                         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                           {meta.cv_link && (
@@ -172,37 +202,94 @@ export default function AdminReclutamientoPage() {
                           )}
                         </div>
                       )}
-
                     </div>
 
-                    {/* Quick reply */}
-                    {app.email && (
-                      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #ebebeb', display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <a
-                          href={`mailto:${app.email}?subject=Tu aplicación en TEAM SUNRISE | REMAX Central`}
+                    {/* Notes */}
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>Notas internas</div>
+                      <textarea
+                        value={notes[app.id] ?? ''}
+                        onChange={e => setNotes(prev => ({ ...prev, [app.id]: e.target.value }))}
+                        rows={3}
+                        placeholder="Agregá notas sobre este candidato…"
+                        style={{
+                          width: '100%', border: '1px solid #e0e0e0', borderRadius: 8,
+                          padding: '10px 12px', fontSize: 13, fontFamily: 'inherit',
+                          resize: 'vertical', outline: 'none', background: '#fff',
+                          boxSizing: 'border-box', lineHeight: 1.6,
+                        }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                        <button
+                          onClick={() => saveNote(app)}
+                          disabled={isSaving}
                           style={{
-                            fontSize: 13, fontWeight: 500, color: '#fff',
-                            background: '#111', padding: '8px 18px', borderRadius: 100,
-                            textDecoration: 'none', display: 'inline-block',
+                            fontSize: 13, fontWeight: 500, padding: '7px 16px',
+                            borderRadius: 8, border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer',
+                            background: '#111', color: '#fff', opacity: isSaving ? 0.6 : 1,
+                            fontFamily: 'inherit',
                           }}
                         >
-                          Responder por email →
-                        </a>
+                          {isSaving ? 'Guardando…' : 'Guardar nota'}
+                        </button>
+                        {noteSaved && <span style={{ fontSize: 12, color: '#38a169' }}>✓ Guardado</span>}
+                      </div>
+                    </div>
+
+                    {/* Actions bar */}
+                    <div style={{ paddingTop: 16, borderTop: '1px solid #ebebeb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+
+                      {/* Quick reply */}
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {app.email && (
+                          <a
+                            href={`mailto:${app.email}?subject=Tu aplicación en TEAM SUNRISE | REMAX Central`}
+                            style={{ fontSize: 13, fontWeight: 500, color: '#fff', background: '#111', padding: '8px 18px', borderRadius: 100, textDecoration: 'none' }}
+                          >
+                            Responder por email →
+                          </a>
+                        )}
                         {app.phone && (
                           <a
                             href={`https://wa.me/${app.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${app.name}, gracias por tu interés en TEAM SUNRISE. Nos gustaría conversar con vos sobre tu aplicación.`)}`}
                             target="_blank" rel="noopener noreferrer"
-                            style={{
-                              fontSize: 13, fontWeight: 500, color: '#fff',
-                              background: '#25D366', padding: '8px 18px', borderRadius: 100,
-                              textDecoration: 'none', display: 'inline-block',
-                            }}
+                            style={{ fontSize: 13, fontWeight: 500, color: '#fff', background: '#25D366', padding: '8px 18px', borderRadius: 100, textDecoration: 'none' }}
                           >
                             WhatsApp →
                           </a>
                         )}
                       </div>
-                    )}
+
+                      {/* Delete */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {!isConfirming ? (
+                          <button
+                            onClick={() => setConfirmDelete(app.id)}
+                            style={{ fontSize: 12, color: '#e53e3e', background: 'none', border: '1px solid #fca5a5', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Eliminar
+                          </button>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: 13, color: '#e53e3e', fontWeight: 500 }}>¿Eliminar esta aplicación?</span>
+                            <button
+                              onClick={() => deleteApp(app.id)}
+                              disabled={isDeleting}
+                              style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#e53e3e', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? 0.6 : 1 }}
+                            >
+                              {isDeleting ? 'Eliminando…' : 'Sí, eliminar'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(null)}
+                              style={{ fontSize: 12, color: '#666', background: 'none', border: '1px solid #e0e0e0', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit' }}
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
                 )}
               </div>
