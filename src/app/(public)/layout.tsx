@@ -16,9 +16,11 @@ export async function generateMetadata(): Promise<Metadata> {
     const tenant = await getTenantByDomain(domain)
     if (!tenant?.name) return { title: 'PropCLOUD' }
     const config = await getTenantConfig(tenant.id).catch(() => null)
+    const cfg = config as unknown as { og_image?: string | null; google_sc_verification?: string | null } & typeof config
     const siteUrl = `https://${tenant.domain}`
     const description = tenant.tagline ?? `${tenant.name} — propiedades en venta y alquiler.`
-    const ogImage = tenant.logo_url ?? undefined
+    const ogImage = cfg?.og_image ?? tenant.logo_url ?? undefined
+    const scVerification = cfg?.google_sc_verification ?? undefined
     return {
       title: { default: tenant.name, template: `%s · ${tenant.name}` },
       description,
@@ -29,9 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
         siteName: tenant.name,
         locale: config?.default_language === 'en' ? 'en_US' : 'es_CR',
         description,
-        ...(ogImage && { images: [{ url: ogImage }] }),
+        ...(ogImage && { images: [{ url: ogImage, width: 1200, height: 630 }] }),
       },
-      twitter: { card: 'summary', description, ...(ogImage && { images: [ogImage] }) },
+      twitter: { card: 'summary_large_image', description, ...(ogImage && { images: [ogImage] }) },
+      ...(scVerification && {
+        verification: { google: scVerification },
+      }),
     }
   } catch {}
   return { title: 'PropCLOUD' }

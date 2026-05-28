@@ -2,9 +2,14 @@ import { headers } from 'next/headers'
 import { getTenantByDomain, getTenantConfig } from '@/lib/tenant'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
-  title: 'Nosotros',
-  description: 'Conocé nuestra historia, misión y el equipo detrás de nuestra inmobiliaria.',
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers()
+  const domain = h.get('x-tenant-domain') ?? 'localhost'
+  const tenant = await getTenantByDomain(domain).catch(() => null)
+  const config = tenant ? await getTenantConfig(tenant.id).catch(() => null) : null
+  const pageCfg = config?.pages_config?.find(p => p.slug === 'nosotros')
+  const description = pageCfg?.settings?.seo_description ?? 'Conocé nuestra historia, misión y el equipo detrás de nuestra inmobiliaria.'
+  return { title: 'Nosotros', description }
 }
 
 export default async function NosotrosPage() {
@@ -13,7 +18,6 @@ export default async function NosotrosPage() {
   const tenant = await getTenantByDomain(domain).catch(() => null)
   const config = tenant ? await getTenantConfig(tenant.id).catch(() => null) : null
 
-  // content_html from page settings takes priority; fall back to about_html
   const pageCfg = config?.pages_config?.find(p => p.slug === 'nosotros')
   const html = pageCfg?.settings?.content_html ?? config?.about_html ?? ''
 

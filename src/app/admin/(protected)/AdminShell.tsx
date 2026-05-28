@@ -10,6 +10,7 @@ const NAV = [
   { href: '/admin/paginas',      icon: '📄',  label: 'Páginas' },
   { href: '/admin/fuentes',      icon: '🔗',  label: 'Fuentes' },
   { href: '/admin/metricas',     icon: '📊',  label: 'Métricas' },
+  { href: '/admin/seo',          icon: '🔍',  label: 'SEO' },
 ]
 
 interface Tenant { id: string; name: string; slug: string; logo_url: string | null; theme: Record<string, string> }

@@ -33,6 +33,7 @@ export interface PageSettings {
   listar_intro?: string
   reclutamiento_positions?: string[]
   reclutamiento_intro?: string
+  seo_description?: string        // meta description override for this page
 }
 
 export interface PageConfig {
@@ -91,6 +92,9 @@ export interface TenantConfig {
   pages_config: PageConfig[] | null       // static pages visibility config
   // Analytics
   ga_id: string | null                    // Google Analytics Measurement ID (G-XXXXXXXXXX)
+  // SEO
+  og_image: string | null                 // Social sharing image (overrides logo)
+  google_sc_verification: string | null   // Google Search Console meta tag content
 }
 
 export interface PropertySource {

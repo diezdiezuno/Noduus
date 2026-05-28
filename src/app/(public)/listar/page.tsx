@@ -4,12 +4,17 @@ import ListarClient from './ListarClient'
 import type { Metadata } from 'next'
 import type { PageSettings } from '@/types'
 
-export const metadata: Metadata = {
-  title: 'Listá tu propiedad',
-  description: 'Listá tu propiedad con nosotros. Completá el formulario y un agente te contactará.',
-}
-
 const DEFAULT_FIELDS = ['phone', 'type', 'address', 'price', 'description']
+
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers()
+  const domain = h.get('x-tenant-domain') ?? 'localhost'
+  const tenant = await getTenantByDomain(domain).catch(() => null)
+  const config = tenant ? await getTenantConfig(tenant.id).catch(() => null) : null
+  const pageCfg = config?.pages_config?.find(p => p.slug === 'listar')
+  const description = pageCfg?.settings?.seo_description ?? 'Listá tu propiedad con nosotros. Completá el formulario y un agente te contactará.'
+  return { title: 'Listá tu propiedad', description }
+}
 
 export default async function ListarPage() {
   const h = await headers()

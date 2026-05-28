@@ -3,9 +3,14 @@ import { getTenantByDomain, getTenantConfig } from '@/lib/tenant'
 import ContactoClient from './ContactoClient'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
-  title: 'Contacto',
-  description: 'Ponete en contacto con nosotros. Estamos para ayudarte con tu próxima propiedad.',
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers()
+  const domain = h.get('x-tenant-domain') ?? 'localhost'
+  const tenant = await getTenantByDomain(domain).catch(() => null)
+  const config = tenant ? await getTenantConfig(tenant.id).catch(() => null) : null
+  const pageCfg = config?.pages_config?.find(p => p.slug === 'contacto')
+  const description = pageCfg?.settings?.seo_description ?? 'Ponete en contacto con nosotros. Estamos para ayudarte con tu próxima propiedad.'
+  return { title: 'Contacto', description }
 }
 
 export default async function ContactoPage() {

@@ -35,6 +35,7 @@ export default function PageEditorPage() {
 
   // Settings state
   const [contentHtml, setContentHtml] = useState('')
+  const [seoDescription, setSeoDescription] = useState('')
   const [listarFields, setListarFields] = useState<string[]>(DEFAULT_LISTAR_FIELDS)
   const [listarIntro, setListarIntro] = useState('')
   const [submissionWhatsapp, setSubmissionWhatsapp] = useState('')
@@ -66,6 +67,7 @@ export default function PageEditorPage() {
       // Populate settings from config
       const s = pageCfg?.settings ?? {}
       setContentHtml(s.content_html ?? '')
+      setSeoDescription(s.seo_description ?? '')
       setListarFields(s.listar_fields ?? DEFAULT_LISTAR_FIELDS)
       setListarIntro(s.listar_intro ?? '')
       setSubmissionWhatsapp(s.submission_whatsapp ?? '')
@@ -98,6 +100,9 @@ export default function PageEditorPage() {
     setSaving(true)
 
     const settings: PageSettings = {}
+    if (slug !== 'contacto') {
+      if (seoDescription.trim()) settings.seo_description = seoDescription.trim()
+    }
     if (slug === 'nosotros' || page?.custom) {
       settings.content_html = contentHtml
     }
@@ -252,6 +257,19 @@ export default function PageEditorPage() {
         {page?.custom && (
           <Section title="Contenido de la página">
             <HtmlEditor value={contentHtml} onChange={setContentHtml} />
+          </Section>
+        )}
+
+        {/* ── SEO description — shown for all pages except contacto ── */}
+        {slug !== 'contacto' && (
+          <Section title="SEO">
+            <Inp
+              label="Meta descripción (opcional)"
+              value={seoDescription}
+              onChange={setSeoDescription}
+              placeholder="Descripción corta para Google (150–160 caracteres)."
+              hint="Si se deja vacío, se usa la descripción por defecto de la página."
+            />
           </Section>
         )}
 
