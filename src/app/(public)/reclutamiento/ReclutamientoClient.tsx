@@ -51,6 +51,7 @@ export default function ReclutamientoClient() {
   const [motivacion, setMotivacion] = useState('')
   const [cvLink,     setCvLink]     = useState('')
   const [linkedin,   setLinkedin]   = useState('')
+  const [zonaOtra,   setZonaOtra]   = useState('')
   const [sending,    setSending]    = useState(false)
   const [sent,       setSent]       = useState(false)
   const [error,      setError]      = useState('')
@@ -59,7 +60,9 @@ export default function ReclutamientoClient() {
   const [hoveredBenefit, setHoveredBenefit] = useState<string | null>(null)
   const [hoveredProfile, setHoveredProfile] = useState<string | null>(null)
 
-  const canSubmit = nombre.trim() && apellido.trim() && email.trim() && telefono.trim() && zona && perfil
+  const isOtherZona = zona === 'Otra zona del este' || zona === 'Otra zona'
+  const finalZona   = isOtherZona && zonaOtra.trim() ? zonaOtra.trim() : zona
+  const canSubmit   = nombre.trim() && apellido.trim() && email.trim() && telefono.trim() && zona && perfil
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -71,7 +74,7 @@ export default function ReclutamientoClient() {
       const res = await fetch('/api/recruit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, apellido, telefono, email, zona, perfil, ocupacion, motivacion, cv_link: cvLink, linkedin }),
+        body: JSON.stringify({ nombre, apellido, telefono, email, zona: finalZona, perfil, ocupacion, motivacion, cv_link: cvLink, linkedin }),
       })
       if (!res.ok) throw new Error()
       setSent(true)
@@ -301,8 +304,8 @@ export default function ReclutamientoClient() {
 
       {/* ── FORMULARIO ───────────────────────────────────────── */}
       <section id="aplicar" style={{
-        padding: 'clamp(44px,5vw,68px) 24px clamp(60px,6vw,80px)',
-        maxWidth: 740, margin: '0 auto',
+        padding: 'clamp(44px,5vw,68px) clamp(24px,3vw,48px) clamp(60px,6vw,80px)',
+        maxWidth: 1100, margin: '0 auto',
         borderTop: '1px solid #e8e4df',
       }}>
         <div style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -343,74 +346,86 @@ export default function ReclutamientoClient() {
         ) : (
           <form onSubmit={submit} style={{
             background: '#f7f6f4', border: '1px solid #e8e4df',
-            borderRadius: 24, padding: 'clamp(32px,5vw,52px) clamp(24px,5vw,48px)',
+            borderRadius: 24, padding: 'clamp(32px,4vw,48px)',
           }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-              <FInp label="Nombre *"   value={nombre}   onChange={setNombre}   placeholder="Tu nombre" />
-              <FInp label="Apellido *" value={apellido} onChange={setApellido} placeholder="Tu apellido" />
-              <FInp label="WhatsApp / Teléfono *" value={telefono} onChange={setTelefono} placeholder="+506 8888 8888" type="tel" />
-              <FInp label="Correo electrónico *"  value={email}    onChange={setEmail}    placeholder="tu@correo.com"   type="email" />
-
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelSt}>Zona donde vivís *</label>
-                <select value={zona} onChange={e => setZona(e.target.value)} style={inpSt} required>
-                  <option value="" disabled>Seleccioná tu zona</option>
-                  <optgroup label="Este de San José (zona principal)">
-                    {ZONES_EAST.map(z => <option key={z} value={z}>{z}</option>)}
-                  </optgroup>
-                  <optgroup label="Otras zonas del GAM">
-                    {ZONES_GAM.map(z => <option key={z} value={z}>{z}</option>)}
-                  </optgroup>
-                </select>
+              {/* Fila 1 — Nombre | Apellido | WhatsApp | Email */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18 }}>
+                <FInp label="Nombre *"            value={nombre}   onChange={setNombre}   placeholder="Tu nombre" />
+                <FInp label="Apellido *"           value={apellido} onChange={setApellido} placeholder="Tu apellido" />
+                <FInp label="WhatsApp *"           value={telefono} onChange={setTelefono} placeholder="+506 8888 8888" type="tel" />
+                <FInp label="Correo electrónico *" value={email}    onChange={setEmail}    placeholder="tu@correo.com" type="email" />
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelSt}>¿Cuál es tu perfil? *</label>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {[
-                    { value: 'nuevo',       label: 'Nuevo en bienes raíces' },
-                    { value: 'experiencia', label: 'Agente con experiencia' },
-                    { value: 'otro',        label: 'Explorando opciones' },
-                  ].map(opt => (
-                    <label key={opt.value} style={{
-                      flex: 1, minWidth: 130, textAlign: 'center',
-                      padding: '12px 14px', cursor: 'pointer', display: 'block',
-                      border: `1.5px solid ${perfil === opt.value ? '#111' : '#e8e4df'}`,
-                      borderRadius: 12,
-                      fontSize: 13, fontWeight: perfil === opt.value ? 500 : 400,
-                      color: perfil === opt.value ? '#111' : '#888480',
-                      background: '#fff', textTransform: 'none',
-                    }}>
-                      <input type="radio" name="perfil" value={opt.value} checked={perfil === opt.value} onChange={() => setPerfil(opt.value)} style={{ display: 'none' }} />
-                      {opt.label}
-                    </label>
-                  ))}
+              {/* Fila 2 — Zona + campo libre si es "Otra zona" */}
+              <div style={{ display: 'grid', gridTemplateColumns: isOtherZona ? '3fr 2fr' : '1fr', gap: 18 }}>
+                <div>
+                  <label style={labelSt}>Zona donde vivís *</label>
+                  <select value={zona} onChange={e => { setZona(e.target.value); setZonaOtra('') }} style={inpSt} required>
+                    <option value="" disabled>Seleccioná tu zona</option>
+                    <optgroup label="Este de San José (zona principal)">
+                      {ZONES_EAST.map(z => <option key={z} value={z}>{z}</option>)}
+                    </optgroup>
+                    <optgroup label="Otras zonas del GAM">
+                      {ZONES_GAM.map(z => <option key={z} value={z}>{z}</option>)}
+                    </optgroup>
+                  </select>
                 </div>
+                {isOtherZona && (
+                  <FInp
+                    label="Especificá tu zona"
+                    value={zonaOtra} onChange={setZonaOtra}
+                    placeholder="Ej: Sabanilla, Alajuelita…"
+                  />
+                )}
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
+              {/* Fila 3 — Perfil | Ocupación */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
+                <div>
+                  <label style={labelSt}>¿Cuál es tu perfil? *</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[
+                      { value: 'nuevo',       label: 'Nuevo en bienes raíces' },
+                      { value: 'experiencia', label: 'Agente con experiencia' },
+                      { value: 'otro',        label: 'Explorando opciones' },
+                    ].map(opt => (
+                      <label key={opt.value} style={{
+                        display: 'block', textAlign: 'center',
+                        padding: '11px 14px', cursor: 'pointer',
+                        border: `1.5px solid ${perfil === opt.value ? '#111' : '#e8e4df'}`,
+                        borderRadius: 12,
+                        fontSize: 13, fontWeight: perfil === opt.value ? 500 : 400,
+                        color: perfil === opt.value ? '#111' : '#888480',
+                        background: '#fff', textTransform: 'none',
+                      }}>
+                        <input type="radio" name="perfil" value={opt.value} checked={perfil === opt.value} onChange={() => setPerfil(opt.value)} style={{ display: 'none' }} />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <FInp label="¿A qué te dedicás actualmente?" value={ocupacion} onChange={setOcupacion} placeholder="Ej: vendedor, administrador, estudiante..." />
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
+              {/* Fila 4 — Motivación */}
+              <div>
                 <label style={labelSt}>¿Por qué te interesa el mundo inmobiliario?</label>
                 <textarea value={motivacion} onChange={e => setMotivacion(e.target.value)}
                   placeholder="Contanos un poco sobre tus motivaciones..."
                   rows={4} style={{ ...inpSt, resize: 'vertical', lineHeight: 1.6, minHeight: 108 }} />
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <FInp label="Link de tu CV (opcional · Google Drive, Dropbox, etc.)" value={cvLink} onChange={setCvLink} placeholder="https://drive.google.com/..." type="url" />
+              {/* Fila 5 — CV | LinkedIn */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                <FInp label="Link de tu CV (opcional)" value={cvLink} onChange={setCvLink} placeholder="Google Drive, Dropbox…" type="url" />
+                <FInp label="LinkedIn (opcional)"      value={linkedin} onChange={setLinkedin} placeholder="linkedin.com/in/tu-perfil" type="url" />
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <FInp label="Perfil de LinkedIn (opcional)" value={linkedin} onChange={setLinkedin} placeholder="https://linkedin.com/in/tu-perfil" type="url" />
-              </div>
-
-              <div style={{ gridColumn: '1 / -1', height: 1, background: '#e8e4df', margin: '8px 0' }} />
-
-              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+              {/* Submit */}
+              <div style={{ height: 1, background: '#e8e4df', margin: '4px 0' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
                 {error && <p style={{ fontSize: 13, color: '#e53e3e', margin: 0 }}>{error}</p>}
                 <button type="submit" disabled={sending || !canSubmit} style={{
                   width: '100%', background: '#111', color: '#fff',
