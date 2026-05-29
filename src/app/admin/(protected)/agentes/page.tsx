@@ -1,30 +1,42 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 
+const POSITIONS = ['Broker', 'Team Leader', 'Asesor Inmobiliario', 'Asistente'] as const
+type Position = typeof POSITIONS[number]
+
 interface Agent {
-  id: string; name: string; email: string | null; phone: string | null
-  whatsapp: string | null; photo_url: string | null; bio: string | null; is_active: boolean
+  id: string
+  name: string
+  position: Position | null
+  email: string | null
+  phone: string | null
+  photo_url: string | null
+  is_active: boolean
 }
 
-const emptyAgent = (): Omit<Agent, 'id' | 'is_active'> =>
-  ({ name: '', email: '', phone: '', whatsapp: '', photo_url: '', bio: '' })
+const emptyForm = () => ({ name: '', position: '' as Position | '', email: '', phone: '', photo_url: '' })
 
 export default function AgentesPage() {
-  const [loading, setLoading] = useState(true)
+  const [loading,  setLoading]  = useState(true)
   const [tenantId, setTenantId] = useState('')
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [editing, setEditing] = useState<Agent | null>(null)
-  const [form, setForm] = useState(emptyAgent())
+  const [agents,   setAgents]   = useState<Agent[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [editing,  setEditing]  = useState<Agent | null>(null)
+  const [form,     setForm]     = useState(emptyForm())
+  const [saving,   setSaving]   = useState(false)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   async function load(tid: string) {
     const supabase = createClient()
     const { data } = await supabase
       .from('agents').select('*').eq('tenant_id', tid).order('name')
-    setAgents(data ?? [])
+    setAgents((data ?? []) as Agent[])
   }
 
   useEffect(() => {
@@ -40,30 +52,71 @@ export default function AgentesPage() {
     })
   }, [])
 
-  function openNew() { setEditing(null); setForm(emptyAgent()); setShowForm(true) }
-  function openEdit(a: Agent) { setEditing(a); setForm({ name: a.name, email: a.email ?? '', phone: a.phone ?? '', whatsapp: a.whatsapp ?? '', photo_url: a.photo_url ?? '', bio: a.bio ?? '' }); setShowForm(true) }
+  function openNew() {
+    setEditing(null)
+    setForm(emptyForm())
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    setShowForm(true)
+  }
+
+  function openEdit(a: Agent) {
+    setEditing(a)
+    setForm({ name: a.name, position: a.position ?? '', email: a.email ?? '', phone: a.phone ?? '', photo_url: a.photo_url ?? '' })
+    setPhotoFile(null)
+    setPhotoPreview(a.photo_url ?? null)
+    setShowForm(true)
+  }
+
   function cancel() { setShowForm(false); setEditing(null) }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
 
   async function saveAgent(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     const supabase = createClient()
+
+    let photoUrl = form.photo_url || null
+
+    // Upload photo if a new file was selected
+    if (photoFile) {
+      setUploadingPhoto(true)
+      const ext = photoFile.name.split('.').pop()
+      const path = `${tenantId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('agent-photos')
+        .upload(path, photoFile, { upsert: true })
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('agent-photos').getPublicUrl(path)
+        photoUrl = urlData.publicUrl
+      }
+      setUploadingPhoto(false)
+    }
+
     const payload = {
       tenant_id: tenantId,
-      name: form.name,
-      email: form.email || null,
-      phone: form.phone || null,
-      whatsapp: form.whatsapp || null,
-      photo_url: form.photo_url || null,
-      bio: form.bio || null,
+      name: form.name.trim(),
+      position: form.position || null,
+      email: form.email.trim() || null,
+      phone: form.phone.trim() || null,
+      photo_url: photoUrl,
     }
+
     if (editing) {
       await supabase.from('agents').update(payload).eq('id', editing.id)
     } else {
-      await supabase.from('agents').insert(payload)
+      await supabase.from('agents').insert({ ...payload, is_active: true })
     }
+
     await load(tenantId)
-    setSaving(false); cancel()
+    setSaving(false)
+    cancel()
   }
 
   async function toggleActive(a: Agent) {
@@ -73,54 +126,100 @@ export default function AgentesPage() {
   }
 
   async function deleteAgent(id: string) {
-    if (!confirm('¿Eliminar este agente?')) return
     const supabase = createClient()
     await supabase.from('agents').delete().eq('id', id)
     setAgents(prev => prev.filter(a => a.id !== id))
+    setConfirmDelete(null)
   }
 
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm(prev => ({ ...prev, [k]: e.target.value }))
-
-  if (loading) return <PageLoader />
+  if (loading) return <div style={{ padding: 40, color: '#aaa', fontSize: 14 }}>Cargando…</div>
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>Agentes</h1>
-          <p style={{ fontSize: 14, color: '#888', margin: 0 }}>Gestión del equipo de agentes inmobiliarios</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Agentes</h1>
+          <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>
+            {agents.length === 0 ? 'Sin agentes aún.' : `${agents.length} agente${agents.length !== 1 ? 's' : ''} registrado${agents.length !== 1 ? 's' : ''}.`}
+          </p>
         </div>
         {!showForm && (
-          <button onClick={openNew} style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={openNew}
+            style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             + Nuevo agente
           </button>
         )}
       </div>
 
-      {/* Agent form */}
+      {/* Form */}
       {showForm && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: '24px', border: '1px solid #ebebeb', marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', border: '1px solid #ebebeb', marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 24 }}>
             {editing ? 'Editar agente' : 'Nuevo agente'}
           </div>
           <form onSubmit={saveAgent}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <Field label="Nombre *"><input value={form.name} onChange={f('name')} required style={inputStyle} /></Field>
-              <Field label="Email"><input type="email" value={form.email ?? ''} onChange={f('email')} style={inputStyle} /></Field>
-              <Field label="Teléfono"><input value={form.phone ?? ''} onChange={f('phone')} placeholder="+506 8888 8888" style={inputStyle} /></Field>
-              <Field label="WhatsApp (sin + ni espacios)"><input value={form.whatsapp ?? ''} onChange={f('whatsapp')} placeholder="50688888888" style={inputStyle} /></Field>
-              <Field label="URL de foto" ><input value={form.photo_url ?? ''} onChange={f('photo_url')} placeholder="https://..." style={inputStyle} /></Field>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 28, alignItems: 'start' }}>
+
+              {/* Photo upload */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{
+                    width: 96, height: 96, borderRadius: '50%',
+                    background: '#f5f5f7', border: '2px dashed #e0e0e0',
+                    overflow: 'hidden', cursor: 'pointer', position: 'relative',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color .15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#111')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = '#e0e0e0')}
+                >
+                  {photoPreview
+                    ? <img src={photoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 28 }}>👤</span>
+                  }
+                </div>
+                <button type="button" onClick={() => photoInputRef.current?.click()}
+                  style={{ fontSize: 11, color: '#888', background: 'none', border: '1px solid #e0e0e0', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {photoPreview ? 'Cambiar' : 'Subir foto'}
+                </button>
+                <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+              </div>
+
+              {/* Fields */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <Field label="Nombre *">
+                  <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    required placeholder="Nombre completo" style={inputSt} />
+                </Field>
+
+                <Field label="Puesto">
+                  <select value={form.position} onChange={e => setForm(p => ({ ...p, position: e.target.value as Position | '' }))} style={inputSt}>
+                    <option value="">Seleccionar…</option>
+                    {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                  </select>
+                </Field>
+
+                <Field label="Email">
+                  <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                    placeholder="agente@email.com" style={inputSt} />
+                </Field>
+
+                <Field label="Teléfono">
+                  <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="+506 8888-8888" style={inputSt} />
+                </Field>
+              </div>
             </div>
-            <Field label="Bio">
-              <textarea value={form.bio ?? ''} onChange={f('bio')} rows={3}
-                style={{ ...inputStyle, resize: 'vertical' }} />
-            </Field>
-            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <button type="submit" disabled={saving} style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
-                {saving ? 'Guardando…' : (editing ? 'Guardar cambios' : 'Agregar agente')}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button type="submit" disabled={saving || uploadingPhoto}
+                style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: (saving || uploadingPhoto) ? 'not-allowed' : 'pointer', opacity: (saving || uploadingPhoto) ? 0.7 : 1, fontFamily: 'inherit' }}>
+                {uploadingPhoto ? 'Subiendo foto…' : saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Agregar agente'}
               </button>
-              <button type="button" onClick={cancel} style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 10, padding: '10px 20px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" onClick={cancel}
+                style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 10, padding: '10px 20px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: '#555' }}>
                 Cancelar
               </button>
             </div>
@@ -129,40 +228,108 @@ export default function AgentesPage() {
       )}
 
       {/* Agent list */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #ebebeb', overflow: 'hidden' }}>
-        {agents.length === 0 ? (
-          <div style={{ padding: '32px 24px', textAlign: 'center', color: '#aaa', fontSize: 14 }}>
-            No hay agentes registrados
+      {agents.length === 0 && !showForm ? (
+        <div style={{ background: '#fff', borderRadius: 12, padding: '60px 24px', border: '1px solid #ebebeb', textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
+          <p style={{ fontSize: 14, color: '#aaa', margin: 0 }}>Agregá agentes para mostrarlos en el sitio.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Header row */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '52px 1fr 160px 200px 160px 96px 88px',
+            gap: 12, padding: '8px 16px',
+            fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.07em',
+          }}>
+            <span></span>
+            <span>Nombre</span>
+            <span>Puesto</span>
+            <span>Email</span>
+            <span>Teléfono</span>
+            <span style={{ textAlign: 'center' }}>Activo</span>
+            <span></span>
           </div>
-        ) : (
-          agents.map((a, i) => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', padding: '14px 20px', gap: 14, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
-              {/* Avatar */}
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f0f0f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                {a.photo_url ? <img src={a.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
+
+          {agents.map(a => {
+            const isConfirming = confirmDelete === a.id
+            return (
+              <div key={a.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #ebebeb', overflow: 'hidden' }}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '52px 1fr 160px 200px 160px 96px 88px',
+                  gap: 12, padding: '14px 16px', alignItems: 'center',
+                }}>
+                  {/* Avatar */}
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f0f0f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    {a.photo_url
+                      ? <img src={a.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : '👤'
+                    }
+                  </div>
+
+                  {/* Name */}
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{a.name}</div>
+
+                  {/* Position */}
+                  <div style={{ fontSize: 12, color: '#888' }}>{a.position ?? '—'}</div>
+
+                  {/* Email */}
+                  <div style={{ fontSize: 12, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.email ?? '—'}</div>
+
+                  {/* Phone */}
+                  <div style={{ fontSize: 12, color: '#555' }}>{a.phone ?? '—'}</div>
+
+                  {/* Active toggle */}
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div onClick={() => toggleActive(a)} style={{ width: 40, height: 22, borderRadius: 11, background: a.is_active ? '#111' : '#e0e0e0', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background .2s' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: a.is_active ? 21 : 3, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <button onClick={() => openEdit(a)}
+                      style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 7, padding: '5px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#555' }}>
+                      Editar
+                    </button>
+                    {!isConfirming ? (
+                      <button onClick={() => setConfirmDelete(a.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ddd', fontSize: 16, padding: '0 2px', lineHeight: 1 }}>
+                        ✕
+                      </button>
+                    ) : (
+                      <button onClick={() => deleteAgent(a.id)}
+                        style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        Sí
+                      </button>
+                    )}
+                    {isConfirming && (
+                      <button onClick={() => setConfirmDelete(null)}
+                        style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 7, padding: '5px 8px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', color: '#888' }}>
+                        No
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{a.name}</div>
-                <div style={{ fontSize: 12, color: '#999', marginTop: 1 }}>{[a.email, a.phone].filter(Boolean).join(' · ')}</div>
-              </div>
-              {/* Active toggle */}
-              <div onClick={() => toggleActive(a)} style={{ width: 40, height: 22, borderRadius: 11, background: a.is_active ? '#111' : '#e0e0e0', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
-                <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: a.is_active ? 21 : 3, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-              </div>
-              {/* Actions */}
-              <button onClick={() => openEdit(a)} style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: 8, padding: '5px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Editar</button>
-              <button onClick={() => deleteAgent(a.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 16, padding: '0 4px' }}>✕</button>
-            </div>
-          ))
-        )}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div style={{ marginBottom: 14 }}><label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 }}>{label}</label>{children}</div>
+  return (
+    <div>
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{label}</label>
+      {children}
+    </div>
+  )
 }
-function PageLoader() { return <div style={{ padding: 40, color: '#aaa', fontSize: 14 }}>Cargando…</div> }
-const inputStyle: React.CSSProperties = { width: '100%', border: '1px solid #e0e0e0', borderRadius: 8, padding: '9px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
+
+const inputSt: React.CSSProperties = {
+  width: '100%', border: '1px solid #e0e0e0', borderRadius: 8,
+  padding: '9px 12px', fontSize: 13, outline: 'none',
+  boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff',
+}
