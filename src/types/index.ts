@@ -38,6 +38,7 @@ export interface PageSettings {
   reclutamiento_template?: 'default' | 'sunrise'
   listar_template?: 'default' | 'sunrise'
   nosotros_template?: 'default' | 'sunrise'
+  contacto_template?: 'default' | 'sunrise'
 }
 
 export interface PageConfig {

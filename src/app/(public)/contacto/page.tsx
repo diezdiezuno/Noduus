@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { getTenantByDomain, getTenantConfig } from '@/lib/tenant'
 import ContactoClient from './ContactoClient'
+import ContactoClientSunrise from './ContactoClientSunrise'
 import type { Metadata } from 'next'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,17 +20,22 @@ export default async function ContactoPage() {
   const tenant = await getTenantByDomain(domain).catch(() => null)
   const config = tenant ? await getTenantConfig(tenant.id).catch(() => null) : null
 
-  return (
-    <ContactoClient
-      whatsapp={config?.whatsapp ?? null}
-      email={config?.contact_email ?? null}
-      address={config?.address ?? null}
-      instagram={config?.instagram ?? null}
-      facebook={config?.facebook ?? null}
-      linkedin={config?.linkedin ?? null}
-      youtube={config?.youtube ?? null}
-      tiktok={config?.tiktok ?? null}
-      twitter={config?.twitter ?? null}
-    />
-  )
+  const pageCfg = config?.pages_config?.find(p => p.slug === 'contacto')
+  const contactProps = {
+    whatsapp:  config?.whatsapp ?? null,
+    email:     config?.contact_email ?? null,
+    address:   config?.address ?? null,
+    instagram: config?.instagram ?? null,
+    facebook:  config?.facebook ?? null,
+    linkedin:  config?.linkedin ?? null,
+    youtube:   config?.youtube ?? null,
+    tiktok:    config?.tiktok ?? null,
+    twitter:   config?.twitter ?? null,
+  }
+
+  if (pageCfg?.settings?.contacto_template === 'sunrise') {
+    return <ContactoClientSunrise {...contactProps} />
+  }
+
+  return <ContactoClient {...contactProps} />
 }

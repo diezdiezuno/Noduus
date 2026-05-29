@@ -51,6 +51,7 @@ export default function PageEditorPage() {
   const [reclutamientoTemplate, setReclutamientoTemplate] = useState<'default' | 'sunrise'>('default')
   const [listarTemplate, setListarTemplate] = useState<'default' | 'sunrise'>('default')
   const [nosotrosTemplate, setNosotrosTemplate] = useState<'default' | 'sunrise'>('default')
+  const [contactoTemplate, setContactoTemplate] = useState<'default' | 'sunrise'>('default')
 
   useEffect(() => {
     const supabase = createClient()
@@ -90,6 +91,7 @@ export default function PageEditorPage() {
       setReclutamientoTemplate(s.reclutamiento_template ?? 'default')
       setListarTemplate(s.listar_template ?? 'default')
       setNosotrosTemplate(s.nosotros_template ?? 'default')
+      setContactoTemplate(s.contacto_template ?? 'default')
 
       setLoading(false)
     })
@@ -119,6 +121,9 @@ export default function PageEditorPage() {
     const settings: PageSettings = {}
     if (slug !== 'contacto') {
       if (seoDescription.trim()) settings.seo_description = seoDescription.trim()
+    }
+    if (slug === 'contacto') {
+      settings.contacto_template = contactoTemplate
     }
     if (slug === 'nosotros' || page?.custom) {
       settings.nosotros_template = nosotrosTemplate
@@ -176,14 +181,42 @@ export default function PageEditorPage() {
       </div>
 
       <form onSubmit={save}>
-        {/* ── CONTACTO — info only, no editable settings ── */}
+        {/* ── CONTACTO ── */}
         {slug === 'contacto' && (
-          <Section title="Información de contacto">
-            <p style={{ fontSize: 13, color: '#888', margin: 0 }}>
-              Esta página muestra automáticamente los datos de contacto configurados en <a href="/admin/general" style={{ color: 'var(--primary,#6b2fa0)' }}>General</a>: WhatsApp, email, dirección y redes sociales.
-              No hay contenido adicional que editar aquí.
-            </p>
-          </Section>
+          <>
+            {tenantSlug === 'sunrise' && (
+              <Section title="Diseño de la página">
+                <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 14 }}>
+                  Seleccioná el diseño que se usará para esta página.
+                </p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {([
+                    { value: 'default', label: 'Estándar', desc: 'Diseño simple con formulario y datos de contacto.' },
+                    { value: 'sunrise', label: 'Sunrise', desc: 'Landing page con hero, tarjetas de contacto y formulario destacado.' },
+                  ] as const).map(opt => (
+                    <label key={opt.value} style={{
+                      flex: 1, border: `2px solid ${contactoTemplate === opt.value ? '#111' : '#e0e0e0'}`,
+                      borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+                      background: contactoTemplate === opt.value ? '#f5f5f7' : '#fff',
+                      transition: 'border-color .15s',
+                    }}>
+                      <input type="radio" name="contacto_template" value={opt.value}
+                        checked={contactoTemplate === opt.value}
+                        onChange={() => setContactoTemplate(opt.value)}
+                        style={{ display: 'none' }} />
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111', marginBottom: 4 }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>{opt.desc}</div>
+                    </label>
+                  ))}
+                </div>
+              </Section>
+            )}
+            <Section title="Información de contacto">
+              <p style={{ fontSize: 13, color: '#888', margin: 0 }}>
+                Los datos (WhatsApp, email, dirección, redes) se configuran en <a href="/admin/general" style={{ color: 'var(--primary,#6b2fa0)' }}>General</a> y se muestran automáticamente en esta página.
+              </p>
+            </Section>
+          </>
         )}
 
         {/* ── NOSOTROS ── */}
@@ -391,8 +424,8 @@ export default function PageEditorPage() {
           </Section>
         )}
 
-        {/* Save bar — not shown for contacto */}
-        {slug !== 'contacto' && (
+        {/* Save bar */}
+        {(slug !== 'contacto' || tenantSlug === 'sunrise') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 4 }}>
             <button type="submit" disabled={saving}
               style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 10, padding: '11px 24px', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
