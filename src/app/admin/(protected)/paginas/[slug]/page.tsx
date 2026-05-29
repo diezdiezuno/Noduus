@@ -50,6 +50,7 @@ export default function PageEditorPage() {
   const [notificationEmails, setNotificationEmails] = useState('')
   const [reclutamientoTemplate, setReclutamientoTemplate] = useState<'default' | 'sunrise'>('default')
   const [listarTemplate, setListarTemplate] = useState<'default' | 'sunrise'>('default')
+  const [nosotrosTemplate, setNosotrosTemplate] = useState<'default' | 'sunrise'>('default')
 
   useEffect(() => {
     const supabase = createClient()
@@ -88,6 +89,7 @@ export default function PageEditorPage() {
       setNotificationEmails(s.notification_emails ?? '')
       setReclutamientoTemplate(s.reclutamiento_template ?? 'default')
       setListarTemplate(s.listar_template ?? 'default')
+      setNosotrosTemplate(s.nosotros_template ?? 'default')
 
       setLoading(false)
     })
@@ -119,6 +121,7 @@ export default function PageEditorPage() {
       if (seoDescription.trim()) settings.seo_description = seoDescription.trim()
     }
     if (slug === 'nosotros' || page?.custom) {
+      settings.nosotros_template = nosotrosTemplate
       settings.content_html = contentHtml
     }
     if (slug === 'listar') {
@@ -183,11 +186,42 @@ export default function PageEditorPage() {
           </Section>
         )}
 
-        {/* ── NOSOTROS — HTML content ── */}
+        {/* ── NOSOTROS ── */}
         {slug === 'nosotros' && (
-          <Section title="Contenido de la página">
-            <HtmlEditor value={contentHtml} onChange={setContentHtml} />
-          </Section>
+          <>
+            {tenantSlug === 'sunrise' && (
+              <Section title="Diseño de la página">
+                <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 14 }}>
+                  Seleccioná el diseño que se usará para esta página.
+                </p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {([
+                    { value: 'default', label: 'Estándar', desc: 'Muestra el contenido HTML personalizable.' },
+                    { value: 'sunrise', label: 'Sunrise', desc: 'Landing page con hero, misión, visión y pilares.' },
+                  ] as const).map(opt => (
+                    <label key={opt.value} style={{
+                      flex: 1, border: `2px solid ${nosotrosTemplate === opt.value ? '#111' : '#e0e0e0'}`,
+                      borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+                      background: nosotrosTemplate === opt.value ? '#f5f5f7' : '#fff',
+                      transition: 'border-color .15s',
+                    }}>
+                      <input type="radio" name="nosotros_template" value={opt.value}
+                        checked={nosotrosTemplate === opt.value}
+                        onChange={() => setNosotrosTemplate(opt.value)}
+                        style={{ display: 'none' }} />
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111', marginBottom: 4 }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>{opt.desc}</div>
+                    </label>
+                  ))}
+                </div>
+              </Section>
+            )}
+            {nosotrosTemplate !== 'sunrise' && (
+              <Section title="Contenido de la página">
+                <HtmlEditor value={contentHtml} onChange={setContentHtml} />
+              </Section>
+            )}
+          </>
         )}
 
         {/* ── LISTAR ── */}

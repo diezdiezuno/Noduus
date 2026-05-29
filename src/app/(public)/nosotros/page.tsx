@@ -1,5 +1,6 @@
 import { headers } from 'next/headers'
 import { getTenantByDomain, getTenantConfig } from '@/lib/tenant'
+import NosotrosClientSunrise from './NosotrosClientSunrise'
 import type { Metadata } from 'next'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,7 +20,12 @@ export default async function NosotrosPage() {
   const config = tenant ? await getTenantConfig(tenant.id).catch(() => null) : null
 
   const pageCfg = config?.pages_config?.find(p => p.slug === 'nosotros')
-  const html = pageCfg?.settings?.content_html ?? config?.about_html ?? ''
+  const settings = pageCfg?.settings ?? {}
+  const html = settings?.content_html ?? config?.about_html ?? ''
+
+  if (settings.nosotros_template === 'sunrise') {
+    return <NosotrosClientSunrise />
+  }
 
   return (
     <div style={{ paddingTop: 'var(--nav-h,68px)', minHeight: '100vh' }}>
