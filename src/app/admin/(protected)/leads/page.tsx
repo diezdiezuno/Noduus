@@ -190,8 +190,33 @@ export default function AdminLeadsPage() {
                       </div>
                     )}
 
-                    {/* Message */}
-                    {lead.message && (
+                    {/* Listar metadata — structured fields */}
+                    {lead.source === 'listar' && lead.metadata && Object.keys(lead.metadata).filter(k => k !== 'notes').length > 0 && (() => {
+                      const LABELS: Record<string, string> = {
+                        type: 'Tipo', transaction: 'Transacción',
+                        provincia: 'Provincia', canton: 'Cantón', distrito: 'Distrito',
+                        address: 'Dirección', finca: 'N° de finca',
+                        price: 'Precio', area: 'Área construida', lot: 'Área lote',
+                        bedrooms: 'Habitaciones', bathrooms: 'Baños', description: 'Descripción',
+                      }
+                      const entries = Object.entries(lead.metadata).filter(([k, v]) => k !== 'notes' && v)
+                      return (
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>Datos de la propiedad</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                            {entries.map(([k, v]) => (
+                              <div key={k}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 2 }}>{LABELS[k] ?? k}</div>
+                                <div style={{ fontSize: 13, color: '#333' }}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Message (non-listar) */}
+                    {lead.source !== 'listar' && lead.message && (
                       <div style={{ marginBottom: 20 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Mensaje</div>
                         <div style={{ fontSize: 14, color: '#333', lineHeight: 1.6 }}>{lead.message}</div>

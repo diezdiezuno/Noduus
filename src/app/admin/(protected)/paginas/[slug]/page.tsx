@@ -11,16 +11,20 @@ const LISTAR_FIELD_OPTIONS = [
   { key: 'phone',       label: 'Teléfono' },
   { key: 'type',        label: 'Tipo de propiedad' },
   { key: 'transaction', label: 'Tipo de transacción' },
+  { key: 'provincia',   label: 'Provincia' },
+  { key: 'canton',      label: 'Cantón' },
+  { key: 'distrito',    label: 'Distrito' },
+  { key: 'address',     label: 'Dirección exacta' },
+  { key: 'finca',       label: 'Número de finca' },
   { key: 'price',       label: 'Precio estimado' },
-  { key: 'area',        label: 'Área (m²)' },
-  { key: 'lot',         label: 'Lote (m²)' },
-  { key: 'address',     label: 'Dirección o zona' },
+  { key: 'area',        label: 'Área construida (m²)' },
+  { key: 'lot',         label: 'Área del lote (m²)' },
   { key: 'bedrooms',    label: 'Habitaciones' },
   { key: 'bathrooms',   label: 'Baños' },
-  { key: 'description', label: 'Descripción' },
+  { key: 'description', label: 'Descripción adicional' },
 ]
 
-const DEFAULT_LISTAR_FIELDS = ['phone', 'type', 'address', 'price', 'description']
+const DEFAULT_LISTAR_FIELDS = ['phone', 'type', 'provincia', 'address', 'finca', 'price', 'description']
 
 export default function PageEditorPage() {
   const { slug } = useParams<{ slug: string }>()

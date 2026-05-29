@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     const domain = request.headers.get('x-tenant-domain') ?? 'localhost'
     const body = await request.json()
-    const { name, email, phone, message, source, property_id, property_title, property_url } = body
+    const { name, email, phone, message, source, property_id, property_title, property_url, listar_metadata } = body
 
     // Resolve tenant (with logo)
     let { data: tenant } = await supabase
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       phone: phone ?? null,
       message: message ?? null,
       source: source ?? 'contacto',
+      metadata: listar_metadata ?? null,
     })
     if (insertError) console.error('[contact] DB insert error:', JSON.stringify(insertError))
 
@@ -51,13 +52,34 @@ export async function POST(request: NextRequest) {
     if (resend && notifEmails.length > 0) {
       const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@propcloud.app'
       const isProperty = source === 'propiedad' && property_title
+      const isListar   = source === 'listar'
 
-      const rows: [string, string][] = [
+      const FIELD_LABELS: Record<string, string> = {
+        type: 'Tipo de propiedad', transaction: 'Transacción',
+        provincia: 'Provincia', canton: 'Cantón', distrito: 'Distrito',
+        address: 'Dirección', finca: 'Número de finca',
+        price: 'Precio estimado', area: 'Área construida (m²)',
+        lot: 'Área del lote (m²)', bedrooms: 'Habitaciones',
+        bathrooms: 'Baños', description: 'Descripción',
+      }
+
+      const contactRows: [string, string][] = [
         ['Nombre',   name ?? ''],
         ['Email',    email ?? ''],
-        ...(phone   ? [['Teléfono', phone]   as [string, string]] : []),
-        ...(message ? [['Mensaje',  message] as [string, string]] : []),
+        ...(phone ? [['Teléfono', phone] as [string, string]] : []),
       ]
+
+      const listarRows: [string, string][] = isListar && listar_metadata
+        ? Object.entries(listar_metadata as Record<string, string>)
+            .filter(([, v]) => v)
+            .map(([k, v]) => [FIELD_LABELS[k] ?? k, v] as [string, string])
+        : []
+
+      const messageRows: [string, string][] = (!isListar && message)
+        ? [['Mensaje', message]]
+        : []
+
+      const rows: [string, string][] = [...contactRows, ...listarRows, ...messageRows]
 
       const tableRows = rows.map(([label, value]) => `
         <tr>
@@ -67,7 +89,9 @@ export async function POST(request: NextRequest) {
 
       const subject = isProperty
         ? `Nueva consulta — ${property_title}`
-        : `Nuevo mensaje de contacto — ${name}`
+        : isListar
+          ? `Nueva propiedad para listar — ${name}`
+          : `Nuevo mensaje de contacto — ${name}`
 
       const logoHtml = (tenant as Record<string, string | null>).logo_url
         ? `<img src="${(tenant as Record<string, string | null>).logo_url}" alt="${tenant.name}" style="height:36px;object-fit:contain;display:block;margin-bottom:16px;">`
@@ -91,7 +115,7 @@ export async function POST(request: NextRequest) {
     <!-- Header — blanco con logo -->
     <div style="background:#fff;padding:28px 48px 24px;border-bottom:1px solid #ebebeb;">
       ${logoHtml}
-      <div style="font-size:22px;font-weight:700;color:#111;line-height:1.2;">${isProperty ? 'Nueva consulta de propiedad' : 'Nuevo mensaje de contacto'}</div>
+      <div style="font-size:22px;font-weight:700;color:#111;line-height:1.2;">${isProperty ? 'Nueva consulta de propiedad' : isListar ? 'Nueva propiedad para listar' : 'Nuevo mensaje de contacto'}</div>
       <div style="font-size:13px;color:#999;margin-top:4px;">${tenant.name}</div>
     </div>
 
