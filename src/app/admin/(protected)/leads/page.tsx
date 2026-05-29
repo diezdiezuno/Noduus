@@ -18,6 +18,7 @@ interface Lead {
 export default function AdminLeadsPage() {
   const [loading, setLoading]             = useState(true)
   const [leads, setLeads]                 = useState<Lead[]>([])
+  const [tab, setTab]                     = useState<'compradores' | 'vendedores'>('compradores')
   const [expanded, setExpanded]           = useState<string | null>(null)
   const [notes, setNotes]                 = useState<Record<string, string>>({})
   const [savingNote, setSavingNote]       = useState<string | null>(null)
@@ -115,21 +116,55 @@ export default function AdminLeadsPage() {
 
   if (loading) return <div style={{ padding: 40, color: '#aaa', fontSize: 14 }}>Cargando…</div>
 
+  const compradores = leads.filter(l => l.source !== 'listar')
+  const vendedores  = leads.filter(l => l.source === 'listar')
+  const visibleLeads = tab === 'compradores' ? compradores : vendedores
+
   return (
     <div>
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Leads</h1>
-        <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>
-          {leads.length === 0
-            ? 'Aún no hay leads.'
-            : `${leads.length} lead${leads.length !== 1 ? 's' : ''} recibido${leads.length !== 1 ? 's' : ''}.`}
-        </p>
       </div>
 
-      {leads.length === 0 ? (
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f5f5f7', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+        {([
+          { key: 'compradores', label: 'Compradores', count: compradores.length },
+          { key: 'vendedores',  label: 'Vendedores',  count: vendedores.length },
+        ] as const).map(t => (
+          <button
+            key={t.key}
+            onClick={() => { setTab(t.key); setExpanded(null); setConfirmDelete(null) }}
+            style={{
+              padding: '7px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+              background: tab === t.key ? '#fff' : 'transparent',
+              color: tab === t.key ? '#111' : '#888',
+              boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+              transition: 'all .15s',
+              display: 'flex', alignItems: 'center', gap: 7,
+            }}
+          >
+            {t.label}
+            <span style={{
+              fontSize: 11, fontWeight: 600,
+              background: tab === t.key ? '#111' : '#ddd',
+              color: tab === t.key ? '#fff' : '#888',
+              borderRadius: 100, padding: '1px 7px',
+              transition: 'all .15s',
+            }}>{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {visibleLeads.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 12, padding: '60px 24px', border: '1px solid #ebebeb', textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
-          <p style={{ fontSize: 14, color: '#aaa', margin: 0 }}>Los leads de formularios de propiedades y contacto aparecerán aquí.</p>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>{tab === 'compradores' ? '🔍' : '🏠'}</div>
+          <p style={{ fontSize: 14, color: '#aaa', margin: 0 }}>
+            {tab === 'compradores'
+              ? 'Aún no hay leads de compradores.'
+              : 'Aún no hay leads de vendedores.'}
+          </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -140,10 +175,12 @@ export default function AdminLeadsPage() {
             fontSize: 11, fontWeight: 600, color: '#aaa',
             textTransform: 'uppercase', letterSpacing: '.08em',
           }}>
-            <span>Nombre</span><span>Email</span><span>Propiedad / Fuente</span><span>Teléfono</span><span>Fecha</span>
+            <span>Nombre</span><span>Email</span>
+            <span>{tab === 'compradores' ? 'Propiedad / Fuente' : 'Ubicación / Fuente'}</span>
+            <span>Teléfono</span><span>Fecha</span>
           </div>
 
-          {leads.map(lead => {
+          {visibleLeads.map(lead => {
             const isOpen = expanded === lead.id
             const isConfirming = confirmDelete === lead.id
             const isDeleting = deleting === lead.id
@@ -154,6 +191,8 @@ export default function AdminLeadsPage() {
               ?? lead.metadata?.property_title
               ?? null
             const propUrl = lead.metadata?.property_url ?? null
+            const isVendedor = lead.source === 'listar'
+            const locationLabel = [lead.metadata?.provincia, lead.metadata?.canton].filter(Boolean).join(', ') || null
 
             return (
               <div key={lead.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #ebebeb', overflow: 'hidden' }}>
@@ -172,9 +211,13 @@ export default function AdminLeadsPage() {
                   </span>
                   <span style={{ fontSize: 13, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.email ?? '—'}</span>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
-                    {propTitle
-                      ? <span style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{propTitle}</span>
-                      : <span style={{ fontSize: 13, color: '#aaa' }}>—</span>
+                    {isVendedor
+                      ? locationLabel
+                        ? <span style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{locationLabel}</span>
+                        : <span style={{ fontSize: 13, color: '#aaa' }}>—</span>
+                      : propTitle
+                        ? <span style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{propTitle}</span>
+                        : <span style={{ fontSize: 13, color: '#aaa' }}>—</span>
                     }
                     <span style={sourceBadgeStyle(lead.source)}>{sourceLabel(lead.source)}</span>
                   </span>

@@ -255,30 +255,6 @@ export default function ListarClientSunrise() {
         }),
       })
 
-      // WhatsApp message
-      const lines = [
-        `Nombre: ${nombre}`,
-        `Email: ${email}`,
-        `Teléfono: ${telefono}`,
-        provincia && `Provincia: ${provincia}`,
-        canton    && `Cantón: ${canton}`,
-        distrito  && `Distrito: ${distrito}`,
-        address   && `Dirección: ${address}`,
-        finca     && `N° de finca: ${finca}`,
-        plano     && `N° de plano: ${plano}`,
-        area      && `Área construida: ${area} m²`,
-        lot       && `Área de terreno: ${lot} m²`,
-        bedrooms  && `Habitaciones: ${bedrooms}`,
-        bathrooms && `Baños: ${bathrooms}`,
-        timeline  && `¿Cuándo vender? ${timeline}`,
-        contactPref.length > 0 && `Contacto preferido: ${contactPref.join(', ')}`,
-        description && `Descripción: ${description}`,
-        mapLat !== null && `Coordenadas: ${mapLat}, ${mapLng}`,
-      ].filter(Boolean).join('\n')
-
-      const waMsg = encodeURIComponent(`Hola, quiero vender mi propiedad con SUNRISE | REMAX Central.\n\n${lines}`)
-      window.open(`https://wa.me/50688887777?text=${waMsg}`, '_blank')
-
       setSent(true)
     } catch {
       setError('Hubo un error al enviar. Por favor intentá de nuevo.')
@@ -769,7 +745,7 @@ export default function ListarClientSunrise() {
               transition: 'opacity .15s',
             }}
           >
-            {sending ? 'Enviando…' : '📲 Enviar por WhatsApp'}
+            {sending ? 'Enviando…' : 'Enviar solicitud'}
           </button>
         </form>
       </section>
