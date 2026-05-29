@@ -24,14 +24,7 @@ export default function NosotrosClientSunrise() {
         maxWidth: 1440, margin: '0 auto',
       }}>
         <div style={{ maxWidth: 860 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 500, letterSpacing: '.16em',
-            textTransform: 'uppercase', color: 'var(--primary,#6b2fa0)', marginBottom: 20,
-          }}>
-            SUNRISE | RE/MAX Central
-          </div>
-
-          <h1 style={{
+            <h1 style={{
             fontFamily: 'var(--font-heading,serif)',
             fontSize: 'clamp(52px,7vw,88px)',
             fontWeight: 900, lineHeight: .93,

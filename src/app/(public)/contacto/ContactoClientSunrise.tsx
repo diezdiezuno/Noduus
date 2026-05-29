@@ -58,12 +58,6 @@ export default function ContactoClientSunrise({ whatsapp, email, address, instag
         maxWidth: 1440, margin: '0 auto',
       }}>
         <div style={{ maxWidth: 760 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 500, letterSpacing: '.16em',
-            textTransform: 'uppercase', color: 'var(--primary,#6b2fa0)', marginBottom: 20,
-          }}>
-            SUNRISE | RE/MAX Central
-          </div>
           <h1 style={{
             fontFamily: 'var(--font-heading,serif)',
             fontSize: 'clamp(52px,7vw,88px)',
@@ -101,53 +95,18 @@ export default function ContactoClientSunrise({ whatsapp, email, address, instag
             border: '1px solid #e8e4df', borderRadius: 20, overflow: 'hidden',
           }}>
             {whatsapp && (
-              <a
-                href={`https://wa.me/${whatsapp.replace(/\D/g,'')}`}
-                target="_blank" rel="noopener noreferrer"
-                style={{
-                  background: '#fff', padding: 'clamp(24px,3vw,40px)',
-                  textDecoration: 'none', display: 'block',
-                  transition: 'background .2s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#111')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                className="contact-card"
-              >
-                <ContactCard
-                  icon="💬"
-                  label="WhatsApp"
-                  value={`+${whatsapp.replace(/^\+/,'')}`}
-                  cta="Escribir ahora →"
-                />
-              </a>
+              <HoverCard href={`https://wa.me/${whatsapp.replace(/\D/g,'')}`}>
+                <ContactCard icon="💬" label="WhatsApp" value={`+${whatsapp.replace(/^\+/,'')}`} cta="Escribir ahora →" />
+              </HoverCard>
             )}
             {email && (
-              <a
-                href={`mailto:${email}`}
-                style={{
-                  background: '#fff', padding: 'clamp(24px,3vw,40px)',
-                  textDecoration: 'none', display: 'block',
-                  transition: 'background .2s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#111')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-              >
-                <ContactCard
-                  icon="✉️"
-                  label="Email"
-                  value={email}
-                  cta="Enviar correo →"
-                />
-              </a>
+              <HoverCard href={`mailto:${email}`}>
+                <ContactCard icon="✉️" label="Email" value={email} cta="Enviar correo →" />
+              </HoverCard>
             )}
             {address && (
               <div style={{ background: '#fff', padding: 'clamp(24px,3vw,40px)' }}>
-                <ContactCard
-                  icon="📍"
-                  label="Oficina"
-                  value={address}
-                  cta={null}
-                />
+                <ContactCard icon="📍" label="Oficina" value={address} cta={null} />
               </div>
             )}
           </div>
@@ -286,18 +245,42 @@ export default function ContactoClientSunrise({ whatsapp, email, address, instag
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
+function HoverCard({ href, children }: { href: string; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <a
+      href={href}
+      target={href.startsWith('http') ? '_blank' : undefined}
+      rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? '#111' : '#fff',
+        padding: 'clamp(24px,3vw,40px)',
+        textDecoration: 'none', display: 'block',
+        transition: 'background .2s',
+        color: hovered ? '#fff' : '#111',
+      }}
+      data-hovered={hovered}
+    >
+      {children}
+    </a>
+  )
+}
+
 function ContactCard({ icon, label, value, cta }: { icon: string; label: string; value: string; cta: string | null }) {
+  // Inherit color from parent HoverCard via currentColor
   return (
     <div>
       <div style={{ fontSize: 28, marginBottom: 14 }}>{icon}</div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6, color: 'inherit', opacity: .6 }}>
         {label}
       </div>
-      <div style={{ fontSize: 15, fontWeight: 500, color: '#111', marginBottom: cta ? 12 : 0, lineHeight: 1.4 }}>
+      <div style={{ fontSize: 15, fontWeight: 500, color: 'inherit', marginBottom: cta ? 12 : 0, lineHeight: 1.4 }}>
         {value}
       </div>
       {cta && (
-        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--primary,#6b2fa0)' }}>{cta}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'inherit', opacity: .75 }}>{cta}</div>
       )}
     </div>
   )
