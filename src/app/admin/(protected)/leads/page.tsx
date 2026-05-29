@@ -150,7 +150,10 @@ export default function AdminLeadsPage() {
             const isSaving = savingNote === lead.id
             const noteSaved = savedNote === lead.id
             const hasNote = (lead.metadata?.notes ?? '').trim().length > 0
-            const propTitle = lead.property_id ? propertyTitles[lead.property_id] : null
+            const propTitle = (lead.property_id ? propertyTitles[lead.property_id] : null)
+              ?? lead.metadata?.property_title
+              ?? null
+            const propUrl = lead.metadata?.property_url ?? null
 
             return (
               <div key={lead.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #ebebeb', overflow: 'hidden' }}>
@@ -185,8 +188,14 @@ export default function AdminLeadsPage() {
                     {/* Property */}
                     {propTitle && (
                       <div style={{ marginBottom: 20, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #ebebeb' }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Propiedad</div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{propTitle}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Propiedad consultada</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: propUrl ? 6 : 0 }}>{propTitle}</div>
+                        {propUrl && (
+                          <a href={propUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: 'var(--primary,#6b2fa0)', textDecoration: 'none' }}>
+                            Ver propiedad →
+                          </a>
+                        )}
                       </div>
                     )}
 

@@ -35,6 +35,17 @@ export async function POST(request: NextRequest) {
     const cfgData = cfg as Record<string, string | null> | null
     const notifEmails = [cfgData?.contact_email, cfgData?.contact_email_2].filter(Boolean) as string[]
 
+    // Build metadata
+    let metadata: Record<string, string> | null = null
+    if (listar_metadata) {
+      metadata = listar_metadata
+    } else if (source === 'propiedad') {
+      metadata = {
+        ...(property_title ? { property_title } : {}),
+        ...(property_url   ? { property_url }   : {}),
+      }
+    }
+
     // Save lead
     const { error: insertError } = await supabase.from('leads').insert({
       tenant_id: tenant.id,
@@ -44,7 +55,7 @@ export async function POST(request: NextRequest) {
       phone: phone ?? null,
       message: message ?? null,
       source: source ?? 'contacto',
-      metadata: listar_metadata ?? null,
+      metadata,
     })
     if (insertError) console.error('[contact] DB insert error:', JSON.stringify(insertError))
 
