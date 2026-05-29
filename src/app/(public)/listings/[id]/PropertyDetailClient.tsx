@@ -93,6 +93,19 @@ export default function PropertyDetailClient({
   function submitInquiry() {
     if (!formName.trim() || !formEmail.trim()) { showToast(t.fillNameEmail); return }
     track('inquiry_submit', { property_id: id, property_title: property?.title, contact_mode: contactMode })
+
+    // Save lead + send email notification
+    fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: formName, email: formEmail, phone: formPhone,
+        message: formMsg, source: 'propiedad',
+        property_id: id, property_title: property?.title ?? '',
+      }),
+    }).catch(() => {})
+
+    // Open WhatsApp if available
     const phone = contactMode === 'office' ? officeWhatsapp : property?.agent_phone
     if (phone) {
       const msg = encodeURIComponent(`Hola, me interesa esta propiedad: ${property?.title}\n\nNombre: ${formName}\nCorreo: ${formEmail}${formPhone ? `\nTel: ${formPhone}` : ''}${formMsg ? `\n\n${formMsg}` : ''}`)
