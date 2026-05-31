@@ -41,14 +41,29 @@ export default async function AgentesPage() {
   const pageCfg = config?.pages_config?.find(p => p.slug === 'agentes')
   if (pageCfg && !pageCfg.visible) notFound()
 
-  const { data } = await db
+  // Try full select with socials; fallback to base columns if social columns don't exist yet
+  let agentData: Agent[] = []
+  const { data: fullData, error: fullError } = await db
     .from('agents')
     .select('id,name,position,email,phone,photo_url,instagram,facebook,linkedin,tiktok,twitter,youtube,threads')
     .eq('tenant_id', tenant.id)
     .eq('is_active', true)
     .order('name')
 
-  const agents = (data ?? []) as Agent[]
+  if (!fullError) {
+    agentData = (fullData ?? []) as Agent[]
+  } else {
+    // Fallback: columns not yet migrated
+    const { data: baseData } = await db
+      .from('agents')
+      .select('id,name,position,email,phone,photo_url')
+      .eq('tenant_id', tenant.id)
+      .eq('is_active', true)
+      .order('name')
+    agentData = (baseData ?? []) as Agent[]
+  }
+
+  const agents = agentData
 
   return (
     <div style={{ paddingTop: 'var(--nav-h,68px)', fontFamily: 'var(--font-body,system-ui,sans-serif)' }}>
