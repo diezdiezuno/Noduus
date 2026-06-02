@@ -5,7 +5,6 @@ import { track } from '@/lib/gtag'
 import { createClient } from '@/lib/supabase-browser'
 import { getCantons, getDistricts } from '@/data/cr-divisions'
 import type mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
 
 /* ─── Constants ────────────────────────────────────────────── */
 
