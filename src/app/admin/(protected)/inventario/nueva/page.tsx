@@ -214,7 +214,87 @@ export default function NuevaPropiedadPage() {
 
       <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* ── SECCIÓN 1: Datos básicos ── */}
+        {/* ── SECCIÓN 1: Datos registrales y ubicación ── */}
+        <FormSection title="Datos registrales y ubicación">
+          <p style={{ fontSize: 13, color: '#888', marginTop: 0, marginBottom: 20 }}>
+            Ingresá el número de finca o de plano y marcá la ubicación exacta en el mapa.
+            Con estos datos el agente puede realizar el estudio registral y de mercado.
+          </p>
+
+          {/* Finca y Plano */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+            <div>
+              <FieldLabel>Número de finca</FieldLabel>
+              <input value={finca} onChange={e => setFinca(e.target.value)}
+                placeholder="Ej: 1-12345-000" style={inputSt} />
+            </div>
+            <div>
+              <FieldLabel>Número de plano catastrado</FieldLabel>
+              <input value={plano} onChange={e => setPlano(e.target.value)}
+                placeholder="Ej: SJ-1234567-2010" style={inputSt} />
+            </div>
+          </div>
+
+          {/* Mapa */}
+          <FieldLabel>Ubicación exacta en el mapa</FieldLabel>
+          <p style={{ fontSize: 12, color: '#888', margin: '0 0 10px' }}>
+            Hacé clic en el mapa o arrastrá el marcador para indicar la ubicación de la propiedad.
+          </p>
+          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #e0e0e0' }}>
+            <div ref={mapContainerRef} style={{ height: 380, width: '100%' }} />
+            <button type="button" onClick={useMyLocation} disabled={geoLoading}
+              style={{
+                position: 'absolute', top: 12, left: 12,
+                background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8,
+                padding: '7px 13px', fontSize: 12, fontWeight: 500,
+                cursor: geoLoading ? 'wait' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+                boxShadow: '0 2px 8px rgba(0,0,0,.1)', fontFamily: 'inherit',
+              }}>
+              <span>{geoLoading ? '…' : '📍'}</span>
+              {geoLoading ? 'Localizando…' : 'Mi ubicación'}
+            </button>
+          </div>
+          {mapLat !== null && (
+            <p style={{ fontSize: 11, color: '#6b2fa0', margin: '8px 0 0', fontWeight: 500 }}>
+              ✓ Ubicación marcada: {mapLat}, {mapLng}
+            </p>
+          )}
+
+          {/* Provincia / Cantón / Distrito */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginTop: 20, marginBottom: 14 }}>
+            <div>
+              <FieldLabel>Provincia</FieldLabel>
+              <select value={provincia} onChange={e => { setProvincia(e.target.value); setCanton(''); setDistrito('') }} style={inputSt}>
+                <option value="">Seleccionar…</option>
+                {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>Cantón</FieldLabel>
+              <select value={canton} onChange={e => { setCanton(e.target.value); setDistrito('') }} disabled={!provincia} style={{ ...inputSt, opacity: !provincia ? 0.5 : 1 }}>
+                <option value="">Seleccionar…</option>
+                {cantons.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>Distrito</FieldLabel>
+              <select value={distrito} onChange={e => setDistrito(e.target.value)} disabled={!canton} style={{ ...inputSt, opacity: !canton ? 0.5 : 1 }}>
+                <option value="">Seleccionar…</option>
+                {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Dirección / señas exactas</FieldLabel>
+            <input value={address} onChange={e => setAddress(e.target.value)}
+              placeholder="Ej: 200m norte del parque, casa esquinera"
+              style={inputSt} />
+          </div>
+        </FormSection>
+
+        {/* ── SECCIÓN 2: Datos básicos ── */}
         <FormSection title="Datos básicos">
           {/* Tipo de propiedad */}
           <FieldLabel>Tipo de propiedad</FieldLabel>
@@ -275,78 +355,6 @@ export default function NuevaPropiedadPage() {
                 {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </>
-          )}
-        </FormSection>
-
-        {/* ── SECCIÓN 2: Ubicación ── */}
-        <FormSection title="Ubicación">
-          {/* Provincia / Cantón / Distrito */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
-            <div>
-              <FieldLabel>Provincia</FieldLabel>
-              <select value={provincia} onChange={e => { setProvincia(e.target.value); setCanton(''); setDistrito('') }} style={inputSt}>
-                <option value="">Seleccionar…</option>
-                {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div>
-              <FieldLabel>Cantón</FieldLabel>
-              <select value={canton} onChange={e => { setCanton(e.target.value); setDistrito('') }} disabled={!provincia} style={{ ...inputSt, opacity: !provincia ? 0.5 : 1 }}>
-                <option value="">Seleccionar…</option>
-                {cantons.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <FieldLabel>Distrito</FieldLabel>
-              <select value={distrito} onChange={e => setDistrito(e.target.value)} disabled={!canton} style={{ ...inputSt, opacity: !canton ? 0.5 : 1 }}>
-                <option value="">Seleccionar…</option>
-                {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Dirección */}
-          <div style={{ marginBottom: 14 }}>
-            <FieldLabel>Dirección / señas exactas</FieldLabel>
-            <input value={address} onChange={e => setAddress(e.target.value)}
-              placeholder="Ej: 200m norte del parque, casa esquinera"
-              style={inputSt} />
-          </div>
-
-          {/* Datos registrales */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-            <div>
-              <FieldLabel>Número de finca</FieldLabel>
-              <input value={finca} onChange={e => setFinca(e.target.value)} placeholder="Ej: 1-12345-000" style={inputSt} />
-            </div>
-            <div>
-              <FieldLabel>Número de plano catastrado</FieldLabel>
-              <input value={plano} onChange={e => setPlano(e.target.value)} placeholder="Ej: SJ-1234567-2010" style={inputSt} />
-            </div>
-          </div>
-
-          {/* Mapa */}
-          <FieldLabel>Ubicación en el mapa</FieldLabel>
-          <p style={{ fontSize: 12, color: '#888', margin: '0 0 10px' }}>
-            Hacé clic en el mapa para marcar la ubicación exacta.
-          </p>
-          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #e0e0e0' }}>
-            <div ref={mapContainerRef} style={{ height: 320, width: '100%' }} />
-            <button type="button" onClick={useMyLocation} disabled={geoLoading}
-              style={{
-                position: 'absolute', top: 12, left: 12,
-                background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8,
-                padding: '7px 13px', fontSize: 12, fontWeight: 500,
-                cursor: geoLoading ? 'wait' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6,
-                boxShadow: '0 2px 8px rgba(0,0,0,.1)', fontFamily: 'inherit',
-              }}>
-              <span>{geoLoading ? '…' : '📍'}</span>
-              {geoLoading ? 'Localizando…' : 'Mi ubicación'}
-            </button>
-          </div>
-          {mapLat !== null && (
-            <p style={{ fontSize: 11, color: '#888', margin: '8px 0 0' }}>✓ {mapLat}, {mapLng}</p>
           )}
         </FormSection>
 
