@@ -828,15 +828,34 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load existing owners on mount — supports both new array format and legacy single owner
+  // Also re-fetches linkedContacts for companies to always have fresh photo_url
   useEffect(() => {
     const f = prop.features
     if (!f) return
+
+    let initial: OwnerResult[] = []
     if (f.owners) {
-      try { setOwners(JSON.parse(f.owners)) } catch { /* ignore */ }
+      try { initial = JSON.parse(f.owners) } catch { /* ignore */ }
     } else if (f.owner_id && f.owner_type && f.owner_name) {
-      setOwners([{ type: f.owner_type as 'contact' | 'company', id: f.owner_id, name: f.owner_name, subtitle: f.owner_subtitle ?? '' }])
+      initial = [{ type: f.owner_type as 'contact' | 'company', id: f.owner_id, name: f.owner_name, subtitle: f.owner_subtitle ?? '' }]
     }
-  }, [prop.features])
+    if (!initial.length) return
+
+    // Set immediately so names appear without waiting
+    setOwners(initial)
+
+    // Re-fetch linkedContacts for company owners to get fresh photo_url
+    const companyOwners = initial.filter(o => o.type === 'company')
+    if (!companyOwners.length) return
+    Promise.all(
+      companyOwners.map(async o => ({ id: o.id, linkedContacts: await fetchLinkedContacts(o.id) }))
+    ).then(updates => {
+      setOwners(prev => prev.map(o => {
+        const u = updates.find(x => x.id === o.id)
+        return u ? { ...o, linkedContacts: u.linkedContacts } : o
+      }))
+    })
+  }, [prop.features]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown on outside click
   useEffect(() => {
