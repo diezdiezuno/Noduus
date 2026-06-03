@@ -82,11 +82,42 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-function formatCedula(val: string) {
+function formatCedula(val: string, tipo: string): string {
+  if (tipo === 'pasaporte') return val // free text, no formatting
   const v = val.replace(/[^0-9]/g, '')
+  if (tipo === 'dimex') {
+    // 186-200124208  (3 + dash + 9 = 13 chars max)
+    if (v.length <= 3) return v
+    return v.slice(0, 3) + '-' + v.slice(3, 12)
+  }
+  if (tipo === 'juridica') {
+    // 3-101-123456  (1 + dash + 3 + dash + 6 = 12 chars max)
+    if (v.length <= 1) return v
+    if (v.length <= 4) return v[0] + '-' + v.slice(1)
+    return v[0] + '-' + v.slice(1, 4) + '-' + v.slice(4, 10)
+  }
+  // fisica: 1-2345-6789  (1 + dash + 4 + dash + 4 = 11 chars max)
   if (v.length <= 1) return v
-  if (v.length <= 5)  return v[0] + '-' + v.slice(1)
-  return v[0] + '-' + v.slice(1, 5) + '-' + v.slice(5, 13)
+  if (v.length <= 5) return v[0] + '-' + v.slice(1)
+  return v[0] + '-' + v.slice(1, 5) + '-' + v.slice(5, 9)
+}
+
+function getCedulaPlaceholder(tipo: string): string {
+  switch (tipo) {
+    case 'dimex':     return '186-200124208'
+    case 'juridica':  return '3-101-123456'
+    case 'pasaporte': return 'A12345678'
+    default:          return '1-2345-6789'
+  }
+}
+
+function getCedulaMaxLength(tipo: string): number {
+  switch (tipo) {
+    case 'dimex':     return 13
+    case 'juridica':  return 12
+    case 'pasaporte': return 20
+    default:          return 11
+  }
 }
 
 function getInitials(name: string, lastName: string | null) {
@@ -718,32 +749,43 @@ export default function ClientesClient() {
             <div style={sSec}>
               <div style={sSecLbl}>Identificación</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                {/* Cédula */}
-                <div style={{ flex: 1, ...sField }}>
-                  <label style={sLabel}>Cédula / DIMEX / Pasaporte</label>
-                  <input type="text" placeholder="1-2345-6789" maxLength={15}
-                    value={form.cedula}
-                    onChange={e => setForm(prev => ({ ...prev, cedula: formatCedula(e.target.value) }))}
-                    style={sInput} />
-                </div>
-                {/* Tipo */}
+                {/* Tipo — primero */}
                 <div style={{ width: 148, ...sField }}>
                   <label style={sLabel}>Tipo</label>
                   <select value={form.cedula_tipo}
-                    onChange={e => setForm(prev => ({ ...prev, cedula_tipo: e.target.value }))}
+                    onChange={e => setForm(prev => ({ ...prev, cedula_tipo: e.target.value, cedula: '' }))}
                     style={sInput}>
                     <option value="fisica">Física</option>
-                    <option value="juridica">Jurídica</option>
                     <option value="dimex">DIMEX</option>
+                    <option value="juridica">Jurídica</option>
                     <option value="pasaporte">Pasaporte</option>
                   </select>
                 </div>
-                {/* Consultar */}
-                <div style={{ ...sField, paddingTop: 22 }}>
-                  <button onClick={lookupCedula} disabled={lookingUp} style={{ ...sLookupBtn, opacity: lookingUp ? .6 : 1 }}>
-                    {lookingUp ? '…' : 'Consultar →'}
-                  </button>
+                {/* Número */}
+                <div style={{ flex: 1, ...sField }}>
+                  <label style={sLabel}>
+                    {form.cedula_tipo === 'dimex'     ? 'Número de DIMEX'
+                     : form.cedula_tipo === 'pasaporte' ? 'Número de pasaporte'
+                     : form.cedula_tipo === 'juridica'  ? 'Cédula jurídica'
+                     : 'Número de cédula'}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={getCedulaPlaceholder(form.cedula_tipo)}
+                    maxLength={getCedulaMaxLength(form.cedula_tipo)}
+                    value={form.cedula}
+                    onChange={e => setForm(prev => ({ ...prev, cedula: formatCedula(e.target.value, prev.cedula_tipo) }))}
+                    style={sInput}
+                  />
                 </div>
+                {/* Consultar — oculto para pasaporte */}
+                {form.cedula_tipo !== 'pasaporte' && (
+                  <div style={{ ...sField, paddingTop: 22 }}>
+                    <button onClick={lookupCedula} disabled={lookingUp} style={{ ...sLookupBtn, opacity: lookingUp ? .6 : 1 }}>
+                      {lookingUp ? '…' : 'Consultar →'}
+                    </button>
+                  </div>
+                )}
               </div>
               {lookupResult && (
                 <div style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, marginTop: 8, ...(lookupResult.type === 'ok' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' } : { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }) }}>
@@ -751,7 +793,7 @@ export default function ClientesClient() {
                 </div>
               )}
               <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6, display: 'block' }}>
-                Consulta Hacienda CR — autocompleta nombre y apellidos (DIMEX no disponible)
+                Consulta Hacienda CR — autocompleta nombre y apellidos
               </span>
             </div>
 
