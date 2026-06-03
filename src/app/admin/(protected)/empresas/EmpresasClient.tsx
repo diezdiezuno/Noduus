@@ -42,6 +42,22 @@ function getInitials(name: string, lastName: string | null) {
   return ((name?.[0] ?? '') + (lastName?.[0] ?? '')).toUpperCase() || '?'
 }
 
+const AVATAR_PALETTE = [
+  '#5B7FFF', '#E85D75', '#F59E0B', '#10B981',
+  '#8B5CF6', '#EF4444', '#06B6D4', '#F97316',
+  '#84CC16', '#EC4899', '#14B8A6', '#6366F1',
+]
+function nameToColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
+function companyInitials(name: string): string {
+  const words = name.trim().split(/\s+/)
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
+}
+
 // ── Component ─────────────────────────────────────────────────
 export default function EmpresasClient() {
   const [tenantId,    setTenantId]    = useState('')
@@ -437,8 +453,16 @@ export default function EmpresasClient() {
                 onMouseOver={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#1B6EF3'}
                 onMouseOut={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#e2e5ea'}>
 
-                {/* Icon */}
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F5F5F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🏢</div>
+                {/* Company avatar with initials */}
+                {(() => {
+                  const displayName = co.trade_name || co.name
+                  const ac = nameToColor(displayName)
+                  return (
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: ac + '20', border: `2px solid ${ac}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: ac, flexShrink: 0, letterSpacing: '-0.5px' }}>
+                      {companyInitials(displayName)}
+                    </div>
+                  )
+                })()}
 
                 {/* Info */}
                 <div onClick={() => openDrawer(co)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
@@ -642,6 +666,7 @@ export default function EmpresasClient() {
                         {contactResults.map(c => {
                           const tc  = c.contact_types?.color || '#1B6EF3'
                           const tBg = tc + '18'
+                          const ac  = nameToColor(c.name + (c.last_name ?? ''))
                           return (
                             <div
                               key={c.id}
@@ -651,7 +676,7 @@ export default function EmpresasClient() {
                               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                             >
                               {/* Avatar */}
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: tBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: tc }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: c.photo_url ? 'transparent' : ac + '22', border: `2px solid ${ac}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: ac }}>
                                 {c.photo_url
                                   ? <img src={c.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                   : getInitials(c.name, c.last_name)}
@@ -700,10 +725,11 @@ export default function EmpresasClient() {
                       {linkedContacts.map(c => {
                         const tc  = c.contact_types?.color || '#1B6EF3'
                         const tBg = tc + '18'
+                        const ac  = nameToColor(c.name + (c.last_name ?? ''))
                         return (
                           <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea' }}>
                             {/* Avatar */}
-                            <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: tBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: tc }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: c.photo_url ? 'transparent' : ac + '22', border: `2px solid ${ac}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: ac }}>
                               {c.photo_url
                                 ? <img src={c.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 : getInitials(c.name, c.last_name)}

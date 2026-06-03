@@ -166,6 +166,18 @@ function getInitials(name: string, lastName: string | null) {
   return ((name?.[0] ?? '') + (lastName?.[0] ?? '')).toUpperCase() || '?'
 }
 
+// Paleta de 12 colores agradables para avatares
+const AVATAR_PALETTE = [
+  '#5B7FFF', '#E85D75', '#F59E0B', '#10B981',
+  '#8B5CF6', '#EF4444', '#06B6D4', '#F97316',
+  '#84CC16', '#EC4899', '#14B8A6', '#6366F1',
+]
+function nameToColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
+
 function openWhatsapp(phone: string | null, country: string | null) {
   if (!phone) return
   const num = phone.replace(/[^0-9]/g, '')
@@ -859,6 +871,7 @@ export default function ClientesClient() {
             const typeColor    = c.contact_types?.color || '#1B6EF3'
             const bgLight      = typeColor + '18'
             const initials     = getInitials(c.name, c.last_name)
+            const avatarColor  = nameToColor(c.name + (c.last_name ?? ''))
             const isConfirming = confirmDelete === c.id
             const isDeleting   = deleting === c.id
 
@@ -873,7 +886,7 @@ export default function ClientesClient() {
                 {/* Avatar — click opens VCard */}
                 <div
                   onClick={() => openVCard(c.id)}
-                  style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, overflow: 'hidden', background: bgLight, color: typeColor, cursor: 'pointer' }}>
+                  style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, overflow: 'hidden', background: c.photo_url ? 'transparent' : avatarColor + '22', color: avatarColor, cursor: 'pointer', border: `2px solid ${avatarColor}33` }}>
                   {c.photo_url
                     ? <img src={c.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : initials}
@@ -1011,13 +1024,12 @@ export default function ClientesClient() {
               <div style={{ width: 220, background: '#F4F5F7', borderRight: '1px solid #E2E5EA', padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto' }}>
                 {/* Avatar */}
                 {(() => {
-                  const tc = vcardData.contact_types?.color || '#1B6EF3'
-                  const tBg = tc + '22'
+                  const ac = nameToColor(vcardData.name + (vcardData.last_name ?? ''))
                   return (
-                    <div style={{ width: 180, height: 180, borderRadius: '50%', overflow: 'hidden', background: tBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginBottom: 14 }}>
+                    <div style={{ width: 120, height: 120, borderRadius: '50%', overflow: 'hidden', background: vcardData.photo_url ? 'transparent' : ac + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginBottom: 14, border: `3px solid ${ac}44` }}>
                       {vcardData.photo_url
                         ? <img src={vcardData.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : <span style={{ fontSize: 52, fontWeight: 700, color: tc }}>{getInitials(vcardData.name, vcardData.last_name)}</span>}
+                        : <span style={{ fontSize: 40, fontWeight: 800, color: ac, letterSpacing: '-1px' }}>{getInitials(vcardData.name, vcardData.last_name)}</span>}
                     </div>
                   )
                 })()}
