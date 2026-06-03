@@ -728,7 +728,7 @@ function CompanyForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'typ
         if (j.nombre) {
           const moroso = j.situacion?.moroso === 'SI' ? ' · ⚠ Morosidad en Hacienda' : ''
           setLookResult({ type: 'ok', msg: `✓ ${j.nombre.trim()}${moroso}` })
-          if (!name) setName(j.nombre.trim())
+          setName(j.nombre.trim())
         } else {
           setLookResult({ type: 'err', msg: 'No encontrada — ingresá el nombre manualmente' })
         }
