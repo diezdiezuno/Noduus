@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import PhoneInput from '@/components/PhoneInput'
+import { COUNTRIES } from '@/data/countries'
 
 // ── Types ─────────────────────────────────────────────────────
 interface DocUrl {
@@ -127,11 +128,20 @@ function getInitials(name: string, lastName: string | null) {
 function openWhatsapp(phone: string | null, country: string | null) {
   if (!phone) return
   const num = phone.replace(/[^0-9]/g, '')
-  const { COUNTRIES } = require('@/data/countries')
-  const c = COUNTRIES.find((x: {iso:string}) => x.iso === (country || 'CR'))
+  const c = COUNTRIES.find(x => x.iso === (country || 'CR'))
   const dialCode = c?.dialCode?.replace(/\D/g, '') ?? '506'
   const full = num.length <= 8 ? dialCode + num : num
   window.open(`https://wa.me/${full}`, '_blank')
+}
+
+// Formats phone number: CR → XXXX-XXXX, others → digits only
+function formatPhone(val: string, iso: string): string {
+  const digits = val.replace(/[^0-9]/g, '')
+  if (iso === 'CR') {
+    if (digits.length <= 4) return digits
+    return digits.slice(0, 4) + '-' + digits.slice(4, 8)
+  }
+  return digits
 }
 
 function formatFileSize(bytes: number): string {
@@ -532,9 +542,8 @@ export default function ClientesClient() {
       if (!r.ok) throw new Error()
       const d = await r.json()
       if (d.nombre) {
-        const nombre = toTitleCase(d.nombre)
-        setForm(prev => ({ ...prev, company_name: nombre }))
-        setEmpresaResult({ type: 'ok', msg: `✓ ${nombre}` })
+        setForm(prev => ({ ...prev, company_name: d.nombre }))
+        setEmpresaResult({ type: 'ok', msg: `✓ ${d.nombre}` })
       } else throw new Error()
     } catch {
       setEmpresaResult({ type: 'err', msg: 'No encontrada — ingresá el nombre manualmente' })
@@ -886,8 +895,8 @@ export default function ClientesClient() {
                   <PhoneInput
                     phoneValue={form.phone}
                     countryIso={form.phone_country}
-                    onPhoneChange={v => setForm(prev => ({ ...prev, phone: v }))}
-                    onCountryChange={iso => setForm(prev => ({ ...prev, phone_country: iso }))}
+                    onPhoneChange={v => setForm(prev => ({ ...prev, phone: formatPhone(v, prev.phone_country) }))}
+                    onCountryChange={iso => setForm(prev => ({ ...prev, phone_country: iso, phone: formatPhone(prev.phone, iso) }))}
                     placeholder="8888-1234"
                   />
                 </div>
@@ -896,8 +905,8 @@ export default function ClientesClient() {
                   <PhoneInput
                     phoneValue={form.phone_alt}
                     countryIso={form.phone_alt_country}
-                    onPhoneChange={v => setForm(prev => ({ ...prev, phone_alt: v }))}
-                    onCountryChange={iso => setForm(prev => ({ ...prev, phone_alt_country: iso }))}
+                    onPhoneChange={v => setForm(prev => ({ ...prev, phone_alt: formatPhone(v, prev.phone_alt_country) }))}
+                    onCountryChange={iso => setForm(prev => ({ ...prev, phone_alt_country: iso, phone_alt: formatPhone(prev.phone_alt, iso) }))}
                     placeholder="2222-0000"
                   />
                 </div>
