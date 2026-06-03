@@ -14,6 +14,10 @@ interface DocUrl {
   uploaded_at: string
 }
 
+interface ContactCompanyRow {
+  crm_companies: { id: string; name: string; cedula_juridica?: string | null } | null
+}
+
 interface Contact {
   id: string
   cedula: string | null
@@ -28,7 +32,6 @@ interface Contact {
   phone_country: string | null
   phone_alt: string | null
   phone_alt_country: string | null
-  company_id: string | null
   photo_url: string | null
   doc_urls: DocUrl[] | null
   instagram: string | null
@@ -41,7 +44,7 @@ interface Contact {
   active: boolean
   contact_types: { name: string; color: string } | null
   contact_sources: { name: string } | null
-  crm_companies: { name: string } | null
+  crm_contact_companies: ContactCompanyRow[] | null
 }
 
 interface VCardContact {
@@ -67,7 +70,7 @@ interface VCardContact {
   doc_urls: DocUrl[] | null
   contact_types: { name: string; color: string } | null
   contact_sources: { name: string } | null
-  crm_companies: { name: string; cedula_juridica: string | null } | null
+  crm_contact_companies: ContactCompanyRow[] | null
 }
 
 interface ContactType   { id: string; name: string; color: string }
@@ -81,7 +84,6 @@ interface FormState {
   email: string; phone: string; phone_country: string
   phone_alt: string; phone_alt_country: string
   photo_url: string
-  company_name: string; company_cedula: string; company_id: string
   instagram: string; linkedin: string; facebook: string
   tiktok: string; youtube: string; x: string
   notes: string
@@ -94,7 +96,6 @@ const EMPTY_FORM: FormState = {
   email: '', phone: '', phone_country: 'CR',
   phone_alt: '', phone_alt_country: 'CR',
   photo_url: '',
-  company_name: '', company_cedula: '', company_id: '',
   instagram: '', linkedin: '', facebook: '',
   tiktok: '', youtube: '', x: '',
   notes: '',
@@ -271,13 +272,18 @@ export default function ClientesClient() {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const docInputRef   = useRef<HTMLInputElement>(null)
 
-  const [companySuggestions, setCompanySuggestions] = useState<Company[]>([])
-  const [showSuggestions,    setShowSuggestions]    = useState(false)
+  // Multi-company drawer
+  const [drawerCompanies,  setDrawerCompanies]  = useState<Company[]>([])
+  const [coSearch,         setCoSearch]         = useState('')
+  const [coResults,        setCoResults]        = useState<Company[]>([])
+  const [showCoResults,    setShowCoResults]    = useState(false)
+  const [coSearching,      setCoSearching]      = useState(false)
+  const coSearchRef   = useRef<HTMLDivElement>(null)
+  const coSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [lookupResult,  setLookupResult]  = useState<LookupState>(null)
-  const [empresaResult, setEmpresaResult] = useState<LookupState>(null)
-  const [lookingUp,     setLookingUp]     = useState(false)
-  const [emailError,    setEmailError]    = useState(false)
+  const [lookupResult, setLookupResult] = useState<LookupState>(null)
+  const [lookingUp,    setLookingUp]    = useState(false)
+  const [emailError,   setEmailError]   = useState(false)
 
   const [toast,         setToast]         = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -307,7 +313,7 @@ export default function ClientesClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (supabase as any)
       .from('crm_contacts')
-      .select('id,cedula,cedula_tipo,name,last_name,email,phone,phone_country,phone_alt,phone_alt_country,company_id,type_id,source_id,photo_url,doc_urls,instagram,linkedin,facebook,tiktok,youtube,x,notes,active,birth_date,contact_types(name,color),contact_sources(name),crm_companies(name)')
+      .select('id,cedula,cedula_tipo,name,last_name,email,phone,phone_country,phone_alt,phone_alt_country,type_id,source_id,photo_url,doc_urls,instagram,linkedin,facebook,tiktok,youtube,x,notes,active,birth_date,contact_types(name,color),contact_sources(name),crm_contact_companies(crm_companies(id,name))')
       .eq('tenant_id', tid)
       .eq('active', true)
       .order('name')
@@ -391,7 +397,7 @@ export default function ClientesClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
       .from('crm_contacts')
-      .select('*, contact_types(name,color), contact_sources(name), crm_companies(name,cedula_juridica)')
+      .select('*, contact_types(name,color), contact_sources(name), crm_contact_companies(crm_companies(id,name,cedula_juridica))')
       .eq('id', id)
       .single()
     setVcardData(data as VCardContact ?? null)
@@ -412,49 +418,55 @@ export default function ClientesClient() {
   async function openDrawer(id: string | null) {
     setEditingId(id)
     setLookupResult(null)
-    setEmpresaResult(null)
     setEmailError(false)
     setCedulaDupe(null)
     setEmailDupe(null)
-    setCompanySuggestions([])
-    setShowSuggestions(false)
+    setDrawerCompanies([])
+    setCoSearch('')
+    setCoResults([])
+    setShowCoResults(false)
     setPhotoFile(null)
     setPhotoPreview('')
     setDocFiles([])
 
     if (id) {
-      // Fresh DB fetch to ensure all fields (including x) are populated
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: c } = await (createClient() as any).from('crm_contacts').select('*').eq('id', id).single()
+      const sb = createClient() as any
+      const [{ data: c }, { data: ccos }] = await Promise.all([
+        sb.from('crm_contacts').select('*').eq('id', id).single(),
+        sb.from('crm_contact_companies')
+          .select('crm_companies(id,name,cedula_juridica)')
+          .eq('contact_id', id),
+      ])
       if (c) {
-        const co = companies.find(x => x.id === c.company_id)
         setForm({
-          cedula:            c.cedula           ?? '',
-          cedula_tipo:       c.cedula_tipo      ?? 'fisica',
-          name:              c.name             ?? '',
-          last_name:         c.last_name        ?? '',
-          birth_date:        c.birth_date       ?? '',
-          type_id:           c.type_id          ?? '',
-          source_id:         c.source_id        ?? '',
-          email:             c.email            ?? '',
-          phone:             c.phone            ?? '',
-          phone_country:     c.phone_country    ?? 'CR',
-          phone_alt:         c.phone_alt        ?? '',
-          phone_alt_country: c.phone_alt_country?? 'CR',
-          photo_url:         c.photo_url        ?? '',
-          company_name:      co?.name           ?? '',
-          company_cedula:    co?.cedula_juridica ?? '',
-          company_id:        c.company_id       ?? '',
-          instagram:         c.instagram        ?? '',
-          linkedin:          c.linkedin         ?? '',
-          facebook:          c.facebook         ?? '',
-          tiktok:            c.tiktok           ?? '',
-          youtube:           c.youtube          ?? '',
-          x:                 c.x                ?? '',
-          notes:             c.notes            ?? '',
-          doc_urls:          c.doc_urls         ?? [],
+          cedula:            c.cedula            ?? '',
+          cedula_tipo:       c.cedula_tipo       ?? 'fisica',
+          name:              c.name              ?? '',
+          last_name:         c.last_name         ?? '',
+          birth_date:        c.birth_date        ?? '',
+          type_id:           c.type_id           ?? '',
+          source_id:         c.source_id         ?? '',
+          email:             c.email             ?? '',
+          phone:             c.phone             ?? '',
+          phone_country:     c.phone_country     ?? 'CR',
+          phone_alt:         c.phone_alt         ?? '',
+          phone_alt_country: c.phone_alt_country ?? 'CR',
+          photo_url:         c.photo_url         ?? '',
+          instagram:         c.instagram         ?? '',
+          linkedin:          c.linkedin          ?? '',
+          facebook:          c.facebook          ?? '',
+          tiktok:            c.tiktok            ?? '',
+          youtube:           c.youtube           ?? '',
+          x:                 c.x                 ?? '',
+          notes:             c.notes             ?? '',
+          doc_urls:          c.doc_urls          ?? [],
         })
       }
+      const cos = (ccos ?? [])
+        .map((r: ContactCompanyRow) => r.crm_companies)
+        .filter(Boolean) as Company[]
+      setDrawerCompanies(cos)
     } else {
       setForm({ ...EMPTY_FORM })
     }
@@ -501,6 +513,38 @@ export default function ClientesClient() {
 
   function removeExistingDoc(doc: DocUrl) {
     setForm(prev => ({ ...prev, doc_urls: prev.doc_urls.filter(d => d.path !== doc.path) }))
+  }
+
+  // ── Company search (drawer) ───────────────────────────────
+  function handleCoSearch(val: string) {
+    setCoSearch(val)
+    setShowCoResults(true)
+    if (coSearchTimer.current) clearTimeout(coSearchTimer.current)
+    if (!val.trim()) { setCoResults([]); setShowCoResults(false); return }
+    coSearchTimer.current = setTimeout(async () => {
+      setCoSearching(true)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (createClient() as any)
+        .from('crm_companies')
+        .select('id,name,cedula_juridica')
+        .eq('tenant_id', tenantId)
+        .ilike('name', `%${val}%`)
+        .order('name').limit(8)
+      const addedIds = new Set(drawerCompanies.map(c => c.id))
+      setCoResults(((data ?? []) as Company[]).filter(c => !addedIds.has(c.id)))
+      setCoSearching(false)
+    }, 250)
+  }
+
+  function addDrawerCompany(co: Company) {
+    setDrawerCompanies(prev => [...prev, co].sort((a, b) => a.name.localeCompare(b.name)))
+    setCoSearch('')
+    setCoResults([])
+    setShowCoResults(false)
+  }
+
+  function removeDrawerCompany(id: string) {
+    setDrawerCompanies(prev => prev.filter(c => c.id !== id))
   }
 
   // ── Duplicate checks ─────────────────────────────────────
@@ -567,30 +611,6 @@ export default function ClientesClient() {
     const supabase = createClient()
     const sb = supabase as any
 
-    // Company
-    let companyId: string | null = form.company_id || null
-    if (form.company_name.trim() && !companyId) {
-      const existing = companies.find(c => c.name.toLowerCase() === form.company_name.trim().toLowerCase())
-      if (existing) {
-        companyId = existing.id
-        if (existing.name !== form.company_name.trim()) {
-          await sb.from('crm_companies').update({ name: form.company_name.trim() }).eq('id', existing.id)
-          setCompanies(prev => prev.map(c =>
-            c.id === existing.id ? { ...c, name: form.company_name.trim() } : c
-          ))
-        }
-      } else {
-        const { data: newCo } = await sb.from('crm_companies').insert({
-          tenant_id: tenantId, name: form.company_name.trim(),
-          cedula_juridica: form.company_cedula.trim() || null, created_by: userId,
-        }).select().single()
-        if (newCo) {
-          companyId = (newCo as Company).id
-          setCompanies(prev => [...prev, newCo as Company].sort((a, b) => a.name.localeCompare(b.name)))
-        }
-      }
-    }
-
     const payload = {
       cedula:            form.cedula.trim()     || null,
       cedula_tipo:       form.cedula_tipo,
@@ -604,7 +624,6 @@ export default function ClientesClient() {
       phone_country:     form.phone_country,
       phone_alt:         form.phone_alt.trim()  || null,
       phone_alt_country: form.phone_alt_country,
-      company_id:        companyId,
       instagram:         normalizeUrl(form.instagram.trim(), 'instagram') || null,
       linkedin:          normalizeUrl(form.linkedin.trim(),  'linkedin')  || null,
       facebook:          normalizeUrl(form.facebook.trim(),  'facebook')  || null,
@@ -669,6 +688,20 @@ export default function ClientesClient() {
       }).eq('id', contactId)
     }
 
+    // Save company links (junction table — replace all)
+    if (contactId) {
+      await sb.from('crm_contact_companies').delete().eq('contact_id', contactId)
+      if (drawerCompanies.length > 0) {
+        await sb.from('crm_contact_companies').insert(
+          drawerCompanies.map(co => ({
+            tenant_id:  tenantId,
+            contact_id: contactId,
+            company_id: co.id,
+          }))
+        )
+      }
+    }
+
     setSaving(false)
     showToast(editingId ? 'Cliente actualizado ✓' : 'Cliente creado ✓', 'success')
     closeDrawer()
@@ -712,35 +745,6 @@ export default function ClientesClient() {
       setLookupResult({ type: 'err', msg: 'Sin resultado — completá manualmente' })
     }
     setLookingUp(false)
-  }
-
-  async function lookupEmpresa() {
-    const raw = form.company_cedula.replace(/[^0-9]/g, '')
-    if (!raw) return
-    try {
-      const r = await fetch(`https://api.hacienda.go.cr/fe/ae?identificacion=${raw}`)
-      if (!r.ok) throw new Error()
-      const d = await r.json()
-      if (d.nombre) {
-        setForm(prev => ({ ...prev, company_name: d.nombre }))
-        setEmpresaResult({ type: 'ok', msg: `✓ ${d.nombre}` })
-      } else throw new Error()
-    } catch {
-      setEmpresaResult({ type: 'err', msg: 'No encontrada — ingresá el nombre manualmente' })
-    }
-  }
-
-  // ── Company autocomplete ──────────────────────────────────
-  function handleCompanyInput(val: string) {
-    setForm(prev => ({ ...prev, company_name: val, company_id: '' }))
-    if (val.length < 2) { setShowSuggestions(false); return }
-    const matches = companies.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 6)
-    setCompanySuggestions(matches); setShowSuggestions(matches.length > 0)
-  }
-
-  function selectCompany(c: Company) {
-    setForm(prev => ({ ...prev, company_name: c.name, company_cedula: c.cedula_juridica ?? '', company_id: c.id }))
-    setShowSuggestions(false)
   }
 
   // ── Social search ─────────────────────────────────────────
@@ -883,9 +887,13 @@ export default function ClientesClient() {
                     {c.name}{c.last_name ? ' ' + c.last_name : ''}
                   </div>
                   <div style={{ fontSize: 12, color: '#5a6070', marginTop: 2, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {c.phone              && <span>📱 {c.phone}</span>}
-                    {c.email              && <span>✉ {c.email}</span>}
-                    {c.crm_companies?.name && <span>🏢 {c.crm_companies.name}</span>}
+                    {c.phone && <span>📱 {c.phone}</span>}
+                    {c.email && <span>✉ {c.email}</span>}
+                    {(() => {
+                      const cos = (c.crm_contact_companies ?? []).map(r => r.crm_companies).filter(Boolean)
+                      if (cos.length === 0) return null
+                      return <span>🏢 {cos[0]!.name}{cos.length > 1 ? ` +${cos.length - 1}` : ''}</span>
+                    })()}
                   </div>
                 </div>
 
@@ -1022,15 +1030,21 @@ export default function ClientesClient() {
                     {vcardData.contact_types.name}
                   </span>
                 )}
-                {/* Company */}
-                {vcardData.crm_companies?.name && (
-                  <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#5a6070' }}>{vcardData.crm_companies.name}</div>
-                    {vcardData.crm_companies.cedula_juridica && (
-                      <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{vcardData.crm_companies.cedula_juridica}</div>
-                    )}
-                  </div>
-                )}
+                {/* Companies */}
+                {(() => {
+                  const cos = (vcardData.crm_contact_companies ?? []).map(r => r.crm_companies).filter(Boolean)
+                  if (cos.length === 0) return null
+                  return (
+                    <div style={{ textAlign: 'center', marginBottom: 10, width: '100%' }}>
+                      {cos.map(co => (
+                        <div key={co!.id} style={{ marginBottom: 4 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#5a6070' }}>{co!.name}</div>
+                          {co!.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co!.cedula_juridica}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
                 {/* Action buttons */}
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 7, marginTop: 14 }}>
                   {vcardData.phone && (
@@ -1130,19 +1144,21 @@ export default function ClientesClient() {
                       </div>
                     </div>
                   )}
-                  {/* Empresa */}
-                  {vcardData.crm_companies?.name && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F5F5F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏢</div>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#9ca3af' }}>Empresa</div>
-                        <div style={{ fontSize: 14, color: '#0d0f12' }}>{vcardData.crm_companies.name}</div>
-                        {vcardData.crm_companies.cedula_juridica && (
-                          <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{vcardData.crm_companies.cedula_juridica}</div>
-                        )}
+                  {/* Empresas */}
+                  {(() => {
+                    const cos = (vcardData.crm_contact_companies ?? []).map(r => r.crm_companies).filter(Boolean)
+                    if (cos.length === 0) return null
+                    return cos.map(co => (
+                      <div key={co!.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F5F5F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏢</div>
+                        <div>
+                          <div style={{ fontSize: 11, color: '#9ca3af' }}>Empresa</div>
+                          <div style={{ fontSize: 14, color: '#0d0f12' }}>{co!.name}</div>
+                          {co!.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co!.cedula_juridica}</div>}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ))
+                  })()}
                   {/* Fuente */}
                   {vcardData.contact_sources?.name && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1399,46 +1415,89 @@ export default function ClientesClient() {
               </div>
             </div>
 
-            {/* ── EMPRESA ────────────────────────────────── */}
+            {/* ── EMPRESA/S ──────────────────────────────── */}
             <div style={sSec}>
-              <div style={sSecLbl}>Empresa</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'start' }}>
-                <div style={sField}>
-                  <label style={sLabel}>Cédula jurídica</label>
-                  <input type="text" placeholder="3-101-123456" maxLength={12}
-                    value={form.company_cedula}
-                    onChange={e => setForm(prev => ({ ...prev, company_cedula: formatCedula(e.target.value, 'juridica') }))}
-                    style={sInput} />
-                  {empresaResult && (
-                    <div style={{ fontSize: 12, padding: '5px 9px', borderRadius: 6, ...(empresaResult.type === 'ok' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' } : { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }) }}>
-                      {empresaResult.msg}
-                    </div>
-                  )}
-                </div>
-                <div style={{ paddingTop: 22 }}>
-                  <button onClick={lookupEmpresa} style={sLookupBtn}>Consultar →</button>
-                </div>
-                <div style={{ ...sField, position: 'relative' }}>
-                  <label style={sLabel}>Nombre de empresa</label>
-                  <input type="text" placeholder="Inversiones XYZ S.A." value={form.company_name}
-                    onChange={e => handleCompanyInput(e.target.value)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    style={sInput} />
-                  {showSuggestions && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 8, zIndex: 50, maxHeight: 160, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.1)', marginTop: 2 }}>
-                      {companySuggestions.map(c => (
-                        <div key={c.id} onMouseDown={() => selectCompany(c)}
-                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid #f4f5f7' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f4f5f7'}
-                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}>
-                          <strong>{c.name}</strong>
-                          {c.cedula_juridica && <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>{c.cedula_juridica}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              <div style={sSecLbl}>
+                Empresa{drawerCompanies.length !== 1 ? 's' : ''}
+                {drawerCompanies.length > 0 &&
+                  <span style={{ marginLeft: 6, fontWeight: 400, color: '#9ca3af' }}>({drawerCompanies.length})</span>
+                }
               </div>
+
+              {/* Search */}
+              <div ref={coSearchRef} style={{ position: 'relative', marginBottom: 10 }}>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 14, pointerEvents: 'none' }}>
+                    {coSearching ? '⏳' : '🔍'}
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Buscar empresa por nombre…"
+                    value={coSearch}
+                    onChange={e => handleCoSearch(e.target.value)}
+                    onFocus={() => { if (coResults.length > 0) setShowCoResults(true) }}
+                    style={{ ...sInput, paddingLeft: 36, paddingRight: coSearch ? 36 : 12 }}
+                  />
+                  {coSearch && (
+                    <button onClick={() => { setCoSearch(''); setCoResults([]); setShowCoResults(false) }}
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 16, padding: 0 }}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {/* Dropdown */}
+                {showCoResults && coResults.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 20px rgba(0,0,0,.1)', zIndex: 50, overflow: 'hidden', marginTop: 4 }}>
+                    {coResults.map(co => (
+                      <div key={co.id}
+                        onMouseDown={() => addDrawerCompany(co)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f4f5f7' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
+                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}>
+                        <span style={{ fontSize: 16 }}>🏢</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12' }}>{co.name}</div>
+                          {co.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co.cedula_juridica}</div>}
+                        </div>
+                        <span style={{ fontSize: 13, color: '#1B6EF3' }}>＋</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showCoResults && coSearch.trim() && !coSearching && coResults.length === 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, padding: '12px 16px', marginTop: 4, fontSize: 13, color: '#9ca3af', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,.08)', zIndex: 50 }}>
+                    Sin resultados — creá la empresa en <a href="/admin/empresas" target="_blank" style={{ color: '#1B6EF3', textDecoration: 'none' }}>Empresas ↗</a>
+                  </div>
+                )}
+              </div>
+
+              {/* Linked companies */}
+              {drawerCompanies.length === 0 ? (
+                <div style={{ padding: '14px 16px', background: '#F9FAFB', borderRadius: 10, border: '1px dashed #e2e5ea', textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
+                  Sin empresa asignada
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {drawerCompanies.map(co => (
+                    <div key={co.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea' }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>🏢</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</div>
+                        {co.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co.cedula_juridica}</div>}
+                      </div>
+                      <button onClick={() => removeDrawerCompany(co.id)}
+                        style={{ width: 24, height: 24, border: '1px solid #FECACA', borderRadius: 6, background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.color = '#DC2626' }}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6, display: 'block' }}>
+                Un cliente puede estar en múltiples empresas.
+              </span>
             </div>
 
             {/* ── REDES SOCIALES ─────────────────────────── */}

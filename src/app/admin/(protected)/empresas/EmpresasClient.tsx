@@ -16,7 +16,6 @@ interface LinkedContact {
   last_name: string | null
   photo_url: string | null
   cedula: string | null
-  company_id: string | null
   contact_types: { name: string; color: string } | null
 }
 
@@ -95,11 +94,9 @@ export default function EmpresasClient() {
   const loadContactCounts = useCallback(async (tid: string) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
-      .from('crm_contacts')
+      .from('crm_contact_companies')
       .select('company_id')
       .eq('tenant_id', tid)
-      .eq('active', true)
-      .not('company_id', 'is', null)
     const map: Record<string, number> = {}
     for (const row of data ?? []) {
       if (row.company_id) map[row.company_id] = (map[row.company_id] ?? 0) + 1
@@ -111,13 +108,15 @@ export default function EmpresasClient() {
   const loadLinkedContacts = useCallback(async (companyId: string, tid: string) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
-      .from('crm_contacts')
-      .select('id,name,last_name,photo_url,cedula,company_id,contact_types(name,color)')
-      .eq('tenant_id', tid)
+      .from('crm_contact_companies')
+      .select('crm_contacts(id,name,last_name,photo_url,cedula,contact_types(name,color))')
       .eq('company_id', companyId)
-      .eq('active', true)
-      .order('name')
-    setLinkedContacts((data ?? []) as LinkedContact[])
+      .eq('tenant_id', tid)
+    const contacts = (data ?? [])
+      .map((r: { crm_contacts: LinkedContact | null }) => r.crm_contacts)
+      .filter(Boolean) as LinkedContact[]
+    contacts.sort((a, b) => a.name.localeCompare(b.name))
+    setLinkedContacts(contacts)
   }, [])
 
   // ── Init ──────────────────────────────────────────────────
@@ -228,7 +227,7 @@ export default function EmpresasClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
       .from('crm_contacts')
-      .select('id,name,last_name,photo_url,cedula,company_id,contact_types(name,color)')
+      .select('id,name,last_name,photo_url,cedula,contact_types(name,color)')
       .eq('tenant_id', tenantId)
       .eq('active', true)
       .or(`name.ilike.%${q}%,last_name.ilike.%${q}%,cedula.ilike.%${q}%`)
@@ -245,26 +244,18 @@ export default function EmpresasClient() {
     setLinking(contact.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (createClient() as any)
-      .from('crm_contacts').update({ company_id: editingId }).eq('id', contact.id)
+      .from('crm_contact_companies')
+      .insert({ tenant_id: tenantId, contact_id: contact.id, company_id: editingId })
     setLinking(null)
     if (error) { showToast('Error al vincular: ' + error.message, 'error'); return }
 
     setContactQuery('')
     setContactResults([])
     setShowResults(false)
-    // Add to linked list
     setLinkedContacts(prev =>
-      [...prev, { ...contact, company_id: editingId }]
-        .sort((a, b) => a.name.localeCompare(b.name))
+      [...prev, contact].sort((a, b) => a.name.localeCompare(b.name))
     )
-    // Update counts
-    setContactMap(prev => {
-      const next = { ...prev, [editingId]: (prev[editingId] ?? 0) + 1 }
-      if (contact.company_id && contact.company_id !== editingId) {
-        next[contact.company_id] = Math.max(0, (prev[contact.company_id] ?? 1) - 1)
-      }
-      return next
-    })
+    setContactMap(prev => ({ ...prev, [editingId]: (prev[editingId] ?? 0) + 1 }))
   }
 
   async function unlinkContact(contactId: string) {
@@ -272,7 +263,10 @@ export default function EmpresasClient() {
     setUnlinking(contactId)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (createClient() as any)
-      .from('crm_contacts').update({ company_id: null }).eq('id', contactId)
+      .from('crm_contact_companies')
+      .delete()
+      .eq('contact_id', contactId)
+      .eq('company_id', editingId)
     setUnlinking(null)
     if (error) { showToast('Error al desvincular: ' + error.message, 'error'); return }
     setLinkedContacts(prev => prev.filter(c => c.id !== contactId))
@@ -629,7 +623,6 @@ export default function EmpresasClient() {
                         {contactResults.map(c => {
                           const tc  = c.contact_types?.color || '#1B6EF3'
                           const tBg = tc + '18'
-                          const hasOtherCompany = c.company_id && c.company_id !== editingId
                           return (
                             <div
                               key={c.id}
@@ -651,7 +644,6 @@ export default function EmpresasClient() {
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 1 }}>
                                   {c.cedula && <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{c.cedula}</span>}
-                                  {hasOtherCompany && <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600 }}>⚠ Ya tiene empresa</span>}
                                 </div>
                               </div>
                               {/* Type badge */}
