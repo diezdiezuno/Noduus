@@ -86,7 +86,7 @@ function formatCedula(val: string, tipo: string): string {
   if (tipo === 'pasaporte') return val // free text, no formatting
   const v = val.replace(/[^0-9]/g, '')
   if (tipo === 'dimex') {
-    // 186-200124208  (3 + dash + 9 = 13 chars max)
+    // 111-111111111  (3 + dash + 9 = 13 chars max)
     if (v.length <= 3) return v
     return v.slice(0, 3) + '-' + v.slice(3, 12)
   }
@@ -104,7 +104,7 @@ function formatCedula(val: string, tipo: string): string {
 
 function getCedulaPlaceholder(tipo: string): string {
   switch (tipo) {
-    case 'dimex':     return '186-200124208'
+    case 'dimex':     return '111-111111111'
     case 'juridica':  return '3-101-123456'
     case 'pasaporte': return 'A12345678'
     default:          return '1-2345-6789'
