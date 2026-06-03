@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { getCantons, getDistricts } from '@/data/cr-divisions'
 import type mapboxgl from 'mapbox-gl'
 import ContactVCardModal, { type VCardViewType } from '../ContactVCardModal'
+import NewOwnerModal, { type NewOwnerResult } from '../NewOwnerModal'
 
 /* ── Constants ───────────────────────────────────────────────── */
 const PROVINCIAS   = ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Guanacaste', 'Puntarenas', 'Limón']
@@ -799,30 +800,13 @@ function Tab6Fotos({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Propert
 function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: PropertyFull) => void }) {
   const [owners,       setOwners]       = useState<OwnerResult[]>([])
   const [inlineView,   setInlineView]   = useState<VCardViewType | null>(null)
+  const [newOwnerType, setNewOwnerType] = useState<'contact' | 'company' | null>(null)
+  const [lastQuery,    setLastQuery]    = useState('')
   const [query,        setQuery]        = useState('')
   const [results,      setResults]      = useState<OwnerResult[]>([])
   const [searching,    setSearching]    = useState(false)
   const [dropOpen,     setDropOpen]     = useState(false)
-  const [mode,         setMode]         = useState<'search' | 'create-contact' | 'create-company'>('search')
   const [noResults,    setNoResults]    = useState(false)
-
-  // Quick-create contact fields
-  const [cName,      setCName]      = useState('')
-  const [cLastName,  setCLastName]  = useState('')
-  const [cCedula,    setCCedula]    = useState('')
-  const [cPhone,     setCPhone]     = useState('')
-  const [cEmail,     setCEmail]     = useState('')
-  const [cSaving,    setCSaving]    = useState(false)
-  const [cError,     setCError]     = useState('')
-
-  // Quick-create company fields
-  const [coName,       setCoName]       = useState('')
-  const [coTrade,      setCoTrade]      = useState('')
-  const [coCedJur,     setCoCedJur]     = useState('')
-  const [coLooking,    setCoLooking]    = useState(false)
-  const [coLookResult, setCoLookResult] = useState<{ name: string } | null>(null)
-  const [coSaving,     setCoSaving]     = useState(false)
-  const [coError,      setCoError]      = useState('')
 
   const wrapRef  = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -919,48 +903,17 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
   }
 
   function handleQueryChange(v: string) {
-    setQuery(v); setDropOpen(true)
+    setQuery(v); setLastQuery(v); setDropOpen(true)
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => search(v), 300)
   }
 
-  // Quick create contact
-  async function createContact(e: React.FormEvent) {
-    e.preventDefault(); setCSaving(true); setCError('')
-    if (!cName.trim()) { setCError('El nombre es requerido.'); setCSaving(false); return }
-    const { data, error } = await createClient().from('crm_contacts')
-      .insert({ tenant_id: prop.tenant_id, name: cName.trim(), last_name: cLastName.trim() || null, cedula: cCedula.trim() || null, cedula_tipo: 'nacional', phone: cPhone.trim() || null, email: cEmail.trim() || null, active: true })
-      .select('id,name,last_name,email,cedula').single()
-    if (error) { setCError(`Error: ${error.message}`); setCSaving(false); return }
-    const o: OwnerResult = { type: 'contact', id: data.id, name: [data.name, data.last_name].filter(Boolean).join(' '), subtitle: data.email ?? data.cedula ?? 'Persona física' }
-    await addOwner(o)
-    setMode('search'); setCSaving(false); setCName(''); setCLastName(''); setCCedula(''); setCPhone(''); setCEmail('')
-  }
-
-  // Hacienda lookup for company
-  async function lookupCedJur(v: string) {
-    setCoCedJur(v); setCoLookResult(null)
-    const digits = v.replace(/\D/g, '')
-    if (digits.length < 9) return
-    setCoLooking(true)
-    try {
-      const res  = await fetch(`https://api.hacienda.go.cr/fe/ae?identificacion=${digits}`)
-      if (res.ok) { const j = await res.json(); if (j.nombre) { setCoLookResult({ name: j.nombre }); if (!coName) setCoName(j.nombre) } }
-    } catch { /* silent */ }
-    setCoLooking(false)
-  }
-
-  // Quick create company
-  async function createCompany(e: React.FormEvent) {
-    e.preventDefault(); setCoSaving(true); setCoError('')
-    if (!coName.trim()) { setCoError('La razón social es requerida.'); setCoSaving(false); return }
-    const { data, error } = await createClient().from('crm_companies')
-      .insert({ tenant_id: prop.tenant_id, name: coName.trim(), trade_name: coTrade.trim() || null, cedula_juridica: coCedJur.replace(/\D/g, '') || null })
-      .select('id,name,trade_name,cedula_juridica').single()
-    if (error) { setCoError(`Error: ${error.message}`); setCoSaving(false); return }
-    const o: OwnerResult = { type: 'company', id: data.id, name: data.trade_name || data.name, subtitle: data.trade_name ? data.name : (data.cedula_juridica ?? 'Empresa') }
-    await addOwner(o)
-    setMode('search'); setCoSaving(false); setCoName(''); setCoTrade(''); setCoCedJur(''); setCoLookResult(null)
+  async function handleNewOwnerCreated(result: NewOwnerResult) {
+    setNewOwnerType(null)
+    const enriched: OwnerResult = result.type === 'company'
+      ? { ...result, linkedContacts: await fetchLinkedContacts(result.id) }
+      : result
+    await addOwner(enriched)
   }
 
   return (
@@ -1036,134 +989,65 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
         </div>
       )}
 
-      {mode === 'search' ? (
-        <>
-          {/* ── Search input ── */}
-          <div ref={wrapRef} style={{ position: 'relative', marginBottom: noResults ? 12 : 0 }}>
-            <input
-              value={query}
-              onChange={e => handleQueryChange(e.target.value)}
-              onFocus={() => query.length >= 2 && setDropOpen(true)}
-              placeholder={owners.length > 0 ? 'Agregar otro dueño…' : 'Buscar por nombre, cédula o empresa…'}
-              style={{ ...inputSt, paddingLeft: 36 }}
-            />
-            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#aaa', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
-            {searching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>…</span>}
-
-            {/* Dropdown */}
-            {dropOpen && results.length > 0 && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden' }}>
-                {results.map((r, i) => (
-                  <div key={r.id} onClick={() => addOwner(r)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                  >
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>{r.type === 'contact' ? '👤' : '🏢'}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.subtitle}</div>
-                    </div>
-                    <span style={{ fontSize: 11, color: '#aaa', whiteSpace: 'nowrap' }}>{r.type === 'contact' ? 'Persona' : 'Empresa'}</span>
-                  </div>
-                ))}
+      {/* ── Search ── */}
+      <div ref={wrapRef} style={{ position: 'relative', marginBottom: noResults ? 12 : 0 }}>
+        <input value={query} onChange={e => handleQueryChange(e.target.value)}
+          onFocus={() => query.length >= 2 && setDropOpen(true)}
+          placeholder={owners.length > 0 ? 'Agregar otro dueño…' : 'Buscar por nombre, cédula o empresa…'}
+          style={{ ...inputSt, paddingLeft: 36 }} />
+        <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#aaa', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+        {searching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>…</span>}
+        {dropOpen && results.length > 0 && (
+          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden' }}>
+            {results.map((r, i) => (
+              <div key={r.id} onClick={() => addOwner(r)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{r.type === 'contact' ? '👤' : '🏢'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
+                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.subtitle}</div>
+                </div>
+                <span style={{ fontSize: 11, color: '#aaa', whiteSpace: 'nowrap' }}>{r.type === 'contact' ? 'Físico' : 'Jurídico'}</span>
               </div>
-            )}
+            ))}
           </div>
+        )}
+      </div>
 
-          {/* No results → offer to create */}
-          {noResults && (
-            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '14px 16px' }}>
-              <p style={{ fontSize: 13, color: '#92400e', margin: '0 0 10px', fontWeight: 500 }}>
-                No se encontró &ldquo;{query}&rdquo; en el CRM.
-              </p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => setMode('create-contact')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  👤 Registrar como persona
-                </button>
-                <button type="button" onClick={() => setMode('create-company')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  🏢 Registrar como empresa
-                </button>
-              </div>
-            </div>
-          )}
-
-          <p style={{ fontSize: 11, color: '#aaa', margin: noResults ? '10px 0 0' : '8px 0 0' }}>
-            {owners.length > 0 ? 'Podés agregar más dueños buscando abajo.' : 'Escribí 2 caracteres para buscar en clientes y empresas del CRM.'}
+      {noResults && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '14px 16px' }}>
+          <p style={{ fontSize: 13, color: '#92400e', margin: '0 0 10px', fontWeight: 500 }}>
+            No se encontró &ldquo;{query}&rdquo; en el CRM.
           </p>
-        </>
-
-      ) : mode === 'create-contact' ? (
-        /* ── Quick create contact ── */
-        <div style={{ background: '#f9fafb', borderRadius: 10, border: '1px solid #e2e5ea', padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>👤 Registrar persona física</div>
-            <button type="button" onClick={() => { setMode('search'); setCError('') }}
-              style={{ fontSize: 12, color: '#888', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setNewOwnerType('contact')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              👤 Registrar como físico
+            </button>
+            <button type="button" onClick={() => setNewOwnerType('company')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              🏢 Registrar como jurídico
+            </button>
           </div>
-          <form onSubmit={createContact}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div><FieldLabel>Nombre *</FieldLabel><input value={cName} onChange={e => setCName(e.target.value)} placeholder="Nombre" style={inputSt} /></div>
-              <div><FieldLabel>Apellido</FieldLabel><input value={cLastName} onChange={e => setCLastName(e.target.value)} placeholder="Apellido" style={inputSt} /></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div><FieldLabel>Cédula / DIMEX</FieldLabel><input value={cCedula} onChange={e => setCCedula(e.target.value)} placeholder="Ej: 1-0000-0000" style={inputSt} /></div>
-              <div><FieldLabel>Teléfono</FieldLabel><input value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="Ej: 8888-8888" style={inputSt} /></div>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <FieldLabel>Correo electrónico</FieldLabel>
-              <input value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="correo@ejemplo.com" style={inputSt} />
-            </div>
-            {cError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{cError}</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" disabled={cSaving}
-                style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: cSaving ? 'not-allowed' : 'pointer', opacity: cSaving ? 0.7 : 1, fontFamily: 'inherit' }}>
-                {cSaving ? 'Guardando…' : 'Registrar y vincular'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-      ) : (
-        /* ── Quick create company ── */
-        <div style={{ background: '#f9fafb', borderRadius: 10, border: '1px solid #e2e5ea', padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>🏢 Registrar empresa</div>
-            <button type="button" onClick={() => { setMode('search'); setCoError('') }}
-              style={{ fontSize: 12, color: '#888', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
-          </div>
-          <form onSubmit={createCompany}>
-            <div style={{ marginBottom: 12 }}>
-              <FieldLabel>Cédula jurídica</FieldLabel>
-              <div style={{ position: 'relative' }}>
-                <input value={coCedJur} onChange={e => lookupCedJur(e.target.value)} placeholder="Ej: 3-101-123456" style={inputSt} />
-                {coLooking && <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>Consultando…</span>}
-              </div>
-              {coLookResult && (
-                <p style={{ fontSize: 12, color: '#059669', margin: '5px 0 0', fontWeight: 500 }}>✓ {coLookResult.name}</p>
-              )}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div><FieldLabel>Razón social *</FieldLabel><input value={coName} onChange={e => setCoName(e.target.value)} placeholder="Nombre legal" style={inputSt} /></div>
-              <div><FieldLabel>Nombre fantasía</FieldLabel><input value={coTrade} onChange={e => setCoTrade(e.target.value)} placeholder="Nombre comercial" style={inputSt} /></div>
-            </div>
-            {coError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{coError}</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" disabled={coSaving}
-                style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: coSaving ? 'not-allowed' : 'pointer', opacity: coSaving ? 0.7 : 1, fontFamily: 'inherit' }}>
-                {coSaving ? 'Guardando…' : 'Registrar y vincular'}
-              </button>
-            </div>
-          </form>
         </div>
       )}
+      <p style={{ fontSize: 11, color: '#aaa', margin: noResults ? '10px 0 0' : '8px 0 0' }}>
+        {owners.length > 0 ? 'Podés agregar más dueños buscando abajo.' : 'Escribí 2 caracteres para buscar en clientes y empresas del CRM.'}
+      </p>
 
     </FormSection>
 
-    {inlineView && (
-      <ContactVCardModal view={inlineView} onClose={() => setInlineView(null)} />
+    {inlineView && <ContactVCardModal view={inlineView} onClose={() => setInlineView(null)} />}
+    {newOwnerType && (
+      <NewOwnerModal
+        type={newOwnerType}
+        tenantId={prop.tenant_id}
+        initial={lastQuery}
+        onCreated={handleNewOwnerCreated}
+        onClose={() => setNewOwnerType(null)}
+      />
     )}
     </>
   )

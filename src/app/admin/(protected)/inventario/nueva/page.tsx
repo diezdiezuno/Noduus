@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { getCantons, getDistricts } from '@/data/cr-divisions'
 import type mapboxgl from 'mapbox-gl'
 import ContactVCardModal, { type VCardViewType } from '../ContactVCardModal'
+import NewOwnerModal, { type NewOwnerResult } from '../NewOwnerModal'
 
 /* ── Constants ───────────────────────────────────────────────── */
 const PROVINCIAS = ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Guanacaste', 'Puntarenas', 'Limón']
@@ -97,7 +98,7 @@ export default function NuevaPropiedadPage() {
   const [ownerSearching, setOwnerSearching] = useState(false)
   const [ownerDropOpen,  setOwnerDropOpen]  = useState(false)
   const [ownerNoResults, setOwnerNoResults] = useState(false)
-  const [ownerMode,      setOwnerMode]      = useState<'search' | 'create-contact' | 'create-company'>('search')
+  const [newOwnerType,   setNewOwnerType]   = useState<'contact' | 'company' | null>(null)
   const [inlineView,     setInlineView]     = useState<VCardViewType | null>(null)
   const ownerWrapRef  = useRef<HTMLDivElement>(null)
   const ownerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -367,7 +368,7 @@ export default function NuevaPropiedadPage() {
       .select('id,name,last_name,email,cedula').single()
     if (error) { setCError(`Error: ${error.message}`); setCSaving(false); return }
     addOwner({ type: 'contact', id: data.id, name: [data.name, data.last_name].filter(Boolean).join(' '), subtitle: data.email ?? data.cedula ?? 'Persona física' })
-    setOwnerMode('search'); setCSaving(false); setCName(''); setCLastName(''); setCCedula(''); setCPhone(''); setCEmail('')
+    setCSaving(false); setCName(''); setCLastName(''); setCCedula(''); setCPhone(''); setCEmail('')
   }
 
   async function lookupCedJur(v: string) {
@@ -391,7 +392,7 @@ export default function NuevaPropiedadPage() {
     if (error) { setCoError(`Error: ${error.message}`); setCoSaving(false); return }
     const linked = await fetchLinkedContacts(data.id)
     addOwner({ type: 'company', id: data.id, name: data.trade_name || data.name, subtitle: data.trade_name ? data.name : (data.cedula_juridica ?? 'Empresa'), linkedContacts: linked })
-    setOwnerMode('search'); setCoSaving(false); setCoName(''); setCoTrade(''); setCoCedJur(''); setCoLookResult(null)
+    setCoSaving(false); setCoName(''); setCoTrade(''); setCoCedJur(''); setCoLookResult(null)
   }
 
   /* ── Save (draft) ── */
@@ -571,108 +572,50 @@ export default function NuevaPropiedadPage() {
             </div>
           )}
 
-          {ownerMode === 'search' ? (
-            <>
-              <div ref={ownerWrapRef} style={{ position: 'relative', marginBottom: ownerNoResults ? 12 : 0 }}>
-                <input value={ownerQuery} onChange={e => handleOwnerQuery(e.target.value)}
-                  onFocus={() => ownerQuery.length >= 2 && setOwnerDropOpen(true)}
-                  placeholder="Buscar por nombre, cédula o empresa…"
-                  style={{ ...inputSt, paddingLeft: 36 }} />
-                <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#aaa', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
-                {ownerSearching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>…</span>}
-                {ownerDropOpen && ownerResults.length > 0 && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden' }}>
-                    {ownerResults.map((r, i) => (
-                      <div key={r.id} onClick={async () => {
-                          const enriched = r.type === 'company'
-                            ? { ...r, linkedContacts: await fetchLinkedContacts(r.id) }
-                            : r
-                          addOwner(enriched); setOwnerDropOpen(false); setOwnerQuery(''); setOwnerResults([])
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
-                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
-                        <span style={{ fontSize: 18 }}>{r.type === 'contact' ? '👤' : '🏢'}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                          <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.subtitle}</div>
-                        </div>
-                        <span style={{ fontSize: 11, color: '#aaa', whiteSpace: 'nowrap' }}>{r.type === 'contact' ? 'Persona' : 'Empresa'}</span>
-                      </div>
-                    ))}
+          <div ref={ownerWrapRef} style={{ position: 'relative', marginBottom: ownerNoResults ? 12 : 0 }}>
+            <input value={ownerQuery} onChange={e => handleOwnerQuery(e.target.value)}
+              onFocus={() => ownerQuery.length >= 2 && setOwnerDropOpen(true)}
+              placeholder={owners.length > 0 ? 'Agregar otro dueño…' : 'Buscar por nombre, cédula o empresa…'}
+              style={{ ...inputSt, paddingLeft: 36 }} />
+            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#aaa', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+            {ownerSearching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>…</span>}
+            {ownerDropOpen && ownerResults.length > 0 && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden' }}>
+                {ownerResults.map((r, i) => (
+                  <div key={r.id} onClick={async () => {
+                      const enriched = r.type === 'company' ? { ...r, linkedContacts: await fetchLinkedContacts(r.id) } : r
+                      addOwner(enriched); setOwnerDropOpen(false); setOwnerQuery(''); setOwnerResults([])
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
+                    <span style={{ fontSize: 18 }}>{r.type === 'contact' ? '👤' : '🏢'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.subtitle}</div>
+                    </div>
+                    <span style={{ fontSize: 11, color: '#aaa', whiteSpace: 'nowrap' }}>{r.type === 'contact' ? 'Físico' : 'Jurídico'}</span>
                   </div>
-                )}
+                ))}
               </div>
-              {ownerNoResults && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '14px 16px' }}>
-                  <p style={{ fontSize: 13, color: '#92400e', margin: '0 0 10px', fontWeight: 500 }}>No se encontró &ldquo;{ownerQuery}&rdquo; en el CRM.</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="button" onClick={() => setOwnerMode('create-contact')}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      👤 Registrar como persona
-                    </button>
-                    <button type="button" onClick={() => setOwnerMode('create-company')}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      🏢 Registrar como empresa
-                    </button>
-                  </div>
-                </div>
-              )}
-              <p style={{ fontSize: 11, color: '#aaa', margin: ownerNoResults ? '10px 0 0' : '8px 0 0' }}>Escribí 2 caracteres para buscar. El dueño es opcional al crear.</p>
-            </>
-
-          ) : ownerMode === 'create-contact' ? (
-            <div style={{ background: '#f9fafb', borderRadius: 10, border: '1px solid #e2e5ea', padding: '18px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>👤 Registrar persona física</div>
-                <button type="button" onClick={() => { setOwnerMode('search'); setCError('') }}
-                  style={{ fontSize: 12, color: '#888', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
+            )}
+          </div>
+          {ownerNoResults && (
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '14px 16px' }}>
+              <p style={{ fontSize: 13, color: '#92400e', margin: '0 0 10px', fontWeight: 500 }}>No se encontró &ldquo;{ownerQuery}&rdquo; en el CRM.</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" onClick={() => setNewOwnerType('contact')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  👤 Registrar como físico
+                </button>
+                <button type="button" onClick={() => setNewOwnerType('company')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  🏢 Registrar como jurídico
+                </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div><FieldLabel>Nombre *</FieldLabel><input value={cName} onChange={e => setCName(e.target.value)} placeholder="Nombre" style={inputSt} /></div>
-                <div><FieldLabel>Apellido</FieldLabel><input value={cLastName} onChange={e => setCLastName(e.target.value)} placeholder="Apellido" style={inputSt} /></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div><FieldLabel>Cédula / DIMEX</FieldLabel><input value={cCedula} onChange={e => setCCedula(e.target.value)} placeholder="Ej: 1-0000-0000" style={inputSt} /></div>
-                <div><FieldLabel>Teléfono</FieldLabel><input value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="Ej: 8888-8888" style={inputSt} /></div>
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <FieldLabel>Correo electrónico</FieldLabel>
-                <input value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="correo@ejemplo.com" style={inputSt} />
-              </div>
-              {cError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{cError}</p>}
-              <button type="button" onClick={e => createContact(e as unknown as React.FormEvent)} disabled={cSaving}
-                style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: cSaving ? 'not-allowed' : 'pointer', opacity: cSaving ? 0.7 : 1, fontFamily: 'inherit' }}>
-                {cSaving ? 'Guardando…' : 'Registrar y vincular'}
-              </button>
-            </div>
-
-          ) : (
-            <div style={{ background: '#f9fafb', borderRadius: 10, border: '1px solid #e2e5ea', padding: '18px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>🏢 Registrar empresa</div>
-                <button type="button" onClick={() => { setOwnerMode('search'); setCoError('') }}
-                  style={{ fontSize: 12, color: '#888', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <FieldLabel>Cédula jurídica</FieldLabel>
-                <div style={{ position: 'relative' }}>
-                  <input value={coCedJur} onChange={e => lookupCedJur(e.target.value)} placeholder="Ej: 3-101-123456" style={inputSt} />
-                  {coLooking && <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>Consultando…</span>}
-                </div>
-                {coLookResult && <p style={{ fontSize: 12, color: '#059669', margin: '5px 0 0', fontWeight: 500 }}>✓ {coLookResult.name}</p>}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                <div><FieldLabel>Razón social *</FieldLabel><input value={coName} onChange={e => setCoName(e.target.value)} placeholder="Nombre legal" style={inputSt} /></div>
-                <div><FieldLabel>Nombre fantasía</FieldLabel><input value={coTrade} onChange={e => setCoTrade(e.target.value)} placeholder="Nombre comercial" style={inputSt} /></div>
-              </div>
-              {coError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{coError}</p>}
-              <button type="button" onClick={e => createCompany(e as unknown as React.FormEvent)} disabled={coSaving}
-                style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: coSaving ? 'not-allowed' : 'pointer', opacity: coSaving ? 0.7 : 1, fontFamily: 'inherit' }}>
-                {coSaving ? 'Guardando…' : 'Registrar y vincular'}
-              </button>
             </div>
           )}
+          <p style={{ fontSize: 11, color: '#aaa', margin: ownerNoResults ? '10px 0 0' : '8px 0 0' }}>Escribí 2 caracteres para buscar. El dueño es opcional al crear.</p>
         </FormSection>
 
         {/* ── SECCIÓN 1: Datos registrales y ubicación ── */}
@@ -878,6 +821,21 @@ export default function NuevaPropiedadPage() {
 
       {inlineView && (
         <ContactVCardModal view={inlineView} onClose={() => setInlineView(null)} />
+      )}
+      {newOwnerType && (
+        <NewOwnerModal
+          type={newOwnerType}
+          tenantId={tenantId}
+          initial={ownerQuery}
+          onCreated={async (result: NewOwnerResult) => {
+            setNewOwnerType(null)
+            const enriched = result.type === 'company'
+              ? { ...result, linkedContacts: await fetchLinkedContacts(result.id) }
+              : result
+            addOwner(enriched)
+          }}
+          onClose={() => setNewOwnerType(null)}
+        />
       )}
     </div>
   )
