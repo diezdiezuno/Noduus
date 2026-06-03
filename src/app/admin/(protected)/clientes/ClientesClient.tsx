@@ -290,9 +290,10 @@ export default function ClientesClient() {
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null)
 
   // VCard state
-  const [vcardOpen,    setVcardOpen]    = useState(false)
-  const [vcardData,    setVcardData]    = useState<VCardContact | null>(null)
-  const [vcardLoading, setVcardLoading] = useState(false)
+  const [vcardOpen,      setVcardOpen]      = useState(false)
+  const [vcardData,      setVcardData]      = useState<VCardContact | null>(null)
+  const [vcardLoading,   setVcardLoading]   = useState(false)
+  const [docSignedUrls,  setDocSignedUrls]  = useState<Record<string, string>>({})
 
   // ── Load contacts ──────────────────────────────────────────
   const loadContacts = useCallback(async (
@@ -366,6 +367,18 @@ export default function ClientesClient() {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [vcardOpen, drawerOpen])
+
+  // Load signed URLs for all docs whenever vcardData changes
+  useEffect(() => {
+    if (!vcardData?.doc_urls?.length) { setDocSignedUrls({}); return }
+    const supabase = createClient()
+    Promise.all(
+      vcardData.doc_urls.map(async (doc) => {
+        const { data } = await supabase.storage.from('contact-docs').createSignedUrl(doc.path, 3600)
+        return [doc.path, data?.signedUrl ?? ''] as [string, string]
+      })
+    ).then(results => setDocSignedUrls(Object.fromEntries(results)))
+  }, [vcardData])
 
   // ── VCard ────────────────────────────────────────────────
   async function openVCard(id: string) {
@@ -1099,15 +1112,25 @@ export default function ClientesClient() {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {vcardData.doc_urls.map(doc => {
-                        const isPdf = doc.name.toLowerCase().endsWith('.pdf')
+                        const isPdf    = doc.name.toLowerCase().endsWith('.pdf')
+                        const isImage  = /\.(jpe?g|png|webp|gif|bmp|svg|heic|heif)$/i.test(doc.name)
+                        const signedUrl = docSignedUrls[doc.path]
                         return (
                           <div key={doc.path}
                             onClick={() => downloadVCardDoc(doc)}
-                            style={{ border: '1px solid #E2E5EA', borderRadius: 10, cursor: 'pointer', overflow: 'hidden' }}>
-                            {/* Placeholder */}
-                            <div style={{ height: 80, background: isPdf ? '#FEE2E2' : '#F4F5F7', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 24 }}>{isPdf ? '📄' : '🖼'}</span>
-                              {isPdf && <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>PDF</span>}
+                            style={{ border: '1px solid #E2E5EA', borderRadius: 10, cursor: 'pointer', overflow: 'hidden', transition: 'box-shadow .15s' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 10px rgba(0,0,0,.1)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'}>
+                            {/* Thumbnail */}
+                            <div style={{ height: 100, background: isPdf ? '#FEE2E2' : '#F4F5F7', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, overflow: 'hidden', position: 'relative' }}>
+                              {isImage && signedUrl ? (
+                                <img src={signedUrl} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <>
+                                  <span style={{ fontSize: 28 }}>{isPdf ? '📄' : '🖼'}</span>
+                                  {isPdf && <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>PDF</span>}
+                                </>
+                              )}
                             </div>
                             <div style={{ padding: '6px 10px', fontSize: 12, color: '#5a6070', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.name}</div>
                           </div>
