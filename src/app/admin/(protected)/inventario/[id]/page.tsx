@@ -57,9 +57,11 @@ interface PropertyFull {
 }
 interface PropertyType { id: string; label: string; value: string; icon: string | null }
 interface Agent        { id: string; name: string }
+interface LinkedContact { id: string; name: string; last_name: string | null; cedula: string | null }
 interface OwnerResult  {
   type: 'contact' | 'company'
   id: string; name: string; subtitle: string
+  linkedContacts?: LinkedContact[]
 }
 
 /* ── Shared style ─────────────────────────────────────────────── */
@@ -819,9 +821,18 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
+  async function fetchLinkedContacts(companyId: string): Promise<LinkedContact[]> {
+    const { data } = await createClient()
+      .from('crm_contact_companies')
+      .select('crm_contacts(id,name,last_name,cedula)')
+      .eq('company_id', companyId)
+    if (!data) return []
+    return (data as unknown as { crm_contacts: LinkedContact | null }[])
+      .map(r => r.crm_contacts).filter(Boolean) as LinkedContact[]
+  }
+
   async function saveOwners(updated: OwnerResult[]) {
     const base = { ...(prop.features ?? {}) } as Record<string, string>
-    // Remove legacy single-owner keys
     const { owner_id: _a, owner_type: _b, owner_name: _c, owner_subtitle: _d, ...rest } = base
     const newFeatures = { ...rest, owners: JSON.stringify(updated) }
     const { data, error } = await createClient().from('properties').update({ features: newFeatures }).eq('id', prop.id).select('*').single()
@@ -830,7 +841,11 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
 
   async function addOwner(o: OwnerResult) {
     if (owners.some(x => x.id === o.id)) return
-    const updated = [...owners, o]
+    // If company, fetch linked contacts automatically
+    const enriched: OwnerResult = o.type === 'company'
+      ? { ...o, linkedContacts: await fetchLinkedContacts(o.id) }
+      : o
+    const updated = [...owners, enriched]
     setOwners(updated); setDropOpen(false); setQuery(''); setResults([]); setNoResults(false)
     await saveOwners(updated)
   }
@@ -910,21 +925,49 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
 
       {/* ── Owners list ── */}
       {owners.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
           {owners.map(o => (
-            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e2e5ea' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: o.type === 'contact' ? '#5B7FFF22' : '#F59E0B22', border: `2px solid ${o.type === 'contact' ? '#5B7FFF44' : '#F59E0B44'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                {o.type === 'contact' ? '👤' : '🏢'}
+            <div key={o.id} style={{ borderRadius: 10, border: '1px solid #e2e5ea', overflow: 'hidden' }}>
+              {/* Owner header row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f9fafb' }}>
+                <div style={{ width: 36, height: 36, borderRadius: o.type === 'company' ? 8 : '50%', background: o.type === 'contact' ? '#5B7FFF22' : '#F59E0B22', border: `2px solid ${o.type === 'contact' ? '#5B7FFF44' : '#F59E0B44'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                  {o.type === 'contact' ? '👤' : '🏢'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.name}</div>
+                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{o.subtitle}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: o.type === 'contact' ? '#5B7FFF18' : '#F59E0B18', color: o.type === 'contact' ? '#5B7FFF' : '#D97706', flexShrink: 0 }}>
+                  {o.type === 'contact' ? 'Físico' : 'Jurídico'}
+                </span>
+                <button type="button" onClick={() => removeOwner(o.id)}
+                  style={{ width: 26, height: 26, borderRadius: '50%', background: '#fff', border: '1px solid #e2e5ea', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#e53e3e', flexShrink: 0, fontFamily: 'inherit' }}>×</button>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.name}</div>
-                <div style={{ fontSize: 11, color: '#9ca3af' }}>{o.subtitle}</div>
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: o.type === 'contact' ? '#5B7FFF18' : '#F59E0B18', color: o.type === 'contact' ? '#5B7FFF' : '#D97706', flexShrink: 0 }}>
-                {o.type === 'contact' ? 'Persona' : 'Empresa'}
-              </span>
-              <button type="button" onClick={() => removeOwner(o.id)}
-                style={{ width: 26, height: 26, borderRadius: '50%', background: '#fff', border: '1px solid #e2e5ea', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#e53e3e', flexShrink: 0, fontFamily: 'inherit' }}>×</button>
+
+              {/* Linked contacts (companies only) */}
+              {o.type === 'company' && (
+                <div style={{ background: '#fff', borderTop: '1px solid #f0f0f0' }}>
+                  {o.linkedContacts && o.linkedContacts.length > 0 ? (
+                    o.linkedContacts.map((c, ci) => (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px 9px 24px', borderTop: ci > 0 ? '1px solid #f9fafb' : 'none' }}>
+                        <span style={{ color: '#ddd', fontSize: 12, flexShrink: 0 }}>└</span>
+                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#5B7FFF18', border: '1.5px solid #5B7FFF33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>👤</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>
+                            {[c.name, c.last_name].filter(Boolean).join(' ')}
+                          </span>
+                          {c.cedula && <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8, fontFamily: 'monospace' }}>{c.cedula}</span>}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '9px 14px 9px 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: '#ddd', fontSize: 12 }}>└</span>
+                      <span style={{ fontSize: 12, color: '#bbb', fontStyle: 'italic' }}>Sin personas físicas vinculadas a esta empresa</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
