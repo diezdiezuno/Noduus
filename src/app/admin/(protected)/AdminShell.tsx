@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 
@@ -40,6 +40,16 @@ const NAV_STANDALONE = [
 
 const SIDEBAR_W_OPEN   = 216
 const SIDEBAR_W_CLOSED = 72
+const TOPBAR_H         = 54
+
+// ── Search result type ────────────────────────────────────────
+interface SearchResult {
+  type:     'contact' | 'company' | 'property'
+  id:       string
+  title:    string
+  subtitle: string
+  href:     string
+}
 
 // ── Types ─────────────────────────────────────────────────────
 interface Tenant { id: string; name: string; slug: string; logo_url: string | null; theme: Record<string, string> }
@@ -50,7 +60,7 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
 
-  // Sidebar open/closed — persisted in localStorage
+  // ── Sidebar open/closed ────────────────────────────────────
   const [open, setOpen] = useState(true)
   useEffect(() => {
     const stored = localStorage.getItem('sidebar_open')
@@ -64,27 +74,147 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
     })
   }
 
-  // Collapsed state for nav groups — keys match NAV_GROUPS[].key. true = collapsed.
+  // ── Nav group collapse ─────────────────────────────────────
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-
-  // Auto-expand the group that contains the active route
   useEffect(() => {
     for (const group of NAV_GROUPS) {
       const hasActive = group.items.some(item => pathname.startsWith(item.href))
-      if (hasActive) {
-        setCollapsed(prev => ({ ...prev, [group.key]: false }))
-      }
+      if (hasActive) setCollapsed(prev => ({ ...prev, [group.key]: false }))
     }
   }, [pathname])
-
   function toggle(key: string) {
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  // ── Sign out ───────────────────────────────────────────────
   async function signOut() {
     await createClient().auth.signOut()
     router.push('/admin/login')
   }
+
+  // ── Global search ──────────────────────────────────────────
+  const [query,        setQuery]        = useState('')
+  const [results,      setResults]      = useState<SearchResult[]>([])
+  const [searching,    setSearching]    = useState(false)
+  const [searchOpen,   setSearchOpen]   = useState(false)
+  const searchRef      = useRef<HTMLDivElement>(null)
+  const searchTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Close search on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        setSearchOpen(true)
+      }
+      if (e.key === 'Escape') setSearchOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
+
+  const runSearch = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setResults([]); setSearching(false); return }
+    setSearching(true)
+    const sb  = createClient()
+    const tid = tenant.id
+    const term = `%${q.trim()}%`
+
+    const [{ data: contacts }, { data: companies }, { data: props }] = await Promise.all([
+      sb.from('crm_contacts')
+        .select('id, name, last_name, email, cedula')
+        .eq('tenant_id', tid)
+        .or(`name.ilike.${term},last_name.ilike.${term},email.ilike.${term},cedula.ilike.${term}`)
+        .limit(4),
+      sb.from('crm_companies')
+        .select('id, name, trade_name, cedula_juridica')
+        .eq('tenant_id', tid)
+        .or(`name.ilike.${term},trade_name.ilike.${term},cedula_juridica.ilike.${term}`)
+        .limit(4),
+      sb.from('properties')
+        .select('id, title, address, canton, provincia')
+        .eq('tenant_id', tid)
+        .or(`title.ilike.${term},address.ilike.${term}`)
+        .limit(4),
+    ])
+
+    const out: SearchResult[] = []
+    for (const c of contacts ?? []) {
+      out.push({
+        type:     'contact',
+        id:       c.id,
+        title:    [c.name, c.last_name].filter(Boolean).join(' '),
+        subtitle: c.email ?? c.cedula ?? 'Cliente',
+        href:     `/admin/clientes?id=${c.id}`,
+      })
+    }
+    for (const co of companies ?? []) {
+      out.push({
+        type:     'company',
+        id:       co.id,
+        title:    co.trade_name || co.name,
+        subtitle: co.trade_name ? co.name : (co.cedula_juridica ?? 'Empresa'),
+        href:     `/admin/empresas?id=${co.id}`,
+      })
+    }
+    for (const p of props ?? []) {
+      out.push({
+        type:     'property',
+        id:       p.id,
+        title:    p.title || 'Sin título',
+        subtitle: [p.canton, p.provincia].filter(Boolean).join(', ') || p.address || 'Propiedad',
+        href:     `/admin/inventario/${p.id}`,
+      })
+    }
+    setResults(out)
+    setSearching(false)
+  }, [tenant.id])
+
+  function handleSearchChange(q: string) {
+    setQuery(q)
+    setSearchOpen(true)
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => runSearch(q), 300)
+  }
+
+  function goToResult(href: string) {
+    setSearchOpen(false)
+    setQuery('')
+    setResults([])
+    router.push(href)
+  }
+
+  // ── Quick add "+" dropdown ─────────────────────────────────
+  const [plusOpen,  setPlusOpen]  = useState(false)
+  const plusRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (plusRef.current && !plusRef.current.contains(e.target as Node)) setPlusOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const QUICK_ADD = [
+    { icon: '👤', label: 'Nuevo cliente',    href: '/admin/clientes?new=1'   },
+    { icon: '🏢', label: 'Nueva empresa',    href: '/admin/empresas?new=1'   },
+    { icon: '🏘️', label: 'Nueva propiedad',  href: '/admin/inventario?new=1' },
+  ]
+
+  const RESULT_ICONS: Record<string, string> = { contact: '👤', company: '🏢', property: '🏘️' }
 
   const sidebarW = open ? SIDEBAR_W_OPEN : SIDEBAR_W_CLOSED
 
@@ -127,84 +257,39 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '8px 0 12px', overflowY: 'auto', overflowX: 'hidden' }}>
 
-          {/* ── Grouped sections ───────────────────────── */}
           {NAV_GROUPS.map(group => {
             const isOpen    = !collapsed[group.key]
             const hasActive = group.items.some(item => pathname.startsWith(item.href))
-
             return (
               <div key={group.key} style={{ marginBottom: 4 }}>
-
-                {/* Group header */}
                 <button
                   onClick={() => open ? toggle(group.key) : undefined}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: open ? 'space-between' : 'center',
-                    padding: open ? '7px 20px 7px 16px' : '6px 0 4px',
-                    background: 'none', border: 'none', cursor: open ? 'pointer' : 'default',
-                    fontFamily: 'inherit',
-                  }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center', padding: open ? '7px 20px 7px 16px' : '6px 0 4px', background: 'none', border: 'none', cursor: open ? 'pointer' : 'default', fontFamily: 'inherit' }}
                 >
                   {open ? (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                         <span style={{ fontSize: 14 }}>{group.icon}</span>
-                        <span style={{
-                          fontSize: 11, fontWeight: 700, letterSpacing: '.05em',
-                          textTransform: 'uppercase',
-                          color: hasActive ? '#111' : '#999',
-                          whiteSpace: 'nowrap',
-                        }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: hasActive ? '#111' : '#999', whiteSpace: 'nowrap' }}>
                           {group.label}
                         </span>
                       </div>
-                      <span style={{
-                        fontSize: 9, color: '#bbb',
-                        transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                        transition: 'transform .15s',
-                        display: 'inline-block',
-                      }}>
-                        ▼
-                      </span>
+                      <span style={{ fontSize: 9, color: '#bbb', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .15s', display: 'inline-block' }}>▼</span>
                     </>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                       <span style={{ fontSize: 15 }}>{group.icon}</span>
-                      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: hasActive ? '#111' : '#aaa', whiteSpace: 'nowrap' }}>
-                        {group.label}
-                      </span>
+                      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: hasActive ? '#111' : '#aaa', whiteSpace: 'nowrap' }}>{group.label}</span>
                     </div>
                   )}
                 </button>
 
-                {/* Group items — always show when sidebar is collapsed (icon only) */}
                 {(open ? isOpen : true) && (
                   <div>
                     {group.items.map(({ href, icon, label }) => {
                       const active = pathname.startsWith(href)
                       return (
-                        <a
-                          key={href}
-                          href={href}
-                          style={{
-                            display: 'flex',
-                            flexDirection: open ? 'row' : 'column',
-                            alignItems: 'center',
-                            justifyContent: open ? 'flex-start' : 'center',
-                            gap: open ? 9 : 2,
-                            padding: open ? '8px 20px 8px 28px' : '6px 0',
-                            textDecoration: 'none',
-                            fontSize: 13,
-                            color: active ? '#111' : '#666',
-                            background: active ? '#f5f5f7' : 'transparent',
-                            fontWeight: active ? 600 : 400,
-                            borderLeft: `3px solid ${active ? '#111' : 'transparent'}`,
-                            transition: 'background .1s',
-                            whiteSpace: 'nowrap',
-                          }}
+                        <a key={href} href={href} style={{ display: 'flex', flexDirection: open ? 'row' : 'column', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center', gap: open ? 9 : 2, padding: open ? '8px 20px 8px 28px' : '6px 0', textDecoration: 'none', fontSize: 13, color: active ? '#111' : '#666', background: active ? '#f5f5f7' : 'transparent', fontWeight: active ? 600 : 400, borderLeft: `3px solid ${active ? '#111' : 'transparent'}`, transition: 'background .1s', whiteSpace: 'nowrap' }}
                           onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#fafafa' }}
                           onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
                         >
@@ -218,48 +303,26 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
                     })}
                   </div>
                 )}
-
-                {/* Divider after each group */}
                 <div style={{ height: 1, background: '#f0f0f0', margin: open ? '6px 16px 2px' : '6px 10px 2px' }} />
-
               </div>
             )
           })}
 
-          {/* ── Standalone items ────────────────────────── */}
           {NAV_STANDALONE.map(({ href, icon, label }) => {
             const active = pathname.startsWith(href)
             return (
               <div key={href}>
-              <a
-                href={href}
-                style={{
-                  display: 'flex',
-                  flexDirection: open ? 'row' : 'column',
-                  alignItems: 'center',
-                  justifyContent: open ? 'flex-start' : 'center',
-                  gap: open ? 9 : 2,
-                  padding: open ? '8px 20px' : '6px 0',
-                  textDecoration: 'none',
-                  fontSize: 13,
-                  color: active ? '#111' : '#666',
-                  background: active ? '#f5f5f7' : 'transparent',
-                  fontWeight: active ? 600 : 400,
-                  borderLeft: `3px solid ${active ? '#111' : 'transparent'}`,
-                  transition: 'background .1s',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#fafafa' }}
-                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
-              >
-                <span style={{ fontSize: open ? 14 : 16 }}>{icon}</span>
-                {open
-                  ? label
-                  : <span style={{ fontSize: 9, color: active ? '#111' : '#888', fontWeight: active ? 700 : 400, letterSpacing: '.01em', maxWidth: 62, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-                }
-              </a>
-              {/* Divider after each standalone item */}
-              <div style={{ height: 1, background: '#f0f0f0', margin: open ? '6px 16px 2px' : '6px 10px 2px' }} />
+                <a href={href} style={{ display: 'flex', flexDirection: open ? 'row' : 'column', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center', gap: open ? 9 : 2, padding: open ? '8px 20px' : '6px 0', textDecoration: 'none', fontSize: 13, color: active ? '#111' : '#666', background: active ? '#f5f5f7' : 'transparent', fontWeight: active ? 600 : 400, borderLeft: `3px solid ${active ? '#111' : 'transparent'}`, transition: 'background .1s', whiteSpace: 'nowrap' }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#fafafa' }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
+                >
+                  <span style={{ fontSize: open ? 14 : 16 }}>{icon}</span>
+                  {open
+                    ? label
+                    : <span style={{ fontSize: 9, color: active ? '#111' : '#888', fontWeight: active ? 700 : 400, letterSpacing: '.01em', maxWidth: 62, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                  }
+                </a>
+                <div style={{ height: 1, background: '#f0f0f0', margin: open ? '6px 16px 2px' : '6px 10px 2px' }} />
               </div>
             )
           })}
@@ -270,15 +333,9 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
         <div style={{ padding: open ? '14px 20px' : '12px 0', borderTop: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', alignItems: open ? 'flex-start' : 'center', gap: 6 }}>
           {open ? (
             <>
-              <div style={{ fontSize: 11, color: '#bbb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                {userEmail}
-              </div>
-              <a href="/" target="_blank" style={{ fontSize: 12, color: '#888', display: 'block', textDecoration: 'none' }}>
-                Ver sitio →
-              </a>
-              <button onClick={signOut} style={{ fontSize: 12, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
-                Cerrar sesión
-              </button>
+              <div style={{ fontSize: 11, color: '#bbb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{userEmail}</div>
+              <a href="/" target="_blank" style={{ fontSize: 12, color: '#888', display: 'block', textDecoration: 'none' }}>Ver sitio →</a>
+              <button onClick={signOut} style={{ fontSize: 12, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>Cerrar sesión</button>
             </>
           ) : (
             <>
@@ -294,29 +351,11 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
           )}
         </div>
 
-        {/* ── Toggle button ────────────────────────────── */}
+        {/* Toggle button */}
         <button
           onClick={toggleSidebar}
           title={open ? 'Colapsar sidebar' : 'Expandir sidebar'}
-          style={{
-            position: 'absolute',
-            bottom: open ? 94 : 90,
-            right: -12,
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
-            background: '#fff',
-            border: '1px solid #e2e5ea',
-            boxShadow: '0 2px 6px rgba(0,0,0,.10)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 10,
-            color: '#666',
-            zIndex: 10,
-            transition: 'box-shadow .15s',
-          }}
+          style={{ position: 'absolute', bottom: open ? 94 : 90, right: -12, width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #e2e5ea', boxShadow: '0 2px 6px rgba(0,0,0,.10)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#666', zIndex: 10, transition: 'box-shadow .15s' }}
           onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 3px 10px rgba(0,0,0,.18)'}
           onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 6px rgba(0,0,0,.10)'}
         >
@@ -325,12 +364,134 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
 
       </aside>
 
+      {/* ── Top bar ─────────────────────────────────────────────── */}
+      <div style={{
+        position: 'fixed',
+        top: 0, left: sidebarW, right: 0,
+        height: TOPBAR_H,
+        background: '#fff',
+        borderBottom: '1px solid #ebebeb',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 24px',
+        gap: 12,
+        zIndex: 200,
+        transition: 'left .2s cubic-bezier(.4,0,.2,1)',
+      }}>
+
+        {/* ── Search ──────────────────────────────────── */}
+        <div ref={searchRef} style={{ position: 'relative', flex: 1, maxWidth: 480 }}>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#aaa', pointerEvents: 'none' }}>🔍</span>
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={e => handleSearchChange(e.target.value)}
+              onFocus={() => query.length >= 2 && setSearchOpen(true)}
+              placeholder="Buscar clientes, empresas, propiedades…"
+              style={{
+                width: '100%', height: 36,
+                paddingLeft: 36, paddingRight: 60,
+                border: '1px solid #e2e5ea',
+                borderRadius: 10,
+                fontSize: 13, color: '#111',
+                background: '#f9fafb',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                transition: 'border-color .15s, background .15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#c5cad3' }}
+              onMouseLeave={e => { if (document.activeElement !== e.currentTarget) (e.currentTarget as HTMLInputElement).style.borderColor = '#e2e5ea' }}
+              onFocusCapture={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#111'; (e.currentTarget as HTMLInputElement).style.background = '#fff' }}
+              onBlurCapture={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#e2e5ea'; (e.currentTarget as HTMLInputElement).style.background = '#f9fafb' }}
+            />
+            <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#bbb', background: '#f0f0f0', borderRadius: 5, padding: '2px 5px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>⌘K</span>
+          </div>
+
+          {/* Results dropdown */}
+          {searchOpen && query.length >= 2 && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.12)', zIndex: 400, overflow: 'hidden' }}>
+              {searching ? (
+                <div style={{ padding: '14px 16px', fontSize: 13, color: '#aaa' }}>Buscando…</div>
+              ) : results.length === 0 ? (
+                <div style={{ padding: '14px 16px', fontSize: 13, color: '#aaa' }}>Sin resultados para &ldquo;{query}&rdquo;</div>
+              ) : (
+                <>
+                  {results.map((r, i) => (
+                    <div
+                      key={r.id}
+                      onClick={() => goToResult(r.href)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
+                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                    >
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{RESULT_ICONS[r.type]}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.subtitle}</div>
+                      </div>
+                      <span style={{ fontSize: 11, color: '#c5cad3', flexShrink: 0 }}>→</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* ── Quick add "+" ────────────────────────────── */}
+        <div ref={plusRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setPlusOpen(p => !p)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              height: 36, padding: '0 14px',
+              background: plusOpen ? '#222' : '#111',
+              color: '#fff',
+              border: 'none', borderRadius: 10,
+              fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = '#222'}
+            onMouseLeave={e => { if (!plusOpen) (e.currentTarget as HTMLButtonElement).style.background = '#111' }}
+          >
+            <span style={{ fontSize: 16, lineHeight: 1, marginTop: -1 }}>+</span>
+            Nuevo
+          </button>
+
+          {plusOpen && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.12)', zIndex: 400, overflow: 'hidden', minWidth: 180 }}>
+              {QUICK_ADD.map(({ icon, label, href }, i) => (
+                <a
+                  key={href}
+                  href={href}
+                  onClick={() => setPlusOpen(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', textDecoration: 'none', color: '#0d0f12', fontSize: 13, fontWeight: 500, borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = '#f9fafb'}
+                  onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
+                >
+                  <span style={{ fontSize: 16 }}>{icon}</span>
+                  {label}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+
       {/* ── Main content ────────────────────────────────────────── */}
       <main style={{
         marginLeft: sidebarW,
+        marginTop: TOPBAR_H,
         flex: 1,
         padding: '36px 44px',
-        minHeight: '100vh',
+        minHeight: `calc(100vh - ${TOPBAR_H}px)`,
         transition: 'margin-left .2s cubic-bezier(.4,0,.2,1)',
       }}>
         <div style={{ maxWidth: 1100 }}>
@@ -338,31 +499,6 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
         </div>
       </main>
 
-      {/* ── Global "+" button ───────────────────────────────────── */}
-      <a
-        href="/admin/clientes?new=1"
-        title="Nuevo cliente"
-        style={{
-          position: 'fixed', bottom: 28, right: 28,
-          width: 48, height: 48, borderRadius: '50%',
-          background: '#111', color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 24, textDecoration: 'none',
-          boxShadow: '0 4px 16px rgba(0,0,0,.25)',
-          zIndex: 200, lineHeight: 1,
-          transition: 'transform .15s, box-shadow .15s',
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.08)'
-          ;(e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 6px 20px rgba(0,0,0,.32)'
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)'
-          ;(e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 4px 16px rgba(0,0,0,.25)'
-        }}
-      >
-        +
-      </a>
     </div>
   )
 }
