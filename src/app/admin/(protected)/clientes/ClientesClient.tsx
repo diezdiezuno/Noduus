@@ -870,7 +870,14 @@ export default function ClientesClient() {
                 <div style={sField}>
                   <label style={sLabel}>Email</label>
                   <input type="email" placeholder="correo@ejemplo.com" value={form.email}
-                    onChange={e => { setEmailError(false); setForm(prev => ({ ...prev, email: e.target.value })) }}
+                    onChange={e => {
+                      const val = e.target.value
+                      setEmailError(val.length > 0 && !isValidEmail(val))
+                      setForm(prev => ({ ...prev, email: val }))
+                    }}
+                    onBlur={e => {
+                      if (e.target.value && !isValidEmail(e.target.value)) setEmailError(true)
+                    }}
                     style={{ ...sInput, borderColor: emailError ? '#fca5a5' : '#e2e5ea', background: emailError ? '#fef2f2' : '#fff' }} />
                   {emailError && <span style={{ fontSize: 11, color: '#DC2626' }}>Ingresá un email válido</span>}
                 </div>
@@ -903,8 +910,9 @@ export default function ClientesClient() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'start' }}>
                 <div style={sField}>
                   <label style={sLabel}>Cédula jurídica</label>
-                  <input type="text" placeholder="3-101-123456" value={form.company_cedula}
-                    onChange={e => setForm(prev => ({ ...prev, company_cedula: e.target.value }))}
+                  <input type="text" placeholder="3-101-123456" maxLength={12}
+                    value={form.company_cedula}
+                    onChange={e => setForm(prev => ({ ...prev, company_cedula: formatCedula(e.target.value, 'juridica') }))}
                     style={sInput} />
                   {empresaResult && (
                     <div style={{ fontSize: 12, padding: '5px 9px', borderRadius: 6, ...(empresaResult.type === 'ok' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' } : { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }) }}>
