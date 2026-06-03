@@ -354,18 +354,37 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
           )}
         </div>
 
-        {/* Toggle button */}
-        <button
-          onClick={toggleSidebar}
-          title={open ? 'Colapsar sidebar' : 'Expandir sidebar'}
-          style={{ position: 'absolute', bottom: open ? 94 : 90, right: -12, width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #e2e5ea', boxShadow: '0 2px 6px rgba(0,0,0,.10)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#666', zIndex: 10, transition: 'box-shadow .15s' }}
-          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 3px 10px rgba(0,0,0,.18)'}
-          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 6px rgba(0,0,0,.10)'}
-        >
-          {open ? '‹' : '›'}
-        </button>
-
       </aside>
+
+      {/* ── Sidebar toggle — fuera del aside para no ser recortado ── */}
+      <button
+        onClick={toggleSidebar}
+        title={open ? 'Colapsar menú' : 'Expandir menú'}
+        style={{
+          position: 'fixed',
+          top: TOPBAR_H + 20,
+          left: sidebarW - 12,
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          background: '#fff',
+          border: '1px solid #e2e5ea',
+          boxShadow: '0 2px 8px rgba(0,0,0,.12)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          color: '#555',
+          zIndex: 400,
+          transition: 'left .2s cubic-bezier(.4,0,.2,1), box-shadow .15s',
+          fontFamily: 'inherit',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 3px 12px rgba(0,0,0,.22)'; (e.currentTarget as HTMLButtonElement).style.color = '#111' }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px rgba(0,0,0,.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#555' }}
+      >
+        {open ? '‹' : '›'}
+      </button>
 
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <div style={{
