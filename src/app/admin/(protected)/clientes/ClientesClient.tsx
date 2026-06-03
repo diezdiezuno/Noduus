@@ -15,7 +15,7 @@ interface DocUrl {
 }
 
 interface ContactCompanyRow {
-  crm_companies: { id: string; name: string; cedula_juridica?: string | null } | null
+  crm_companies: { id: string; name: string; trade_name?: string | null; cedula_juridica?: string | null } | null
 }
 
 interface Contact {
@@ -75,7 +75,7 @@ interface VCardContact {
 
 interface ContactType   { id: string; name: string; color: string }
 interface ContactSource { id: string; name: string }
-interface Company       { id: string; name: string; cedula_juridica: string | null }
+interface Company       { id: string; name: string; trade_name: string | null; cedula_juridica: string | null }
 type LookupState = { type: 'ok' | 'err'; msg: string } | null
 
 interface FormState {
@@ -342,7 +342,7 @@ export default function ClientesClient() {
         await Promise.all([
           supabase.from('contact_types').select('id,name,color').eq('tenant_id', adminRec.tenant_id).order('position'),
           supabase.from('contact_sources').select('id,name').eq('tenant_id', adminRec.tenant_id).order('position'),
-          supabase.from('crm_companies').select('id,name,cedula_juridica').eq('tenant_id', adminRec.tenant_id).order('name'),
+          supabase.from('crm_companies').select('id,name,trade_name,cedula_juridica').eq('tenant_id', adminRec.tenant_id).order('name'),
         ])
 
       setTypes(typesData ?? [])
@@ -526,7 +526,7 @@ export default function ClientesClient() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (createClient() as any)
         .from('crm_companies')
-        .select('id,name,cedula_juridica')
+        .select('id,name,trade_name,cedula_juridica')
         .eq('tenant_id', tenantId)
         .ilike('name', `%${val}%`)
         .order('name').limit(8)
@@ -892,7 +892,8 @@ export default function ClientesClient() {
                     {(() => {
                       const cos = (c.crm_contact_companies ?? []).map(r => r.crm_companies).filter(Boolean)
                       if (cos.length === 0) return null
-                      return <span>🏢 {cos[0]!.name}{cos.length > 1 ? ` +${cos.length - 1}` : ''}</span>
+                      const label = cos[0]!.trade_name || cos[0]!.name
+                      return <span>🏢 {label}{cos.length > 1 ? ` +${cos.length - 1}` : ''}</span>
                     })()}
                   </div>
                 </div>
@@ -1038,7 +1039,8 @@ export default function ClientesClient() {
                     <div style={{ textAlign: 'center', marginBottom: 10, width: '100%' }}>
                       {cos.map(co => (
                         <div key={co!.id} style={{ marginBottom: 4 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#5a6070' }}>{co!.name}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#5a6070' }}>{co!.trade_name || co!.name}</div>
+                          {co!.trade_name && <div style={{ fontSize: 11, color: '#9ca3af' }}>{co!.name}</div>}
                           {co!.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co!.cedula_juridica}</div>}
                         </div>
                       ))}
@@ -1153,7 +1155,8 @@ export default function ClientesClient() {
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F5F5F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏢</div>
                         <div>
                           <div style={{ fontSize: 11, color: '#9ca3af' }}>Empresa</div>
-                          <div style={{ fontSize: 14, color: '#0d0f12' }}>{co!.name}</div>
+                          <div style={{ fontSize: 14, color: '#0d0f12' }}>{co!.trade_name || co!.name}</div>
+                          {co!.trade_name && <div style={{ fontSize: 12, color: '#5a6070' }}>{co!.name}</div>}
                           {co!.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co!.cedula_juridica}</div>}
                         </div>
                       </div>
@@ -1456,8 +1459,11 @@ export default function ClientesClient() {
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}>
                         <span style={{ fontSize: 16 }}>🏢</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12' }}>{co.name}</div>
-                          {co.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co.cedula_juridica}</div>}
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12' }}>{co.trade_name || co.name}</div>
+                          <div style={{ fontSize: 11, color: '#9ca3af', display: 'flex', gap: 6 }}>
+                            {co.trade_name && <span>{co.name}</span>}
+                            {co.cedula_juridica && <span style={{ fontFamily: 'monospace' }}>{co.cedula_juridica}</span>}
+                          </div>
                         </div>
                         <span style={{ fontSize: 13, color: '#1B6EF3' }}>＋</span>
                       </div>
@@ -1482,8 +1488,11 @@ export default function ClientesClient() {
                     <div key={co.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea' }}>
                       <span style={{ fontSize: 16, flexShrink: 0 }}>🏢</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</div>
-                        {co.cedula_juridica && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{co.cedula_juridica}</div>}
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.trade_name || co.name}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af', display: 'flex', gap: 6 }}>
+                          {co.trade_name && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</span>}
+                          {co.cedula_juridica && <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{co.cedula_juridica}</span>}
+                        </div>
                       </div>
                       <button onClick={() => removeDrawerCompany(co.id)}
                         style={{ width: 24, height: 24, border: '1px solid #FECACA', borderRadius: 6, background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}

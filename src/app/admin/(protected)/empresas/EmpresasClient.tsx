@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 interface Company {
   id: string
   name: string
+  trade_name: string | null
   cedula_juridica: string | null
 }
 
@@ -21,12 +22,13 @@ interface LinkedContact {
 
 interface FormState {
   name: string
+  trade_name: string
   cedula_juridica: string
 }
 
 type LookupState = { type: 'ok' | 'err'; msg: string } | null
 
-const EMPTY_FORM: FormState = { name: '', cedula_juridica: '' }
+const EMPTY_FORM: FormState = { name: '', trade_name: '', cedula_juridica: '' }
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatCedulaJuridica(val: string): string {
@@ -83,7 +85,7 @@ export default function EmpresasClient() {
     const sb = createClient() as any
     let query = sb
       .from('crm_companies')
-      .select('id,name,cedula_juridica')
+      .select('id,name,trade_name,cedula_juridica')
       .eq('tenant_id', tid)
       .order('name')
     if (q) query = query.ilike('name', `%${q}%`)
@@ -167,7 +169,7 @@ export default function EmpresasClient() {
     setLinkedContacts([])
     setShowResults(false)
     setForm(company
-      ? { name: company.name, cedula_juridica: company.cedula_juridica ?? '' }
+      ? { name: company.name, trade_name: company.trade_name ?? '', cedula_juridica: company.cedula_juridica ?? '' }
       : { ...EMPTY_FORM }
     )
     if (company?.id && tenantId) {
@@ -300,6 +302,7 @@ export default function EmpresasClient() {
 
     const payload = {
       name:            form.name.trim(),
+      trade_name:      form.trade_name.trim() || null,
       cedula_juridica: form.cedula_juridica.trim() || null,
     }
 
@@ -327,7 +330,7 @@ export default function EmpresasClient() {
       // Stay in drawer, switch to edit mode for linking
       setEditingId(newId)
       setCompanies(prev =>
-        [...prev, { id: newId, name: payload.name, cedula_juridica: payload.cedula_juridica }]
+        [...prev, { id: newId, name: payload.name, trade_name: payload.trade_name ?? null, cedula_juridica: payload.cedula_juridica }]
           .sort((a, b) => a.name.localeCompare(b.name))
       )
       showToast('Empresa creada ✓ — ahora podés vincular clientes', 'success')
@@ -439,10 +442,13 @@ export default function EmpresasClient() {
 
                 {/* Info */}
                 <div onClick={() => openDrawer(co)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{co.name}</div>
-                  {co.cedula_juridica && (
-                    <div style={{ fontSize: 12, color: '#5a6070', marginTop: 2, fontFamily: 'monospace' }}>{co.cedula_juridica}</div>
-                  )}
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {co.trade_name || co.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#5a6070', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {co.trade_name && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</span>}
+                    {co.cedula_juridica && <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{co.cedula_juridica}</span>}
+                  </div>
                 </div>
 
                 {/* Badge */}
@@ -562,16 +568,29 @@ export default function EmpresasClient() {
             {/* ── DATOS DE LA EMPRESA ─────────────────────── */}
             <div style={{ marginBottom: 28 }}>
               <div style={sSecLbl}>Datos de la empresa</div>
-              <div style={sField}>
-                <label style={sLabel}>Razón social / Nombre *</label>
-                <input
-                  type="text" placeholder="Nombre de la empresa"
-                  value={form.name}
-                  onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  style={sInput} />
-                <span style={{ fontSize: 11, color: '#9ca3af' }}>
-                  Se autocompleta con la búsqueda de Hacienda, o ingresalo manualmente.
-                </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={sField}>
+                  <label style={sLabel}>Razón social *</label>
+                  <input
+                    type="text" placeholder="Inversiones XYZ Sociedad Anónima"
+                    value={form.name}
+                    onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+                    style={sInput} />
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                    Se autocompleta con la búsqueda de Hacienda, o ingresalo manualmente.
+                  </span>
+                </div>
+                <div style={sField}>
+                  <label style={sLabel}>Nombre fantasía</label>
+                  <input
+                    type="text" placeholder="XYZ Inversiones"
+                    value={form.trade_name}
+                    onChange={e => setForm(prev => ({ ...prev, trade_name: e.target.value }))}
+                    style={sInput} />
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                    Nombre comercial con el que opera el negocio, si es diferente a la razón social.
+                  </span>
+                </div>
               </div>
             </div>
 
