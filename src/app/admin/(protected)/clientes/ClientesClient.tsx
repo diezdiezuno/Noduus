@@ -596,7 +596,9 @@ export default function ClientesClient() {
 
   // ── Save ──────────────────────────────────────────────────
   async function saveContact() {
-    if (!form.name.trim()) { showToast('El nombre es obligatorio', 'error'); return }
+    if (!form.name.trim())      { showToast('El nombre es obligatorio', 'error'); return }
+    if (!form.last_name.trim()) { showToast('Los apellidos son obligatorios', 'error'); return }
+    if (!form.email.trim() && !form.phone.trim()) { showToast('Ingresá al menos un email o teléfono', 'error'); return }
     if (form.email && !isValidEmail(form.email)) { setEmailError(true); showToast('Email no válido', 'error'); return }
 
     // Fresh duplicate check on save (catches fast submits that bypass blur)

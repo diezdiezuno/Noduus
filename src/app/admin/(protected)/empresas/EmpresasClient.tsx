@@ -316,7 +316,8 @@ export default function EmpresasClient() {
 
   // ── Save ──────────────────────────────────────────────────
   async function save() {
-    if (!form.name.trim()) { showToast('El nombre es obligatorio', 'error'); return }
+    if (!form.cedula_juridica.trim()) { showToast('La cédula jurídica es obligatoria', 'error'); return }
+    if (!form.name.trim())            { showToast('La razón social es obligatoria', 'error'); return }
 
     // Fresh duplicate check on save
     if (form.cedula_juridica.trim()) {

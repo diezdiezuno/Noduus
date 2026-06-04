@@ -326,8 +326,10 @@ function ContactForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'typ
   /* ── Save ────────────────────────────────────────────────── */
   async function save() {
     setError('')
-    if (!name.trim()) { setError('El nombre es obligatorio.'); return }
-    if (email && !isValidEmail(email)) { setEmailError(true); setError('Email inválido.'); return }
+    if (!name.trim())                      { setError('El nombre es obligatorio.'); return }
+    if (!lastName.trim())                  { setError('Los apellidos son obligatorios.'); return }
+    if (!email.trim() && !phone.trim())    { setError('Ingresá al menos un email o teléfono.'); return }
+    if (email && !isValidEmail(email))     { setEmailError(true); setError('Email inválido.'); return }
 
     setSaving(true)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -750,8 +752,9 @@ function CompanyForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'typ
 
   async function save() {
     setError('')
-    if (!name.trim()) { setError('La razón social es obligatoria.'); return }
-    if (cedJurDupe) { setError('Ya existe una empresa con esta cédula jurídica.'); return }
+    if (!cedJur.trim()) { setError('La cédula jurídica es obligatoria.'); return }
+    if (!name.trim())   { setError('La razón social es obligatoria.'); return }
+    if (cedJurDupe)     { setError('Ya existe una empresa con esta cédula jurídica.'); return }
 
     setSaving(true)
     const formatted = cedJur.trim()   // ya viene formateado con guiones (3-101-XXXXXX)
