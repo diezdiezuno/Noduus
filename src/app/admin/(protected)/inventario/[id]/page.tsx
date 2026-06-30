@@ -890,6 +890,14 @@ function Tab6Fotos({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Propert
 /* ══════════════════════════════════════════════════════════════
    TAB 7 — Estudios (registral y mercado, generados por los agentes AIre)
 ══════════════════════════════════════════════════════════════ */
+interface Comparable { descripcion?: string; precio?: number; m2?: number; link?: string }
+interface EstudioDatos {
+  propietario?: string; cedula?: string; naturaleza?: string
+  provincia?: string; canton?: string; distrito?: string
+  medida_m2?: number; valor_fiscal?: number; plano?: string
+  gravamenes?: string; anotaciones?: string
+  comparables?: Comparable[]; metodo?: string; fuentes?: string[]
+}
 interface Estudio {
   id: string
   tipo: 'registral' | 'mercado' | string
@@ -899,6 +907,7 @@ interface Estudio {
   precio_min: number | null
   precio_max: number | null
   precio_sugerido: number | null
+  datos: EstudioDatos | null
   created_at: string
 }
 
@@ -914,7 +923,7 @@ function Tab7Estudios({ prop }: { prop: PropertyFull }) {
   useEffect(() => {
     createClient()
       .from('crm_estudios')
-      .select('id,tipo,resultado,resumen,pdf_path,precio_min,precio_max,precio_sugerido,created_at')
+      .select('id,tipo,resultado,resumen,pdf_path,precio_min,precio_max,precio_sugerido,datos,created_at')
       .eq('property_id', prop.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => setEstudios((data as Estudio[]) ?? []))
@@ -977,9 +986,17 @@ function Tab7Estudios({ prop }: { prop: PropertyFull }) {
               </div>
             )}
 
-            {/* Resumen */}
+            {/* Ficha registral estructurada */}
+            {!esMercado && e.datos && <RegistralDatos d={e.datos} />}
+
+            {/* Comparables (mercado) */}
+            {esMercado && e.datos?.comparables && e.datos.comparables.length > 0 && (
+              <MercadoComparables comps={e.datos.comparables} metodo={e.datos.metodo} />
+            )}
+
+            {/* Resumen (titular / fallback) */}
             {e.resumen && (
-              <p style={{ fontSize: 13, lineHeight: 1.6, color: '#444', margin: 0, whiteSpace: 'pre-wrap' }}>{e.resumen}</p>
+              <p style={{ fontSize: 12.5, lineHeight: 1.6, color: '#777', margin: '14px 0 0', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>{e.resumen}</p>
             )}
 
             {/* PDF */}
@@ -992,6 +1009,76 @@ function Tab7Estudios({ prop }: { prop: PropertyFull }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/* Ficha de datos de un estudio registral */
+function RegistralDatos({ d }: { d: EstudioDatos }) {
+  const ubic = [d.distrito, d.canton, d.provincia].filter(Boolean).join(', ')
+  const rows: { label: string; value: string }[] = []
+  if (d.propietario)        rows.push({ label: 'Propietario', value: d.propietario })
+  if (d.cedula)             rows.push({ label: 'Cédula',      value: d.cedula })
+  if (d.naturaleza)         rows.push({ label: 'Naturaleza',  value: d.naturaleza })
+  if (ubic)                 rows.push({ label: 'Ubicación',   value: ubic })
+  if (d.medida_m2 != null)  rows.push({ label: 'Medida',      value: `${d.medida_m2.toLocaleString('en-US')} m²` })
+  if (d.valor_fiscal != null) rows.push({ label: 'Valor fiscal', value: `₡${d.valor_fiscal.toLocaleString('en-US')}` })
+  if (d.plano)              rows.push({ label: 'Plano',       value: d.plano })
+
+  const isClean = (v?: string) => !v || /^(no hay|ningun|sin )/i.test(v.trim())
+  const flags: { label: string; value: string }[] = []
+  if (d.gravamenes != null)  flags.push({ label: 'Gravámenes',  value: d.gravamenes })
+  if (d.anotaciones != null) flags.push({ label: 'Anotaciones', value: d.anotaciones })
+
+  if (!rows.length && !flags.length) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {rows.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px 24px' }}>
+          {rows.map(r => (
+            <div key={r.label}>
+              <div style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>{r.label}</div>
+              <div style={{ fontSize: 13.5, color: '#222', fontWeight: 500 }}>{r.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {flags.map(f => {
+        const clean = isClean(f.value)
+        return (
+          <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 8, background: clean ? '#F8FAF9' : '#FEF2F2', borderRadius: 8, padding: '8px 12px' }}>
+            <span style={{ fontSize: 13 }}>{clean ? '✓' : '⚠'}</span>
+            <span style={{ fontSize: 12, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{f.label}:</span>
+            <span style={{ fontSize: 13, color: clean ? '#444' : '#DC2626', fontWeight: clean ? 400 : 600 }}>{f.value}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* Tabla de comparables de un estudio de mercado */
+function MercadoComparables({ comps, metodo }: { comps: Comparable[]; metodo?: string }) {
+  const money = (n?: number) => n == null ? '—' : `$${n.toLocaleString('en-US')}`
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+        Comparables ({comps.length})
+      </div>
+      <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}>
+        {comps.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px', borderTop: i ? '1px solid #f4f4f4' : 'none', fontSize: 13 }}>
+            <span style={{ flex: 1, color: '#333' }}>
+              {c.link
+                ? <a href={c.link} target="_blank" rel="noopener noreferrer" style={{ color: '#2563EB', textDecoration: 'none' }}>{c.descripcion ?? 'Comparable'}</a>
+                : (c.descripcion ?? 'Comparable')}
+            </span>
+            {c.m2 != null && <span style={{ color: '#999', minWidth: 60, textAlign: 'right' }}>{c.m2.toLocaleString('en-US')} m²</span>}
+            <span style={{ color: '#111', fontWeight: 600, minWidth: 80, textAlign: 'right' }}>{money(c.precio)}</span>
+          </div>
+        ))}
+      </div>
+      {metodo && <p style={{ fontSize: 11.5, color: '#aaa', margin: '8px 0 0' }}>Método: {metodo}</p>}
     </div>
   )
 }
