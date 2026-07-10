@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
-import PhoneInput from '@/components/PhoneInput'
 import { COUNTRIES } from '@/data/countries'
+import ContactForm from '@/components/crm/ContactForm'
 
 // ── Types ─────────────────────────────────────────────────────
 interface DocUrl {
@@ -75,93 +75,8 @@ interface VCardContact {
 
 interface ContactType   { id: string; name: string; color: string }
 interface ContactSource { id: string; name: string }
-interface Company       { id: string; name: string; trade_name: string | null; cedula_juridica: string | null }
-type LookupState = { type: 'ok' | 'err'; msg: string } | null
-
-interface FormState {
-  cedula: string; cedula_tipo: string; name: string; last_name: string
-  birth_date: string; type_id: string; source_id: string
-  email: string; phone: string; phone_country: string
-  phone_alt: string; phone_alt_country: string
-  photo_url: string
-  instagram: string; linkedin: string; facebook: string
-  tiktok: string; youtube: string; x: string
-  notes: string
-  doc_urls: DocUrl[]
-}
-
-const EMPTY_FORM: FormState = {
-  cedula: '', cedula_tipo: 'fisica', name: '', last_name: '',
-  birth_date: '', type_id: '', source_id: '',
-  email: '', phone: '', phone_country: 'CR',
-  phone_alt: '', phone_alt_country: 'CR',
-  photo_url: '',
-  instagram: '', linkedin: '', facebook: '',
-  tiktok: '', youtube: '', x: '',
-  notes: '',
-  doc_urls: [],
-}
 
 // ── Helpers ───────────────────────────────────────────────────
-function normalizeUrl(value: string, network: string): string {
-  if (!value) return value
-  const v = value.trim()
-  if (v.startsWith('http://') || v.startsWith('https://')) return v
-  const user = v.startsWith('@') ? v.slice(1) : v
-  const bases: Record<string, string> = {
-    instagram: `https://www.instagram.com/${user}`,
-    linkedin:  `https://www.linkedin.com/in/${user}`,
-    facebook:  `https://www.facebook.com/${user}`,
-    tiktok:    `https://www.tiktok.com/@${user}`,
-    youtube:   `https://www.youtube.com/@${user}`,
-    x:         `https://x.com/${user}`,
-  }
-  return bases[network] || v
-}
-
-function toTitleCase(str: string): string {
-  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
-
-function formatCedula(val: string, tipo: string): string {
-  if (tipo === 'pasaporte') return val
-  const v = val.replace(/[^0-9]/g, '')
-  if (tipo === 'dimex') {
-    if (v.length <= 3) return v
-    return v.slice(0, 3) + '-' + v.slice(3, 12)
-  }
-  if (tipo === 'juridica') {
-    if (v.length <= 1) return v
-    if (v.length <= 4) return v[0] + '-' + v.slice(1)
-    return v[0] + '-' + v.slice(1, 4) + '-' + v.slice(4, 10)
-  }
-  if (v.length <= 1) return v
-  if (v.length <= 5) return v[0] + '-' + v.slice(1)
-  return v[0] + '-' + v.slice(1, 5) + '-' + v.slice(5, 9)
-}
-
-function getCedulaPlaceholder(tipo: string): string {
-  switch (tipo) {
-    case 'dimex':     return '123-456789012'
-    case 'juridica':  return '3-101-123456'
-    case 'pasaporte': return 'A12345678'
-    default:          return '1-2345-6789'
-  }
-}
-
-function getCedulaMaxLength(tipo: string): number {
-  switch (tipo) {
-    case 'dimex':     return 13
-    case 'juridica':  return 12
-    case 'pasaporte': return 20
-    default:          return 11
-  }
-}
-
 function getInitials(name: string, lastName: string | null) {
   return ((name?.[0] ?? '') + (lastName?.[0] ?? '')).toUpperCase() || '?'
 }
@@ -178,39 +93,6 @@ function nameToColor(name: string): string {
   return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
 }
 
-/** Inline "+" to add a new option (contact type / source). Admin-only, rendered by caller. */
-function QuickAddOption({ onAdd }: { onAdd: (name: string) => Promise<void> }) {
-  const [open, setOpen]     = useState(false)
-  const [name, setName]     = useState('')
-  const [saving, setSaving] = useState(false)
-
-  async function save() {
-    if (!name.trim() || saving) return
-    setSaving(true)
-    await onAdd(name.trim())
-    setSaving(false); setName(''); setOpen(false)
-  }
-
-  if (!open) return (
-    <button type="button" onClick={() => setOpen(true)} title="Agregar nuevo"
-      style={{ height: 20, minWidth: 20, padding: '0 5px', border: '1px solid #d5d9e0', borderRadius: 6, background: '#fff', color: '#5a6070', fontSize: 14, lineHeight: 1, cursor: 'pointer', fontFamily: 'inherit' }}>
-      +
-    </button>
-  )
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <input autoFocus value={name} onChange={e => setName(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); save() } if (e.key === 'Escape') { setOpen(false); setName('') } }}
-        placeholder="Nuevo…" disabled={saving}
-        style={{ height: 22, width: 120, padding: '0 8px', border: '1px solid #c5cad3', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none' }} />
-      <button type="button" onClick={save} disabled={saving} title="Guardar"
-        style={{ height: 22, minWidth: 22, border: 'none', borderRadius: 6, background: '#111', color: '#fff', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✓</button>
-      <button type="button" onClick={() => { setOpen(false); setName('') }} title="Cancelar"
-        style={{ height: 22, minWidth: 22, border: '1px solid #e2e5ea', borderRadius: 6, background: '#fff', color: '#9ca3af', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
-    </span>
-  )
-}
-
 function openWhatsapp(phone: string | null, country: string | null) {
   if (!phone) return
   const num = phone.replace(/[^0-9]/g, '')
@@ -218,20 +100,6 @@ function openWhatsapp(phone: string | null, country: string | null) {
   const dialCode = c?.dialCode?.replace(/\D/g, '') ?? '506'
   const full = num.length <= 8 ? dialCode + num : num
   window.open(`https://wa.me/${full}`, '_blank')
-}
-
-function formatPhone(val: string, iso: string): string {
-  const digits = val.replace(/[^0-9]/g, '')
-  if (iso === 'CR') {
-    if (digits.length <= 4) return digits
-    return digits.slice(0, 4) + '-' + digits.slice(4, 8)
-  }
-  return digits
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 function formatDateEsCR(dateStr: string | null): string {
@@ -298,7 +166,6 @@ export default function ClientesClient() {
   const [contacts,  setContacts]  = useState<Contact[]>([])
   const [types,     setTypes]     = useState<ContactType[]>([])
   const [sources,   setSources]   = useState<ContactSource[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
   const [pageLoading, setPageLoading] = useState(true)
 
   const [search,       setSearch]       = useState('')
@@ -308,37 +175,10 @@ export default function ClientesClient() {
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingId,  setEditingId]  = useState<string | null>(null)
-  const [form,       setForm]       = useState<FormState>({ ...EMPTY_FORM })
-  const [saving,     setSaving]     = useState(false)
-
-  // File state (outside FormState — not persisted as strings)
-  const [photoFile,    setPhotoFile]    = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState('')
-  const [docFiles,     setDocFiles]     = useState<File[]>([])
-  const photoInputRef = useRef<HTMLInputElement>(null)
-  const docInputRef   = useRef<HTMLInputElement>(null)
-
-  // Multi-company drawer
-  const [drawerCompanies,  setDrawerCompanies]  = useState<Company[]>([])
-  const [coSearch,         setCoSearch]         = useState('')
-  const [coResults,        setCoResults]        = useState<Company[]>([])
-  const [showCoResults,    setShowCoResults]    = useState(false)
-  const [coSearching,      setCoSearching]      = useState(false)
-  const coSearchRef   = useRef<HTMLDivElement>(null)
-  const coSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const [lookupResult, setLookupResult] = useState<LookupState>(null)
-  const [lookingUp,    setLookingUp]    = useState(false)
-  const [emailError,   setEmailError]   = useState(false)
 
   const [toast,         setToast]         = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState<string | null>(null)
-  const [docDragging,   setDocDragging]   = useState(false)
-
-  // Duplicate detection
-  const [cedulaDupe, setCedulaDupe] = useState<{ id: string; name: string; last_name: string | null } | null>(null)
-  const [emailDupe,  setEmailDupe]  = useState<{ id: string; name: string; last_name: string | null } | null>(null)
 
   // Hover state for list cards
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
@@ -385,16 +225,14 @@ export default function ClientesClient() {
       setUserId(user.id)
       setIsAdmin(adminRec.role === 'admin')
 
-      const [{ data: typesData }, { data: sourcesData }, { data: companiesData }] =
+      const [{ data: typesData }, { data: sourcesData }] =
         await Promise.all([
           supabase.from('contact_types').select('id,name,color').eq('tenant_id', adminRec.tenant_id).order('position'),
           supabase.from('contact_sources').select('id,name').eq('tenant_id', adminRec.tenant_id).order('position'),
-          supabase.from('crm_companies').select('id,name,trade_name,cedula_juridica').eq('tenant_id', adminRec.tenant_id).order('name'),
         ])
 
       setTypes(typesData ?? [])
       setSources(sourcesData ?? [])
-      setCompanies(companiesData ?? [])
       await loadContacts(adminRec.tenant_id, '', '', '')
       setPageLoading(false)
     })
@@ -472,299 +310,15 @@ export default function ClientesClient() {
   }
 
   // ── Drawer ────────────────────────────────────────────────
-  async function openDrawer(id: string | null) {
+  // El formulario (ContactForm) carga sus propios datos vía editId.
+  function openDrawer(id: string | null) {
     setEditingId(id)
-    setLookupResult(null)
-    setEmailError(false)
-    setCedulaDupe(null)
-    setEmailDupe(null)
-    setDrawerCompanies([])
-    setCoSearch('')
-    setCoResults([])
-    setShowCoResults(false)
-    setPhotoFile(null)
-    setPhotoPreview('')
-    setDocFiles([])
-
-    if (id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = createClient() as any
-      const [{ data: c }, { data: ccos }] = await Promise.all([
-        sb.from('crm_contacts').select('*').eq('id', id).single(),
-        sb.from('crm_contact_companies')
-          .select('crm_companies(id,name,cedula_juridica)')
-          .eq('contact_id', id),
-      ])
-      if (c) {
-        setForm({
-          cedula:            c.cedula            ?? '',
-          cedula_tipo:       c.cedula_tipo       ?? 'fisica',
-          name:              c.name              ?? '',
-          last_name:         c.last_name         ?? '',
-          birth_date:        c.birth_date        ?? '',
-          type_id:           c.type_id           ?? '',
-          source_id:         c.source_id         ?? '',
-          email:             c.email             ?? '',
-          phone:             c.phone             ?? '',
-          phone_country:     c.phone_country     ?? 'CR',
-          phone_alt:         c.phone_alt         ?? '',
-          phone_alt_country: c.phone_alt_country ?? 'CR',
-          photo_url:         c.photo_url         ?? '',
-          instagram:         c.instagram         ?? '',
-          linkedin:          c.linkedin          ?? '',
-          facebook:          c.facebook          ?? '',
-          tiktok:            c.tiktok            ?? '',
-          youtube:           c.youtube           ?? '',
-          x:                 c.x                 ?? '',
-          notes:             c.notes             ?? '',
-          doc_urls:          c.doc_urls          ?? [],
-        })
-      }
-      const cos = (ccos ?? [])
-        .map((r: ContactCompanyRow) => r.crm_companies)
-        .filter(Boolean) as Company[]
-      setDrawerCompanies(cos)
-    } else {
-      setForm({ ...EMPTY_FORM })
-    }
     setDrawerOpen(true)
   }
 
   function closeDrawer() {
     setDrawerOpen(false)
     setEditingId(null)
-  }
-
-  // ── Photo ─────────────────────────────────────────────────
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) { showToast('La foto no puede superar 5 MB', 'error'); return }
-    setPhotoFile(file)
-    const reader = new FileReader()
-    reader.onload = ev => setPhotoPreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
-  // ── Docs ──────────────────────────────────────────────────
-  function addDocFiles(files: File[]) {
-    const valid = files.filter(f => {
-      if (f.size > 20 * 1024 * 1024) { showToast(`${f.name} supera 20 MB`, 'error'); return false }
-      return true
-    })
-    setDocFiles(prev => [...prev, ...valid])
-  }
-
-  function handleDocDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDocDragging(false)
-    addDocFiles(Array.from(e.dataTransfer.files))
-  }
-
-  async function downloadExistingDoc(doc: DocUrl) {
-    const supabase = createClient()
-    const { data } = await supabase.storage.from('contact-docs').createSignedUrl(doc.path, 3600)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
-  }
-
-  function removeExistingDoc(doc: DocUrl) {
-    setForm(prev => ({ ...prev, doc_urls: prev.doc_urls.filter(d => d.path !== doc.path) }))
-  }
-
-  // ── Company search (drawer) ───────────────────────────────
-  function handleCoSearch(val: string) {
-    setCoSearch(val)
-    setShowCoResults(true)
-    if (coSearchTimer.current) clearTimeout(coSearchTimer.current)
-    if (!val.trim()) { setCoResults([]); setShowCoResults(false); return }
-    coSearchTimer.current = setTimeout(async () => {
-      setCoSearching(true)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (createClient() as any)
-        .from('crm_companies')
-        .select('id,name,trade_name,cedula_juridica')
-        .eq('tenant_id', tenantId)
-        .ilike('name', `%${val}%`)
-        .order('name').limit(8)
-      const addedIds = new Set(drawerCompanies.map(c => c.id))
-      setCoResults(((data ?? []) as Company[]).filter(c => !addedIds.has(c.id)))
-      setCoSearching(false)
-    }, 250)
-  }
-
-  function addDrawerCompany(co: Company) {
-    setDrawerCompanies(prev => [...prev, co].sort((a, b) => a.name.localeCompare(b.name)))
-    setCoSearch('')
-    setCoResults([])
-    setShowCoResults(false)
-  }
-
-  function removeDrawerCompany(id: string) {
-    setDrawerCompanies(prev => prev.filter(c => c.id !== id))
-  }
-
-  // ── Duplicate checks ─────────────────────────────────────
-  async function checkCedulaDupe() {
-    const raw = form.cedula.trim()
-    if (!raw) { setCedulaDupe(null); return }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q = (createClient() as any)
-      .from('crm_contacts').select('id,name,last_name')
-      .eq('tenant_id', tenantId).eq('cedula', raw).eq('active', true)
-    if (editingId) q = q.neq('id', editingId)
-    const { data } = await q.limit(1)
-    setCedulaDupe(data?.[0] ?? null)
-  }
-
-  async function checkEmailDupe() {
-    const email = form.email.trim()
-    if (!email || !isValidEmail(email)) { setEmailDupe(null); return }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q = (createClient() as any)
-      .from('crm_contacts').select('id,name,last_name')
-      .eq('tenant_id', tenantId).eq('email', email).eq('active', true)
-    if (editingId) q = q.neq('id', editingId)
-    const { data } = await q.limit(1)
-    setEmailDupe(data?.[0] ?? null)
-  }
-
-  // ── Save ──────────────────────────────────────────────────
-  async function saveContact() {
-    if (!form.name.trim())      { showToast('El nombre es obligatorio', 'error'); return }
-    if (!form.last_name.trim()) { showToast('Los apellidos son obligatorios', 'error'); return }
-    if (!form.email.trim() && !form.phone.trim()) { showToast('Ingresá al menos un email o teléfono', 'error'); return }
-    if (form.email && !isValidEmail(form.email)) { setEmailError(true); showToast('Email no válido', 'error'); return }
-
-    // Fresh duplicate check on save (catches fast submits that bypass blur)
-    setSaving(true)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb0 = createClient() as any
-    if (form.cedula.trim()) {
-      let q = sb0.from('crm_contacts').select('id,name,last_name')
-        .eq('tenant_id', tenantId).eq('cedula', form.cedula.trim()).eq('active', true)
-      if (editingId) q = q.neq('id', editingId)
-      const { data } = await q.limit(1)
-      if (data?.[0]) {
-        const d = data[0]
-        setCedulaDupe(d)
-        showToast(`Cédula ya registrada: ${d.name}${d.last_name ? ' ' + d.last_name : ''}`, 'error')
-        setSaving(false); return
-      }
-    }
-    if (form.email.trim() && isValidEmail(form.email)) {
-      let q = sb0.from('crm_contacts').select('id,name,last_name')
-        .eq('tenant_id', tenantId).eq('email', form.email.trim()).eq('active', true)
-      if (editingId) q = q.neq('id', editingId)
-      const { data } = await q.limit(1)
-      if (data?.[0]) {
-        const d = data[0]
-        setEmailDupe(d)
-        showToast(`Email ya registrado: ${d.name}${d.last_name ? ' ' + d.last_name : ''}`, 'error')
-        setSaving(false); return
-      }
-    }
-    setSaving(false)
-    setSaving(true)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = createClient()
-    const sb = supabase as any
-
-    const payload = {
-      cedula:            form.cedula.trim()     || null,
-      cedula_tipo:       form.cedula_tipo,
-      name:              form.name.trim(),
-      last_name:         form.last_name.trim()  || null,
-      birth_date:        form.birth_date        || null,
-      type_id:           form.type_id           || null,
-      source_id:         form.source_id         || null,
-      email:             form.email.trim()      || null,
-      phone:             form.phone.trim()      || null,
-      phone_country:     form.phone_country,
-      phone_alt:         form.phone_alt.trim()  || null,
-      phone_alt_country: form.phone_alt_country,
-      instagram:         normalizeUrl(form.instagram.trim(), 'instagram') || null,
-      linkedin:          normalizeUrl(form.linkedin.trim(),  'linkedin')  || null,
-      facebook:          normalizeUrl(form.facebook.trim(),  'facebook')  || null,
-      tiktok:            normalizeUrl(form.tiktok.trim(),    'tiktok')    || null,
-      youtube:           normalizeUrl(form.youtube.trim(),   'youtube')   || null,
-      x:                 normalizeUrl(form.x.trim(),         'x')         || null,
-      notes:             form.notes.trim()      || null,
-    }
-
-    // Insert or update
-    let contactId = editingId
-    let saveError
-    if (editingId) {
-      ;({ error: saveError } = await sb.from('crm_contacts').update(payload).eq('id', editingId))
-    } else {
-      const { data: newC, error: insertErr } = await sb
-        .from('crm_contacts')
-        .insert({ ...payload, tenant_id: tenantId, created_by: userId })
-        .select('id').single()
-      saveError = insertErr
-      if (newC) contactId = newC.id
-    }
-
-    if (saveError) { setSaving(false); showToast('Error: ' + saveError.message, 'error'); return }
-
-    // Upload photo
-    let finalPhotoUrl = form.photo_url || null
-    if (photoFile && contactId) {
-      const ext = photoFile.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-      const path = `${contactId}/avatar.${ext}`
-      const contentType = photoFile.type || 'image/jpeg'
-      const { error: upErr } = await supabase.storage
-        .from('contact-photos')
-        .upload(path, photoFile, { upsert: true, contentType })
-      if (upErr) {
-        showToast(`Error al subir foto: ${upErr.message}`, 'error')
-        setSaving(false)
-        return
-      }
-      finalPhotoUrl = supabase.storage.from('contact-photos').getPublicUrl(path).data.publicUrl
-    }
-
-    // Upload docs
-    const allDocUrls: DocUrl[] = [...form.doc_urls]
-    if (docFiles.length > 0 && contactId) {
-      for (const file of docFiles) {
-        const ts = Date.now()
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-        const path = `${contactId}/${ts}_${safeName}`
-        const { error: docErr } = await supabase.storage.from('contact-docs').upload(path, file, { contentType: file.type })
-        if (!docErr) {
-          allDocUrls.push({ path, name: file.name, size: file.size, uploaded_at: new Date().toISOString() })
-        }
-      }
-    }
-
-    // Update with file URLs
-    if ((photoFile || docFiles.length > 0 || !form.photo_url) && contactId) {
-      await sb.from('crm_contacts').update({
-        photo_url: finalPhotoUrl,
-        doc_urls: allDocUrls,
-      }).eq('id', contactId)
-    }
-
-    // Save company links (junction table — replace all)
-    if (contactId) {
-      await sb.from('crm_contact_companies').delete().eq('contact_id', contactId)
-      if (drawerCompanies.length > 0) {
-        await sb.from('crm_contact_companies').insert(
-          drawerCompanies.map(co => ({
-            tenant_id:  tenantId,
-            contact_id: contactId,
-            company_id: co.id,
-          }))
-        )
-      }
-    }
-
-    setSaving(false)
-    showToast(editingId ? 'Cliente actualizado ✓' : 'Cliente creado ✓', 'success')
-    closeDrawer()
-    await loadContacts(tenantId, search, typeFilter, sourceFilter)
   }
 
   // ── Delete ────────────────────────────────────────────────
@@ -778,40 +332,6 @@ export default function ClientesClient() {
     await loadContacts(tenantId, search, typeFilter, sourceFilter)
   }
 
-  // ── Hacienda lookup ───────────────────────────────────────
-  async function lookupCedula() {
-    const raw = form.cedula.replace(/[^0-9]/g, '')
-    if (raw.length < 9) { setLookupResult({ type: 'err', msg: 'Mínimo 9 dígitos' }); return }
-    setLookingUp(true)
-    try {
-      const r = await fetch(`https://api.hacienda.go.cr/fe/ae?identificacion=${raw}`)
-      if (!r.ok) throw new Error()
-      const d = await r.json()
-      if (d.nombre) {
-        const parts = d.nombre.trim().split(/\s+/)
-        let name = toTitleCase(d.nombre), last_name = ''
-        if ((form.cedula_tipo === 'fisica' || form.cedula_tipo === 'dimex') && parts.length >= 3) {
-          name      = toTitleCase(parts.slice(0, -2).join(' '))
-          last_name = toTitleCase(parts.slice(-2).join(' '))
-        }
-        setForm(prev => ({ ...prev, name, last_name }))
-        const moroso = d.situacion?.moroso === 'SI' ? ' · ⚠ Moroso en Hacienda' : ''
-        setLookupResult({ type: 'ok', msg: `✓ ${toTitleCase(d.nombre)}${moroso}` })
-      } else {
-        setLookupResult({ type: 'err', msg: 'No encontrado — completá manualmente' })
-      }
-    } catch {
-      setLookupResult({ type: 'err', msg: 'Sin resultado — completá manualmente' })
-    }
-    setLookingUp(false)
-  }
-
-  // ── Social search ─────────────────────────────────────────
-  function searchSocial(network: string) {
-    const nombre = `${form.name} ${form.last_name}`.trim()
-    const q = nombre ? `${nombre} site:${network}.com` : `site:${network}.com`
-    window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank')
-  }
 
   // ── Filters ───────────────────────────────────────────────
   function handleSearch(val: string) {
@@ -828,24 +348,6 @@ export default function ClientesClient() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // ── Quick-add contact type / source (admin only) ─────────
-  async function addType(name: string) {
-    const color = AVATAR_PALETTE[types.length % AVATAR_PALETTE.length]
-    const { data, error } = await createClient().from('contact_types')
-      .insert({ tenant_id: tenantId, name, color, position: types.length })
-      .select('id,name,color').single()
-    if (error || !data) { showToast('No se pudo crear el tipo', 'error'); return }
-    setTypes(prev => [...prev, data])
-    setForm(prev => ({ ...prev, type_id: data.id }))
-  }
-  async function addSource(name: string) {
-    const { data, error } = await createClient().from('contact_sources')
-      .insert({ tenant_id: tenantId, name, position: sources.length })
-      .select('id,name').single()
-    if (error || !data) { showToast('No se pudo crear la fuente', 'error'); return }
-    setSources(prev => [...prev, data])
-    setForm(prev => ({ ...prev, source_id: data.id }))
-  }
 
   // ── Style tokens ─────────────────────────────────────────
   const sInput: React.CSSProperties = {
@@ -854,20 +356,6 @@ export default function ClientesClient() {
     fontSize: 14, fontFamily: 'system-ui, sans-serif',
     background: '#fff', color: '#0d0f12',
     width: '100%', boxSizing: 'border-box', outline: 'none',
-  }
-  const sLabel: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#5a6070', marginBottom: 4, display: 'block' }
-  const sField: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 }
-  const sSec: React.CSSProperties   = { marginBottom: 24 }
-  const sSecLbl: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: '#9ca3af',
-    letterSpacing: '.06em', textTransform: 'uppercase' as const,
-    marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #e2e5ea',
-  }
-  const sLookupBtn: React.CSSProperties = {
-    height: 38, padding: '0 14px', border: '1px solid #e2e5ea', borderRadius: 8,
-    fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
-    background: '#f4f5f7', color: '#0d0f12', cursor: 'pointer',
-    whiteSpace: 'nowrap' as const, flexShrink: 0,
   }
 
   if (pageLoading) return <div style={{ padding: 40, color: '#aaa', fontSize: 14 }}>Cargando…</div>
@@ -1316,387 +804,22 @@ export default function ClientesClient() {
             <button onClick={closeDrawer} style={{ width: 32, height: 32, border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#5a6070', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           </div>
 
-          {/* Body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-
-            {/* ── IDENTIFICACIÓN ─────────────────────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>Identificación</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                {/* Tipo */}
-                <div style={{ width: 148, ...sField }}>
-                  <label style={sLabel}>Tipo</label>
-                  <select value={form.cedula_tipo}
-                    onChange={e => setForm(prev => ({ ...prev, cedula_tipo: e.target.value, cedula: '' }))}
-                    style={sInput}>
-                    <option value="fisica">Física</option>
-                    <option value="dimex">DIMEX</option>
-                    <option value="pasaporte">Pasaporte</option>
-                  </select>
-                </div>
-                {/* Número */}
-                <div style={{ flex: 1, ...sField }}>
-                  <label style={sLabel}>
-                    {form.cedula_tipo === 'dimex'     ? 'Número de DIMEX'
-                     : form.cedula_tipo === 'pasaporte' ? 'Número de pasaporte'
-                     : form.cedula_tipo === 'juridica'  ? 'Cédula jurídica'
-                     : 'Número de cédula'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={getCedulaPlaceholder(form.cedula_tipo)}
-                    maxLength={getCedulaMaxLength(form.cedula_tipo)}
-                    value={form.cedula}
-                    onChange={e => {
-                      setCedulaDupe(null)
-                      setForm(prev => ({ ...prev, cedula: formatCedula(e.target.value, prev.cedula_tipo) }))
-                    }}
-                    onBlur={checkCedulaDupe}
-                    style={{ ...sInput, borderColor: cedulaDupe ? '#FDE68A' : '#e2e5ea', background: cedulaDupe ? '#FFFBEB' : '#fff' }}
-                  />
-                </div>
-                {/* Consultar */}
-                {form.cedula_tipo !== 'pasaporte' && (
-                  <div style={{ ...sField, paddingTop: 22 }}>
-                    <button onClick={lookupCedula} disabled={lookingUp} style={{ ...sLookupBtn, opacity: lookingUp ? .6 : 1 }}>
-                      {lookingUp ? '…' : 'Consultar →'}
-                    </button>
-                  </div>
-                )}
-              </div>
-              {lookupResult && (
-                <div style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, marginTop: 8, ...(lookupResult.type === 'ok' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' } : { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }) }}>
-                  {lookupResult.msg}
-                </div>
-              )}
-              {cedulaDupe && (
-                <div style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, marginTop: 6, background: '#FEF3C7', border: '1px solid #FDE68A', color: '#92610A', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>⚠</span>
-                  <span>Ya existe un cliente con esta cédula: <strong>{cedulaDupe.name}{cedulaDupe.last_name ? ' ' + cedulaDupe.last_name : ''}</strong></span>
-                </div>
-              )}
-              <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6, display: 'block' }}>
-                Consulta Hacienda CR — autocompleta nombre y apellidos
-              </span>
-            </div>
-
-            {/* ── DATOS PERSONALES ───────────────────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>Datos personales</div>
-
-              {/* Foto de perfil */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, padding: '12px 14px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e2e5ea' }}>
-                <div
-                  onClick={() => photoInputRef.current?.click()}
-                  style={{ width: 64, height: 64, borderRadius: '50%', border: `2px ${photoPreview || form.photo_url ? 'solid #e2e5ea' : 'dashed #d1d5db'}`, cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f4f5f7', flexShrink: 0 }}>
-                  {(photoPreview || form.photo_url) ? (
-                    <img src={photoPreview || form.photo_url} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: 22 }}>📷</span>
-                  )}
-                </div>
-                <div>
-                  <button type="button" onClick={() => photoInputRef.current?.click()}
-                    style={{ fontSize: 13, fontWeight: 600, color: '#1B6EF3', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', display: 'block', marginBottom: 2 }}>
-                    {(photoPreview || form.photo_url) ? 'Cambiar foto' : 'Subir foto de perfil'}
-                  </button>
-                  {(photoPreview || form.photo_url) && (
-                    <button type="button" onClick={() => { setPhotoFile(null); setPhotoPreview(''); setForm(prev => ({ ...prev, photo_url: '' })) }}
-                      style={{ fontSize: 12, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', display: 'block', marginBottom: 2 }}>
-                      Quitar foto
-                    </button>
-                  )}
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>JPG, PNG, WEBP — máx 5 MB</div>
-                </div>
-                <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handlePhotoSelect} style={{ display: 'none' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={sField}>
-                  <label style={sLabel}>Nombre *</label>
-                  <input type="text" placeholder="María" value={form.name}
-                    onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                    style={sInput} autoFocus />
-                </div>
-                <div style={sField}>
-                  <label style={sLabel}>Apellidos</label>
-                  <input type="text" placeholder="Rodríguez Mora" value={form.last_name}
-                    onChange={e => setForm(prev => ({ ...prev, last_name: e.target.value }))}
-                    style={sInput} />
-                </div>
-                <div style={sField}>
-                  <label style={sLabel}>Fecha de nacimiento</label>
-                  <input type="date" value={form.birth_date}
-                    onChange={e => setForm(prev => ({ ...prev, birth_date: e.target.value }))}
-                    style={sInput} />
-                </div>
-                <div style={sField}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                    <label style={{ ...sLabel, marginBottom: 0 }}>Tipo de contacto</label>
-                    {isAdmin && <QuickAddOption onAdd={addType} />}
-                  </div>
-                  <select value={form.type_id} onChange={e => setForm(prev => ({ ...prev, type_id: e.target.value }))} style={sInput}>
-                    <option value="">Sin tipo</option>
-                    {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <div style={sField}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                    <label style={{ ...sLabel, marginBottom: 0 }}>Fuente / Canal</label>
-                    {isAdmin && <QuickAddOption onAdd={addSource} />}
-                  </div>
-                  <select value={form.source_id} onChange={e => setForm(prev => ({ ...prev, source_id: e.target.value }))} style={sInput}>
-                    <option value="">Sin fuente</option>
-                    {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* ── CONTACTO ───────────────────────────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>Contacto</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={sField}>
-                  <label style={sLabel}>Email</label>
-                  <input type="email" placeholder="correo@ejemplo.com" value={form.email}
-                    onChange={e => {
-                      const val = e.target.value
-                      setEmailError(val.length > 0 && !isValidEmail(val))
-                      setEmailDupe(null)
-                      setForm(prev => ({ ...prev, email: val }))
-                    }}
-                    onBlur={e => {
-                      if (e.target.value && !isValidEmail(e.target.value)) setEmailError(true)
-                      checkEmailDupe()
-                    }}
-                    style={{ ...sInput, borderColor: emailError ? '#fca5a5' : emailDupe ? '#FDE68A' : '#e2e5ea', background: emailError ? '#fef2f2' : emailDupe ? '#FFFBEB' : '#fff' }} />
-                  {emailError && <span style={{ fontSize: 11, color: '#DC2626' }}>Ingresá un email válido</span>}
-                  {!emailError && emailDupe && (
-                    <div style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, marginTop: 2, background: '#FEF3C7', border: '1px solid #FDE68A', color: '#92610A', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>⚠</span>
-                      <span>Ya existe un cliente con este email: <strong>{emailDupe.name}{emailDupe.last_name ? ' ' + emailDupe.last_name : ''}</strong></span>
-                    </div>
-                  )}
-                </div>
-                <div style={sField}>
-                  <label style={sLabel}>Teléfono / WhatsApp</label>
-                  <PhoneInput
-                    phoneValue={form.phone}
-                    countryIso={form.phone_country}
-                    onPhoneChange={v => setForm(prev => ({ ...prev, phone: formatPhone(v, prev.phone_country) }))}
-                    onCountryChange={iso => setForm(prev => ({ ...prev, phone_country: iso, phone: formatPhone(prev.phone, iso) }))}
-                    placeholder="8888-1234"
-                  />
-                </div>
-                <div style={sField}>
-                  <label style={sLabel}>Teléfono alternativo</label>
-                  <PhoneInput
-                    phoneValue={form.phone_alt}
-                    countryIso={form.phone_alt_country}
-                    onPhoneChange={v => setForm(prev => ({ ...prev, phone_alt: formatPhone(v, prev.phone_alt_country) }))}
-                    onCountryChange={iso => setForm(prev => ({ ...prev, phone_alt_country: iso, phone_alt: formatPhone(prev.phone_alt, iso) }))}
-                    placeholder="2222-0000"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ── EMPRESA/S ──────────────────────────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>
-                Empresa{drawerCompanies.length !== 1 ? 's' : ''}
-                {drawerCompanies.length > 0 &&
-                  <span style={{ marginLeft: 6, fontWeight: 400, color: '#9ca3af' }}>({drawerCompanies.length})</span>
-                }
-              </div>
-
-              {/* Search */}
-              <div ref={coSearchRef} style={{ position: 'relative', marginBottom: 10 }}>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 14, pointerEvents: 'none' }}>
-                    {coSearching ? '⏳' : '🔍'}
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Buscar empresa por nombre…"
-                    value={coSearch}
-                    onChange={e => handleCoSearch(e.target.value)}
-                    onFocus={() => { if (coResults.length > 0) setShowCoResults(true) }}
-                    style={{ ...sInput, paddingLeft: 36, paddingRight: coSearch ? 36 : 12 }}
-                  />
-                  {coSearch && (
-                    <button onClick={() => { setCoSearch(''); setCoResults([]); setShowCoResults(false) }}
-                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 16, padding: 0 }}>
-                      ✕
-                    </button>
-                  )}
-                </div>
-                {/* Dropdown */}
-                {showCoResults && coResults.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 20px rgba(0,0,0,.1)', zIndex: 50, overflow: 'hidden', marginTop: 4 }}>
-                    {coResults.map(co => (
-                      <div key={co.id}
-                        onMouseDown={() => addDrawerCompany(co)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f4f5f7' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
-                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}>
-                        <span style={{ fontSize: 16 }}>🏢</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12' }}>{co.trade_name || co.name}</div>
-                          <div style={{ fontSize: 11, color: '#9ca3af', display: 'flex', gap: 6 }}>
-                            {co.trade_name && <span>{co.name}</span>}
-                            {co.cedula_juridica && <span style={{ fontFamily: 'monospace' }}>{co.cedula_juridica}</span>}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: 13, color: '#1B6EF3' }}>＋</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showCoResults && coSearch.trim() && !coSearching && coResults.length === 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, padding: '12px 16px', marginTop: 4, fontSize: 13, color: '#9ca3af', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,.08)', zIndex: 50 }}>
-                    Sin resultados — creá la empresa en <a href="/admin/empresas" target="_blank" style={{ color: '#1B6EF3', textDecoration: 'none' }}>Empresas ↗</a>
-                  </div>
-                )}
-              </div>
-
-              {/* Linked companies */}
-              {drawerCompanies.length === 0 ? (
-                <div style={{ padding: '14px 16px', background: '#F9FAFB', borderRadius: 10, border: '1px dashed #e2e5ea', textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
-                  Sin empresa asignada
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {drawerCompanies.map(co => (
-                    <div key={co.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea' }}>
-                      <span style={{ fontSize: 16, flexShrink: 0 }}>🏢</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.trade_name || co.name}</div>
-                        <div style={{ fontSize: 11, color: '#9ca3af', display: 'flex', gap: 6 }}>
-                          {co.trade_name && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</span>}
-                          {co.cedula_juridica && <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{co.cedula_juridica}</span>}
-                        </div>
-                      </div>
-                      <button onClick={() => removeDrawerCompany(co.id)}
-                        style={{ width: 24, height: 24, border: '1px solid #FECACA', borderRadius: 6, background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.color = '#DC2626' }}>
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6, display: 'block' }}>
-                Un cliente puede estar en múltiples empresas.
-              </span>
-            </div>
-
-            {/* ── REDES SOCIALES ─────────────────────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>Redes sociales</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {([
-                  { key: 'instagram' as const, Icon: IgIcon,  placeholder: '@usuario o URL',  net: 'instagram' },
-                  { key: 'facebook'  as const, Icon: FbIcon,  placeholder: '@usuario o URL',  net: 'facebook'  },
-                  { key: 'tiktok'    as const, Icon: TkIcon,  placeholder: '@usuario',         net: 'tiktok'    },
-                  { key: 'linkedin'  as const, Icon: LiIcon,  placeholder: 'URL de LinkedIn',  net: 'linkedin'  },
-                  { key: 'youtube'   as const, Icon: YtIcon,  placeholder: 'URL del canal',    net: 'youtube'   },
-                  { key: 'x'         as const, Icon: XIcon,   placeholder: '@usuario o URL',   net: 'x'         },
-                ]).map(({ key, Icon, placeholder, net }) => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon />
-                    </span>
-                    <input type="text" placeholder={placeholder} value={form[key]}
-                      onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                      style={{ ...sInput, flex: 1 }} />
-                    <button onClick={() => searchSocial(net)}
-                      style={{ height: 38, padding: '0 12px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: 'inherit', background: '#f4f5f7', color: '#5a6070', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      Buscar ↗
-                    </button>
-                  </div>
-                ))}
-                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
-                  &ldquo;Buscar ↗&rdquo; abre Google con el nombre del contacto para encontrar el perfil correcto.
-                </p>
-              </div>
-            </div>
-
-            {/* ── COMENTARIOS ────────────────────────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>Comentarios</div>
-              <textarea placeholder="Notas internas, preferencias, contexto del cliente…"
-                value={form.notes}
-                onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}
-                rows={4}
-                style={{ ...sInput, height: 'auto', padding: '10px 12px', resize: 'none', lineHeight: 1.5 }} />
-            </div>
-
-            {/* ── DOCUMENTOS DE IDENTIFICACIÓN ───────────── */}
-            <div style={sSec}>
-              <div style={sSecLbl}>Documentos de identificación</div>
-
-              {/* Dropzone */}
-              <div
-                onDragOver={e => { e.preventDefault(); setDocDragging(true) }}
-                onDragLeave={() => setDocDragging(false)}
-                onDrop={handleDocDrop}
-                onClick={() => docInputRef.current?.click()}
-                style={{ border: `2px dashed ${docDragging ? '#1B6EF3' : '#d1d5db'}`, borderRadius: 10, padding: '20px 16px', textAlign: 'center', cursor: 'pointer', background: docDragging ? '#eff6ff' : '#f9fafb', transition: 'all .15s', marginBottom: 10 }}>
-                <div style={{ fontSize: 22, marginBottom: 6 }}>📎</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#5a6070' }}>
-                  Arrastrá archivos aquí o hacé click para seleccionar
-                </div>
-                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-                  PDF, JPG, PNG, WEBP — máx 20 MB c/u
-                </div>
-              </div>
-              <input ref={docInputRef} type="file" multiple
-                accept=".pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
-                onChange={e => { if (e.target.files) addDocFiles(Array.from(e.target.files)); e.target.value = '' }}
-                style={{ display: 'none' }} />
-
-              {/* Existing docs */}
-              {form.doc_urls.map(doc => (
-                <div key={doc.path} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#f4f5f7', borderRadius: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{doc.name.endsWith('.pdf') ? '📄' : '🖼'}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</span>
-                  <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{formatFileSize(doc.size)}</span>
-                  <button onClick={() => downloadExistingDoc(doc)}
-                    style={{ fontSize: 12, color: '#1B6EF3', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Ver →</button>
-                  <button onClick={() => removeExistingDoc(doc)}
-                    style={{ fontSize: 12, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>✕</button>
-                </div>
-              ))}
-
-              {/* New files pending upload */}
-              {docFiles.map((file, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{file.type.includes('pdf') ? '📄' : '🖼'}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-                  <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{formatFileSize(file.size)}</span>
-                  <span style={{ fontSize: 11, color: '#1d4ed8', flexShrink: 0 }}>Pendiente</span>
-                  <button onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))}
-                    style={{ fontSize: 12, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>✕</button>
-                </div>
-              ))}
-            </div>
-
-          </div>{/* /body */}
-
-          {/* Footer */}
-          <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e5ea', display: 'flex', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
-            <button onClick={closeDrawer}
-              style={{ height: 38, padding: '0 16px', background: '#fff', color: '#0d0f12', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }}>
-              Cancelar
-            </button>
-            <button onClick={saveContact} disabled={saving}
-              style={{ height: 38, padding: '0 20px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .7 : 1 }}>
-              {saving ? 'Guardando…' : editingId ? 'Actualizar' : 'Guardar cliente'}
-            </button>
-          </div>
+          {/* Body — formulario compartido */}
+          {drawerOpen && (
+            <ContactForm
+              key={editingId ?? 'new'}
+              tenantId={tenantId}
+              userId={userId}
+              isAdmin={isAdmin}
+              editId={editingId}
+              onSaved={async () => {
+                showToast(editingId ? 'Cliente actualizado ✓' : 'Cliente creado ✓', 'success')
+                closeDrawer()
+                await loadContacts(tenantId, search, typeFilter, sourceFilter)
+              }}
+              onCancel={closeDrawer}
+            />
+          )}
 
         </div>
       </div>
