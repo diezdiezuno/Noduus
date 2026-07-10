@@ -18,6 +18,14 @@ interface ContactCompanyRow {
   crm_companies: { id: string; name: string; trade_name?: string | null; cedula_juridica?: string | null } | null
 }
 
+interface ContactTypeRow {
+  contact_types: { id?: string; name: string; color: string } | null
+}
+/** Aplana las filas de la tabla puente a la lista de tipos (name+color). */
+function contactTypeList(rows: ContactTypeRow[] | null | undefined) {
+  return (rows ?? []).map(r => r.contact_types).filter(Boolean) as { id?: string; name: string; color: string }[]
+}
+
 interface Contact {
   id: string
   cedula: string | null
@@ -42,7 +50,7 @@ interface Contact {
   x: string | null
   notes: string | null
   active: boolean
-  contact_types: { name: string; color: string } | null
+  crm_contact_types: ContactTypeRow[] | null
   contact_sources: { name: string } | null
   crm_contact_companies: ContactCompanyRow[] | null
 }
@@ -68,7 +76,7 @@ interface VCardContact {
   youtube: string | null
   x: string | null
   doc_urls: DocUrl[] | null
-  contact_types: { name: string; color: string } | null
+  crm_contact_types: ContactTypeRow[] | null
   contact_sources: { name: string } | null
   crm_contact_companies: ContactCompanyRow[] | null
 }
@@ -197,16 +205,27 @@ export default function ClientesClient() {
   ) => {
     const supabase = createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase as any)
+    const sb = supabase as any
+
+    // Filtro por tipo (many-to-many): primero los contact_id que tienen ese tipo
+    let idsWithType: string[] | null = null
+    if (type) {
+      const { data: tRows } = await sb.from('crm_contact_types')
+        .select('contact_id').eq('tenant_id', tid).eq('type_id', type)
+      idsWithType = ((tRows ?? []) as { contact_id: string }[]).map(r => r.contact_id)
+      if (idsWithType.length === 0) { setContacts([]); return }
+    }
+
+    let query = sb
       .from('crm_contacts')
-      .select('id,cedula,cedula_tipo,name,last_name,email,phone,phone_country,phone_alt,phone_alt_country,type_id,source_id,photo_url,doc_urls,instagram,linkedin,facebook,tiktok,youtube,x,notes,active,birth_date,contact_types(name,color),contact_sources(name),crm_contact_companies(crm_companies(id,name))')
+      .select('id,cedula,cedula_tipo,name,last_name,email,phone,phone_country,phone_alt,phone_alt_country,type_id,source_id,photo_url,doc_urls,instagram,linkedin,facebook,tiktok,youtube,x,notes,active,birth_date,crm_contact_types(contact_types(id,name,color)),contact_sources(name),crm_contact_companies(crm_companies(id,name))')
       .eq('tenant_id', tid)
       .eq('active', true)
       .order('name')
 
-    if (type)   query = query.eq('type_id', type)
-    if (source) query = query.eq('source_id', source)
-    if (q)      query = query.or(`name.ilike.%${q}%,last_name.ilike.%${q}%,cedula.ilike.%${q}%,email.ilike.%${q}%`)
+    if (idsWithType) query = query.in('id', idsWithType)
+    if (source)      query = query.eq('source_id', source)
+    if (q)           query = query.or(`name.ilike.%${q}%,last_name.ilike.%${q}%,cedula.ilike.%${q}%,email.ilike.%${q}%`)
 
     const { data, error } = await query
     if (!error) setContacts((data ?? []) as Contact[])
@@ -292,7 +311,7 @@ export default function ClientesClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
       .from('crm_contacts')
-      .select('*, contact_types(name,color), contact_sources(name), crm_contact_companies(crm_companies(id,name,cedula_juridica))')
+      .select('*, crm_contact_types(contact_types(id,name,color)), contact_sources(name), crm_contact_companies(crm_companies(id,name,cedula_juridica))')
       .eq('id', id)
       .single()
     setVcardData(data as VCardContact ?? null)
@@ -422,8 +441,7 @@ export default function ClientesClient() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {contacts.map(c => {
-            const typeColor    = c.contact_types?.color || '#1B6EF3'
-            const bgLight      = typeColor + '18'
+            const cTypes       = contactTypeList(c.crm_contact_types)
             const initials     = getInitials(c.name, c.last_name)
             const avatarColor  = nameToColor(c.name + (c.last_name ?? ''))
             const isConfirming = confirmDelete === c.id
@@ -465,11 +483,15 @@ export default function ClientesClient() {
                   </div>
                 </div>
 
-                {/* Type badge */}
-                {c.contact_types?.name && (
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: bgLight, color: typeColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    {c.contact_types.name}
-                  </span>
+                {/* Type badges (múltiples) */}
+                {cTypes.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0, maxWidth: 220 }}>
+                    {cTypes.map((t, i) => (
+                      <span key={t.id ?? i} style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: (t.color || '#1B6EF3') + '18', color: t.color || '#1B6EF3', whiteSpace: 'nowrap' }}>
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
                 )}
 
                 {/* Actions */}
@@ -591,11 +613,15 @@ export default function ClientesClient() {
                 <div style={{ fontSize: 20, fontWeight: 700, color: '#0d0f12', textAlign: 'center', marginBottom: 8 }}>
                   {vcardData.name}{vcardData.last_name ? ' ' + vcardData.last_name : ''}
                 </div>
-                {/* Type badge */}
-                {vcardData.contact_types?.name && (
-                  <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: (vcardData.contact_types.color || '#1B6EF3') + '22', color: vcardData.contact_types.color || '#1B6EF3', marginBottom: 10 }}>
-                    {vcardData.contact_types.name}
-                  </span>
+                {/* Type badges (múltiples) */}
+                {contactTypeList(vcardData.crm_contact_types).length > 0 && (
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 10 }}>
+                    {contactTypeList(vcardData.crm_contact_types).map((t, i) => (
+                      <span key={t.id ?? i} style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: (t.color || '#1B6EF3') + '22', color: t.color || '#1B6EF3' }}>
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 {/* Companies */}
                 {(() => {

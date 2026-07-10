@@ -178,7 +178,7 @@ export default function ContactForm({
   const [name,      setName]      = useState(initialName ?? '')
   const [lastName,  setLastName]  = useState('')
   const [birthDate, setBirthDate] = useState('')
-  const [typeId,    setTypeId]    = useState('')
+  const [typeIds,   setTypeIds]   = useState<string[]>([])
   const [sourceId,  setSourceId]  = useState('')
 
   /* Photo */
@@ -254,15 +254,20 @@ export default function ContactForm({
     ;(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sb = createClient() as any
-      const [{ data: c }, { data: ccos }] = await Promise.all([
+      const [{ data: c }, { data: ccos }, { data: ctypes }] = await Promise.all([
         sb.from('crm_contacts').select('*').eq('id', editId).single(),
         sb.from('crm_contact_companies').select('crm_companies(id,name,trade_name,cedula_juridica)').eq('contact_id', editId),
+        sb.from('crm_contact_types').select('type_id').eq('contact_id', editId),
       ])
       if (cancelled) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tids = ((ctypes ?? []) as any[]).map(r => r.type_id).filter(Boolean) as string[]
+      // Fallback al type_id single legacy si aún no hay filas en la tabla puente
+      setTypeIds(tids.length > 0 ? tids : (c?.type_id ? [c.type_id] : []))
       if (c) {
         setCedula(c.cedula ?? ''); setCedulaTipo(c.cedula_tipo ?? 'fisica')
         setName(c.name ?? ''); setLastName(c.last_name ?? '')
-        setBirthDate(c.birth_date ?? ''); setTypeId(c.type_id ?? ''); setSourceId(c.source_id ?? '')
+        setBirthDate(c.birth_date ?? ''); setSourceId(c.source_id ?? '')
         setEmail(c.email ?? ''); setPhone(c.phone ?? ''); setPhoneCountry(c.phone_country ?? 'CR')
         setPhoneAlt(c.phone_alt ?? ''); setPhoneAltCountry(c.phone_alt_country ?? 'CR')
         setPhotoUrl(c.photo_url ?? '')
@@ -278,13 +283,17 @@ export default function ContactForm({
     return () => { cancelled = true }
   }, [editId])
 
+  function toggleType(id: string) {
+    setTypeIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
   /* ── Quick-add type / source ─────────────────────────────── */
   async function addType(newName: string) {
     const color = AVATAR_PALETTE[types.length % AVATAR_PALETTE.length]
     const { data } = await createClient().from('contact_types')
       .insert({ tenant_id: tenantId, name: newName, color, position: types.length })
       .select('id,name,color').single()
-    if (data) { setTypes(prev => [...prev, data]); setTypeId(data.id) }
+    if (data) { setTypes(prev => [...prev, data]); setTypeIds(prev => [...prev, data.id]) }
     else setError('No se pudo crear el tipo')
   }
   async function addSource(newName: string) {
@@ -430,7 +439,6 @@ export default function ContactForm({
       name:              name.trim(),
       last_name:         lastName.trim()  || null,
       birth_date:        birthDate        || null,
-      type_id:           typeId           || null,
       source_id:         sourceId         || null,
       email:             email.trim()     || null,
       phone:             phone.trim()     || null,
@@ -489,6 +497,14 @@ export default function ContactForm({
     if (linkedCompanies.length > 0) {
       await sb.from('crm_contact_companies').insert(
         linkedCompanies.map(co => ({ tenant_id: tenantId, contact_id: contactId, company_id: co.id }))
+      )
+    }
+
+    // Type links — replace all
+    await sb.from('crm_contact_types').delete().eq('contact_id', contactId)
+    if (typeIds.length > 0) {
+      await sb.from('crm_contact_types').insert(
+        typeIds.map(tid => ({ tenant_id: tenantId, contact_id: contactId, type_id: tid }))
       )
     }
 
@@ -583,7 +599,7 @@ export default function ContactForm({
           <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handlePhotoSelect} style={{ display: 'none' }} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
             <FieldLabel required>Nombre</FieldLabel>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="María" style={inputSt} autoFocus />
@@ -598,16 +614,6 @@ export default function ContactForm({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#5a6070' }}>Tipo de contacto</span>
-              {showAdmin && <QuickAddOption onAdd={addType} />}
-            </div>
-            <select value={typeId} onChange={e => setTypeId(e.target.value)} style={inputSt}>
-              <option value="">Sin tipo</option>
-              {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#5a6070' }}>Fuente / Canal</span>
               {showAdmin && <QuickAddOption onAdd={addSource} />}
             </div>
@@ -616,6 +622,33 @@ export default function ContactForm({
               {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
+        </div>
+
+        {/* Tipo de contacto — múltiple (chips) */}
+        <div style={{ marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#5a6070' }}>Tipo de contacto</span>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>· podés elegir varios</span>
+            {showAdmin && <QuickAddOption onAdd={addType} />}
+          </div>
+          {types.length === 0 ? (
+            <div style={{ fontSize: 12, color: '#9ca3af' }}>Sin tipos definidos{showAdmin ? ' — usá el + para crear uno' : ''}.</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {types.map(t => {
+                const on = typeIds.includes(t.id)
+                return (
+                  <button key={t.id} type="button" onClick={() => toggleType(t.id)}
+                    style={{ padding: '5px 11px', borderRadius: 16, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      border: `1px solid ${on ? t.color : '#e2e5ea'}`,
+                      background: on ? (t.color || '#1B6EF3') + '22' : '#fff',
+                      color: on ? (t.color || '#1B6EF3') : '#5a6070' }}>
+                    {on ? '✓ ' : ''}{t.name}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* ── CONTACTO ─────────────────────────────────────── */}

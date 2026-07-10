@@ -18,7 +18,7 @@ interface LinkedContact {
   last_name: string | null
   photo_url: string | null
   cedula: string | null
-  contact_types: { name: string; color: string } | null
+  crm_contact_types: { contact_types: { id?: string; name: string; color: string } | null }[] | null
 }
 
 interface FormState {
@@ -132,7 +132,7 @@ export default function EmpresasClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
       .from('crm_contact_companies')
-      .select('crm_contacts(id,name,last_name,photo_url,cedula,contact_types(name,color))')
+      .select('crm_contacts(id,name,last_name,photo_url,cedula,crm_contact_types(contact_types(id,name,color)))')
       .eq('company_id', companyId)
       .eq('tenant_id', tid)
     const contacts = (data ?? [])
@@ -268,7 +268,7 @@ export default function EmpresasClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any)
       .from('crm_contacts')
-      .select('id,name,last_name,photo_url,cedula,contact_types(name,color)')
+      .select('id,name,last_name,photo_url,cedula,crm_contact_types(contact_types(id,name,color))')
       .eq('tenant_id', tenantId)
       .eq('active', true)
       .or(`name.ilike.%${q}%,last_name.ilike.%${q}%,cedula.ilike.%${q}%`)
@@ -688,8 +688,7 @@ export default function EmpresasClient() {
                     {showResults && contactResults.length > 0 && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden', marginTop: 4 }}>
                         {contactResults.map(c => {
-                          const tc  = c.contact_types?.color || '#1B6EF3'
-                          const tBg = tc + '18'
+                          const cTypes = (c.crm_contact_types ?? []).map(r => r.contact_types).filter(Boolean) as { id?: string; name: string; color: string }[]
                           const ac  = nameToColor(c.name + (c.last_name ?? ''))
                           return (
                             <div
@@ -714,11 +713,15 @@ export default function EmpresasClient() {
                                   {c.cedula && <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{c.cedula}</span>}
                                 </div>
                               </div>
-                              {/* Type badge */}
-                              {c.contact_types?.name && (
-                                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: tBg, color: tc, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                  {c.contact_types.name}
-                                </span>
+                              {/* Type badges (múltiples) */}
+                              {cTypes.length > 0 && (
+                                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0, maxWidth: 160 }}>
+                                  {cTypes.map((t, i) => (
+                                    <span key={t.id ?? i} style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: (t.color || '#1B6EF3') + '18', color: t.color || '#1B6EF3', whiteSpace: 'nowrap' }}>
+                                      {t.name}
+                                    </span>
+                                  ))}
+                                </div>
                               )}
                               {/* Link icon */}
                               <span style={{ fontSize: 14, color: '#1B6EF3', flexShrink: 0 }}>
@@ -747,8 +750,7 @@ export default function EmpresasClient() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {linkedContacts.map(c => {
-                        const tc  = c.contact_types?.color || '#1B6EF3'
-                        const tBg = tc + '18'
+                        const cTypes = (c.crm_contact_types ?? []).map(r => r.contact_types).filter(Boolean) as { id?: string; name: string; color: string }[]
                         const ac  = nameToColor(c.name + (c.last_name ?? ''))
                         return (
                           <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea' }}>
@@ -765,11 +767,15 @@ export default function EmpresasClient() {
                               </div>
                               {c.cedula && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{c.cedula}</div>}
                             </div>
-                            {/* Type badge */}
-                            {c.contact_types?.name && (
-                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: tBg, color: tc, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                {c.contact_types.name}
-                              </span>
+                            {/* Type badges (múltiples) */}
+                            {cTypes.length > 0 && (
+                              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0, maxWidth: 160 }}>
+                                {cTypes.map((t, i) => (
+                                  <span key={t.id ?? i} style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: (t.color || '#1B6EF3') + '18', color: t.color || '#1B6EF3', whiteSpace: 'nowrap' }}>
+                                    {t.name}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                             {/* Unlink button */}
                             <button

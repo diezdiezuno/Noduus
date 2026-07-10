@@ -13,7 +13,7 @@ interface ContactFull {
   email: string | null; notes: string | null; doc_urls: DocUrl[] | null
   instagram: string | null; linkedin: string | null; facebook: string | null
   tiktok: string | null; youtube: string | null; x: string | null
-  contact_types: { name: string; color: string } | null
+  crm_contact_types: { contact_types: { id?: string; name: string; color: string } | null }[] | null
   contact_sources: { name: string } | null
   crm_contact_companies: { crm_companies: { id: string; name: string; trade_name: string | null; cedula_juridica: string | null } | null }[] | null
 }
@@ -87,7 +87,7 @@ export default function ContactVCardModal({ view, onClose }: { view: VCardViewTy
     if (view.type === 'contact') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(sb as any).from('crm_contacts')
-        .select('*, contact_types(name,color), contact_sources(name), crm_contact_companies(crm_companies(id,name,trade_name,cedula_juridica))')
+        .select('*, crm_contact_types(contact_types(id,name,color)), contact_sources(name), crm_contact_companies(crm_companies(id,name,trade_name,cedula_juridica))')
         .eq('id', view.id).single()
         .then(({ data }: { data: ContactFull }) => { setContactData(data); setLoading(false) })
     } else {
@@ -174,11 +174,19 @@ export default function ContactVCardModal({ view, onClose }: { view: VCardViewTy
               <div style={{ fontSize: 20, fontWeight: 700, color: '#0d0f12', textAlign: 'center', marginBottom: 8 }}>
                 {contactData.name}{contactData.last_name ? ' ' + contactData.last_name : ''}
               </div>
-              {contactData.contact_types?.name && (
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: (contactData.contact_types.color || '#1B6EF3') + '22', color: contactData.contact_types.color || '#1B6EF3', marginBottom: 10 }}>
-                  {contactData.contact_types.name}
-                </span>
-              )}
+              {(() => {
+                const cTypes = (contactData.crm_contact_types ?? []).map(r => r.contact_types).filter(Boolean) as { id?: string; name: string; color: string }[]
+                if (cTypes.length === 0) return null
+                return (
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 10 }}>
+                    {cTypes.map((t, i) => (
+                      <span key={t.id ?? i} style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: (t.color || '#1B6EF3') + '22', color: t.color || '#1B6EF3' }}>
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
+                )
+              })()}
               {/* Companies */}
               {(() => {
                 const cos = (contactData.crm_contact_companies ?? []).map(r => r.crm_companies).filter(Boolean)
