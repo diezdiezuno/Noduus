@@ -221,6 +221,7 @@ export default function ClientesClient() {
     try {
       const cw = JSON.parse(localStorage.getItem('clientes_col_widths') || 'null')
       if (Array.isArray(cw) && cw.length === DEFAULT_COLS.length && cw.every(n => typeof n === 'number')) {
+        cw[cw.length - 1] = ACTIONS_W   // acciones siempre fija
         setColWidths(cw); colWidthsRef.current = cw
       }
     } catch { /* ignore */ }
@@ -234,8 +235,9 @@ export default function ClientesClient() {
     setPage(0)
   }
 
-  // Anchos de columna redimensionables: Nombre, Tipo, Email, Teléfono, Empresa, Acciones
-  const DEFAULT_COLS = [280, 160, 240, 150, 180, 150]
+  // Anchos de columna: Nombre, Tipo, Email, Teléfono, Empresa (redimensionables) + Acciones (fija)
+  const ACTIONS_W = 88   // justo para los 2 íconos
+  const DEFAULT_COLS = [280, 160, 240, 150, 180, ACTIONS_W]
   const [colWidths, setColWidths] = useState<number[]>(DEFAULT_COLS)
   const colWidthsRef = useRef(colWidths)
   const dragRef = useRef<{ idx: number; startX: number; startW: number } | null>(null)
