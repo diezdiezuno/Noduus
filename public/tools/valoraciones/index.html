@@ -500,7 +500,7 @@ async function init() {
   // Inyectar components.js después de que window.sb esté disponible
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = '/components.js';
+    s.src = '/tools/components.js';
     s.onload = resolve;
     s.onerror = reject;
     document.head.appendChild(s);

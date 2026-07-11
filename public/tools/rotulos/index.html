@@ -328,7 +328,7 @@ window.sb = sb; // exponer para components.js
 // Cargar components.js después de que sb esté disponible
 await new Promise((resolve, reject) => {
   const s = document.createElement('script');
-  s.src = '../components.js';
+  s.src = '/tools/components.js';
   s.onload = resolve;
   s.onerror = reject;
   document.head.appendChild(s);
@@ -514,7 +514,7 @@ async function doLogin(){
 }
 async function doLogout(){
   await sb.auth.signOut();
-  window.location.href='../perfil/';
+  window.location.href='/tools/perfil/';
 }
 
 async function loadContext(){
