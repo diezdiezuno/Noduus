@@ -39,6 +39,9 @@ const NAV_STANDALONE = [
   { href: '/admin/reclutamiento', icon: '🤝', label: 'Reclutamiento' },
 ]
 
+// Rutas de listado que usan el ancho completo de la pantalla
+const WIDE_ROUTES = ['/admin/clientes', '/admin/empresas', '/admin/leads', '/admin/propiedades']
+
 const SIDEBAR_W_OPEN   = 216
 const SIDEBAR_W_CLOSED = 72
 const TOPBAR_H         = 54
@@ -520,7 +523,7 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
         minHeight: `calc(100vh - ${TOPBAR_H}px)`,
         transition: 'margin-left .2s cubic-bezier(.4,0,.2,1)',
       }}>
-        <div style={{ maxWidth: 1100 }}>
+        <div style={{ maxWidth: WIDE_ROUTES.some(r => pathname === r) ? 'none' : 1100 }}>
           {children}
         </div>
       </main>

@@ -208,6 +208,13 @@ export default function ClientesClient() {
     if (v === 'cards' || v === 'table') setView(v)
     const ps = localStorage.getItem('clientes_page_size')
     if (ps !== null && !isNaN(Number(ps))) setPageSize(Number(ps))
+    try {
+      const cw = JSON.parse(localStorage.getItem('clientes_col_widths') || 'null')
+      if (Array.isArray(cw) && cw.length === DEFAULT_COLS.length && cw.every(n => typeof n === 'number')) {
+        setColWidths(cw); colWidthsRef.current = cw
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function changePageSize(n: number) { setPageSize(n); setPage(0); localStorage.setItem('clientes_page_size', String(n)) }
@@ -215,6 +222,31 @@ export default function ClientesClient() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
     setPage(0)
+  }
+
+  // Anchos de columna redimensionables: Nombre, Tipo, Email, Teléfono, Empresa, Acciones
+  const DEFAULT_COLS = [280, 160, 240, 150, 180, 150]
+  const [colWidths, setColWidths] = useState<number[]>(DEFAULT_COLS)
+  const colWidthsRef = useRef(colWidths)
+  const dragRef = useRef<{ idx: number; startX: number; startW: number } | null>(null)
+  const onColMove = useCallback((e: MouseEvent) => {
+    const d = dragRef.current; if (!d) return
+    const w = Math.max(60, d.startW + e.clientX - d.startX)
+    setColWidths(prev => { const n = [...prev]; n[d.idx] = w; colWidthsRef.current = n; return n })
+  }, [])
+  const onColUp = useCallback(() => {
+    dragRef.current = null
+    window.removeEventListener('mousemove', onColMove)
+    window.removeEventListener('mouseup', onColUp)
+    localStorage.setItem('clientes_col_widths', JSON.stringify(colWidthsRef.current))
+    document.body.style.cursor = ''
+  }, [onColMove])
+  function startColResize(e: React.MouseEvent, idx: number) {
+    e.preventDefault(); e.stopPropagation()
+    dragRef.current = { idx, startX: e.clientX, startW: colWidths[idx] }
+    document.body.style.cursor = 'col-resize'
+    window.addEventListener('mousemove', onColMove)
+    window.addEventListener('mouseup', onColUp)
   }
 
   // VCard state
@@ -561,16 +593,24 @@ export default function ClientesClient() {
           `}</style>
 
           {view === 'table' ? (
-            <div style={{ background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+            <div style={{ background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, overflowX: 'auto' }}>
+              <table style={{ width: colWidths.reduce((a, b) => a + b, 0), minWidth: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
                 <thead>
                   <tr style={{ background: '#f9fafb', color: '#5a6070', textAlign: 'left' }}>
-                    <th onClick={() => toggleSort('name')} style={{ padding: '9px 12px', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }}>Nombre{sortKey === 'name' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
-                    <th style={{ padding: '9px 12px', fontWeight: 500, width: 170 }}>Tipo</th>
-                    <th onClick={() => toggleSort('email')} style={{ padding: '9px 12px', fontWeight: 500, width: 210, cursor: 'pointer', userSelect: 'none' }}>Email{sortKey === 'email' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
-                    <th onClick={() => toggleSort('phone')} style={{ padding: '9px 12px', fontWeight: 500, width: 150, cursor: 'pointer', userSelect: 'none' }}>Teléfono{sortKey === 'phone' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
-                    <th onClick={() => toggleSort('company')} style={{ padding: '9px 12px', fontWeight: 500, width: 150, cursor: 'pointer', userSelect: 'none' }}>Empresa{sortKey === 'company' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}</th>
-                    <th style={{ padding: '9px 12px', fontWeight: 500, width: 140 }} />
+                    {([['Nombre', 'name'], ['Tipo', null], ['Email', 'email'], ['Teléfono', 'phone'], ['Empresa', 'company'], ['', null]] as [string, SortKey | null][]).map(([label, key], i) => (
+                      <th key={i}
+                        onClick={key ? () => toggleSort(key) : undefined}
+                        style={{ padding: '9px 12px', fontWeight: 500, position: 'relative', cursor: key ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                        {label}{key && sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                        {i < colWidths.length - 1 && (
+                          <span onMouseDown={e => startColResize(e, i)}
+                            style={{ position: 'absolute', right: -3, top: 0, height: '100%', width: 8, cursor: 'col-resize', zIndex: 2 }} />
+                        )}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
