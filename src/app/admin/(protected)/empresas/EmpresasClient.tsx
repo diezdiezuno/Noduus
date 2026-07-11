@@ -58,6 +58,16 @@ function companyInitials(name: string): string {
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
   return (words[0][0] + words[1][0]).toUpperCase()
 }
+const EditIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+)
+const TrashIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M6 6v14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6" /><path d="M10 11v6M14 11v6" />
+  </svg>
+)
 
 // ── Component ─────────────────────────────────────────────────
 export default function EmpresasClient() {
@@ -97,8 +107,57 @@ export default function EmpresasClient() {
   const [toast,         setToast]         = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState<string | null>(null)
-  const [hoveredRow,    setHoveredRow]    = useState<string | null>(null)
-  const [hoveredBtn,    setHoveredBtn]    = useState<string | null>(null)
+
+  // Paginación y orden
+  type SortKey = 'name' | 'razon' | 'cedula' | 'count'
+  const [page,     setPage]     = useState(0)
+  const [pageSize, setPageSize] = useState<number>(25)   // 0 = todos
+  const [sortKey,  setSortKey]  = useState<SortKey>('name')
+  const [sortDir,  setSortDir]  = useState<'asc' | 'desc'>('asc')
+  function changePageSize(n: number) { setPageSize(n); setPage(0); localStorage.setItem('empresas_page_size', String(n)) }
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+    setPage(0)
+  }
+
+  // Anchos de columna: Nombre, Razón social, Cédula jurídica, Clientes (redimensionables) + Acciones (fija)
+  const ACTIONS_W = 88
+  const DEFAULT_COLS = [320, 260, 180, 120, ACTIONS_W]
+  const [colWidths, setColWidths] = useState<number[]>(DEFAULT_COLS)
+  const colWidthsRef = useRef(colWidths)
+  const dragRef = useRef<{ idx: number; startX: number; startW: number } | null>(null)
+  const onColMove = useCallback((e: MouseEvent) => {
+    const d = dragRef.current; if (!d) return
+    const w = Math.max(60, d.startW + e.clientX - d.startX)
+    setColWidths(prev => { const n = [...prev]; n[d.idx] = w; colWidthsRef.current = n; return n })
+  }, [])
+  const onColUp = useCallback(() => {
+    dragRef.current = null
+    window.removeEventListener('mousemove', onColMove)
+    window.removeEventListener('mouseup', onColUp)
+    localStorage.setItem('empresas_col_widths', JSON.stringify(colWidthsRef.current))
+    document.body.style.cursor = ''
+  }, [onColMove])
+  function startColResize(e: React.MouseEvent, idx: number) {
+    e.preventDefault(); e.stopPropagation()
+    dragRef.current = { idx, startX: e.clientX, startW: colWidths[idx] }
+    document.body.style.cursor = 'col-resize'
+    window.addEventListener('mousemove', onColMove)
+    window.addEventListener('mouseup', onColUp)
+  }
+  useEffect(() => {
+    const ps = localStorage.getItem('empresas_page_size')
+    if (ps !== null && !isNaN(Number(ps))) setPageSize(Number(ps))
+    try {
+      const cw = JSON.parse(localStorage.getItem('empresas_col_widths') || 'null')
+      if (Array.isArray(cw) && cw.length === DEFAULT_COLS.length && cw.every(n => typeof n === 'number')) {
+        cw[cw.length - 1] = ACTIONS_W
+        setColWidths(cw); colWidthsRef.current = cw
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Load companies ────────────────────────────────────────
   const loadCompanies = useCallback(async (tid: string, q: string) => {
@@ -391,7 +450,7 @@ export default function EmpresasClient() {
 
   // ── Search ────────────────────────────────────────────────
   function handleSearch(val: string) {
-    setSearch(val)
+    setSearch(val); setPage(0)
     if (searchTimer.current) clearTimeout(searchTimer.current)
     searchTimer.current = setTimeout(() => loadCompanies(tenantId, val), 300)
   }
@@ -418,6 +477,29 @@ export default function EmpresasClient() {
 
   const hasSearch = !!search
 
+  // Orden + paginación (cliente)
+  const sortVal = (co: Company): string | number => {
+    switch (sortKey) {
+      case 'razon':  return co.name.toLowerCase()
+      case 'cedula': return (co.cedula_juridica ?? '').toLowerCase()
+      case 'count':  return contactMap[co.id] ?? 0
+      default:       return (co.trade_name || co.name).toLowerCase()
+    }
+  }
+  const sorted = [...companies].sort((a, b) => {
+    const va = sortVal(a), vb = sortVal(b)
+    if (va === vb) return 0
+    if (typeof va === 'string' && va === '') return 1
+    if (typeof vb === 'string' && vb === '') return -1
+    return (va < vb ? -1 : 1) * (sortDir === 'asc' ? 1 : -1)
+  })
+  const total      = sorted.length
+  const totalPages = pageSize === 0 ? 1 : Math.max(1, Math.ceil(total / pageSize))
+  const safePage   = Math.min(page, totalPages - 1)
+  const pageStart  = pageSize === 0 ? 0 : safePage * pageSize
+  const pageEnd    = pageSize === 0 ? total : Math.min(pageStart + pageSize, total)
+  const paged      = pageSize === 0 ? sorted : sorted.slice(pageStart, pageEnd)
+
   return (
     <>
       {/* ── Header ─────────────────────────────────────────── */}
@@ -434,14 +516,19 @@ export default function EmpresasClient() {
         </button>
       </div>
 
-      {/* ── Search ─────────────────────────────────────────── */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ position: 'relative', maxWidth: 380 }}>
+      {/* ── Toolbar ────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
           <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
           <input type="text" placeholder="Buscar por nombre…" value={search}
             onChange={e => handleSearch(e.target.value)}
             style={{ ...sInput, paddingLeft: 36 }} />
         </div>
+        <select value={pageSize} onChange={e => changePageSize(Number(e.target.value))} title="Registros por página"
+          style={{ height: 38, padding: '0 10px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, background: '#fff', color: '#0d0f12', fontFamily: 'inherit', cursor: 'pointer', marginLeft: 'auto' }}>
+          {[25, 50, 100].map(n => <option key={n} value={n}>{n} / pág.</option>)}
+          <option value={0}>Todos</option>
+        </select>
       </div>
 
       {/* ── List ───────────────────────────────────────────── */}
@@ -462,86 +549,99 @@ export default function EmpresasClient() {
           )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {companies.map(co => {
-            const count        = contactMap[co.id] ?? 0
-            const isConfirming = confirmDelete === co.id
-            const isDeleting   = deleting === co.id
-            const hasContacts  = count > 0
+        <>
+          <style>{`
+            .em-trow:hover { background:#f9fafb; }
+            .em-trow .em-actions { opacity:0; transition:opacity .15s; }
+            .em-trow:hover .em-actions { opacity:1; }
+            .em-btn { width:28px; height:28px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .12s; background:transparent; border:none; color:#9ca3af; }
+            .em-btn:hover { background:#f0f1f3; color:#5a6070; }
+            .em-btn-del:hover { background:#FEF2F2; color:#DC2626; }
+            .em-resize { border-right:2px solid transparent; box-sizing:border-box; }
+            .em-resize:hover { border-right-color:#9ca3af; }
+          `}</style>
 
-            return (
-              <div key={co.id}
-                onMouseEnter={() => setHoveredRow(co.id)}
-                onMouseLeave={() => setHoveredRow(null)}
-                style={{ background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, transition: 'border-color .15s', cursor: 'default' }}
-                onMouseOver={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#1B6EF3'}
-                onMouseOut={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#e2e5ea'}>
-
-                {/* Company avatar with initials */}
-                {(() => {
-                  const displayName = co.trade_name || co.name
-                  const ac = nameToColor(displayName)
+          <div style={{ background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, overflowX: 'auto' }}>
+            <table style={{ width: colWidths.reduce((a, b) => a + b, 0), minWidth: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+              <colgroup>
+                {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+              </colgroup>
+              <thead>
+                <tr style={{ background: '#f9fafb', color: '#5a6070', textAlign: 'left' }}>
+                  {([['Nombre', 'name'], ['Razón social', 'razon'], ['Cédula jurídica', 'cedula'], ['Clientes', 'count'], ['', null]] as [string, SortKey | null][]).map(([label, key], i) => (
+                    <th key={i}
+                      onClick={key ? () => toggleSort(key) : undefined}
+                      style={{ padding: '9px 12px', fontWeight: 500, position: 'relative', cursor: key ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap', borderRight: i < colWidths.length - 1 ? '1px solid #e5e7eb' : undefined }}>
+                      {label}{key && sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                      {i < colWidths.length - 1 && (
+                        <span className="em-resize" onMouseDown={e => startColResize(e, i)}
+                          style={{ position: 'absolute', right: -4, top: 0, height: '100%', width: 8, cursor: 'col-resize', zIndex: 2 }} />
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map(co => {
+                  const count = contactMap[co.id] ?? 0
+                  const hasContacts = count > 0
+                  const isConfirming = confirmDelete === co.id
+                  const isDeleting = deleting === co.id
+                  const display = co.trade_name || co.name
+                  const ac = nameToColor(display)
                   return (
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: ac + '20', border: `2px solid ${ac}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: ac, flexShrink: 0, letterSpacing: '-0.5px' }}>
-                      {companyInitials(displayName)}
-                    </div>
+                    <tr key={co.id} className="em-trow" style={{ borderTop: '1px solid #eef0f2' }}>
+                      <td style={{ padding: '8px 12px' }}>
+                        <div onClick={() => openDrawer(co)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', minWidth: 0 }}>
+                          <div style={{ width: 30, height: 30, borderRadius: 8, background: ac + '20', border: `2px solid ${ac}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: ac, flexShrink: 0, letterSpacing: '-0.5px' }}>{companyInitials(display)}</div>
+                          <span style={{ fontWeight: 600, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{display}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 12px', color: '#5a6070', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: co.cedula_juridica ? '#5a6070' : '#c5cad3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.cedula_juridica || '—'}</td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: count > 0 ? '#EEF4FF' : '#F4F5F7', color: count > 0 ? '#1B6EF3' : '#9ca3af', whiteSpace: 'nowrap' }}>{count}</span>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <div className="em-actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          {!isConfirming ? (
+                            <>
+                              <button className="em-btn em-btn-edit" title="Editar" onClick={() => openDrawer(co)}><EditIcon /></button>
+                              <button className="em-btn em-btn-del" title={hasContacts ? `Tiene ${count} cliente${count !== 1 ? 's' : ''} vinculado${count !== 1 ? 's' : ''}` : 'Eliminar'}
+                                onClick={() => hasContacts ? showToast(`No se puede eliminar: tiene ${count} cliente${count !== 1 ? 's' : ''} vinculado${count !== 1 ? 's' : ''}`, 'error') : setConfirmDelete(co.id)}
+                                style={{ opacity: hasContacts ? 0.4 : 1, cursor: hasContacts ? 'not-allowed' : 'pointer' }}><TrashIcon /></button>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Eliminar?</span>
+                              <button onClick={() => deleteCompany(co.id)} disabled={isDeleting}
+                                style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#DC2626', border: 'none', borderRadius: 7, padding: '5px 10px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>{isDeleting ? '…' : 'Sí'}</button>
+                              <button onClick={() => setConfirmDelete(null)}
+                                style={{ fontSize: 12, color: '#666', background: 'none', border: '1px solid #e0e0e0', borderRadius: 7, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   )
-                })()}
+                })}
+              </tbody>
+            </table>
+          </div>
 
-                {/* Info */}
-                <div onClick={() => openDrawer(co)} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {co.trade_name || co.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#5a6070', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {co.trade_name && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{co.name}</span>}
-                    {co.cedula_juridica && <span style={{ fontFamily: 'monospace', flexShrink: 0 }}>{co.cedula_juridica}</span>}
-                  </div>
-                </div>
-
-                {/* Badge */}
-                <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: count > 0 ? '#EEF4FF' : '#F4F5F7', color: count > 0 ? '#1B6EF3' : '#9ca3af', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {count} cliente{count !== 1 ? 's' : ''}
-                </span>
-
-                {/* Actions */}
-                <div onClick={e => e.stopPropagation()}
-                  style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, opacity: hoveredRow === co.id || isConfirming ? 1 : 0, transition: 'opacity .15s' }}>
-                  {!isConfirming ? (
-                    <>
-                      <button title="Editar" onClick={() => openDrawer(co)}
-                        onMouseEnter={() => setHoveredBtn(`${co.id}-edit`)}
-                        onMouseLeave={() => setHoveredBtn(null)}
-                        style={{ width: 30, height: 30, border: `1px solid ${hoveredBtn === `${co.id}-edit` ? '#F5D98A' : '#e2e5ea'}`, borderRadius: 6, background: hoveredBtn === `${co.id}-edit` ? '#FEF9EC' : '#F4F5F7', color: hoveredBtn === `${co.id}-edit` ? '#92610A' : '#5a6070', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, transition: 'all .15s' }}>
-                        ✏️
-                      </button>
-                      <button
-                        title={hasContacts ? `Tiene ${count} cliente${count !== 1 ? 's' : ''} vinculado${count !== 1 ? 's' : ''}` : 'Eliminar'}
-                        onClick={() => hasContacts ? showToast(`No se puede eliminar: tiene ${count} cliente${count !== 1 ? 's' : ''} vinculado${count !== 1 ? 's' : ''}`, 'error') : setConfirmDelete(co.id)}
-                        onMouseEnter={() => setHoveredBtn(`${co.id}-del`)}
-                        onMouseLeave={() => setHoveredBtn(null)}
-                        style={{ width: 30, height: 30, border: `1px solid ${hoveredBtn === `${co.id}-del` ? (hasContacts ? '#e2e5ea' : 'transparent') : '#FECACA'}`, borderRadius: 6, background: hoveredBtn === `${co.id}-del` ? (hasContacts ? '#F4F5F7' : '#DC2626') : '#FEF2F2', color: hoveredBtn === `${co.id}-del` ? (hasContacts ? '#9ca3af' : '#fff') : '#DC2626', cursor: hasContacts ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, transition: 'all .15s', opacity: hasContacts ? .5 : 1 }}>
-                        🗑
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Eliminar?</span>
-                      <button onClick={() => deleteCompany(co.id)} disabled={isDeleting}
-                        style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#DC2626', border: 'none', borderRadius: 7, padding: '5px 10px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>
-                        {isDeleting ? '…' : 'Sí'}
-                      </button>
-                      <button onClick={() => setConfirmDelete(null)}
-                        style={{ fontSize: 12, color: '#666', background: 'none', border: '1px solid #e0e0e0', borderRadius: 7, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        No
-                      </button>
-                    </>
-                  )}
-                </div>
+          {pageSize !== 0 && totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: '#9ca3af', fontVariantNumeric: 'tabular-nums' }}>{pageStart + 1}–{pageEnd} de {total}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button disabled={safePage <= 0} onClick={() => setPage(safePage - 1)}
+                  style={{ height: 34, padding: '0 12px', border: '1px solid #e2e5ea', borderRadius: 8, background: '#fff', color: safePage <= 0 ? '#c5cad3' : '#0d0f12', cursor: safePage <= 0 ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit' }}>‹ Anterior</button>
+                <span style={{ fontSize: 12, color: '#5a6070', fontVariantNumeric: 'tabular-nums', padding: '0 4px' }}>Página {safePage + 1} de {totalPages}</span>
+                <button disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}
+                  style={{ height: 34, padding: '0 12px', border: '1px solid #e2e5ea', borderRadius: 8, background: '#fff', color: safePage >= totalPages - 1 ? '#c5cad3' : '#0d0f12', cursor: safePage >= totalPages - 1 ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Siguiente ›</button>
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Drawer ─────────────────────────────────────────── */}
