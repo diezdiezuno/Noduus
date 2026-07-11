@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firmas — PropTools</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23FF3A5C'/%3E%3Cstop offset='50%25' stop-color='%23C044E8'/%3E%3Cstop offset='100%25' stop-color='%235B4FE8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='8' height='32' rx='3' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:    #1B6EF3;
+  --blue-dk: #0A4FC4;
+  --ink:     #0D0F12;
+  --ink-mid: #5A6070;
+  --surface: #ffffff;
+  --surface2:#F4F5F7;
+  --border:  #E2E5EA;
+  --success: #0FA870;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+  --radius:  10px;
+  --text: var(--ink);
+  --muted: var(--ink-mid);
+  --bg: var(--surface2);
+}
+body { font-family:'DM Sans',-apple-system,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; font-size:14px; }
+
+/* LOGIN */
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }
+.login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+.login-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; font-size: 16px; font-weight: 400; color: var(--ink); letter-spacing: -0.2px; }
+.login-logo strong { font-weight: 700; }
+.login-box h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.login-box p { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.5; }
+.form-field { margin-bottom: 14px; }
+.form-field label { font-size: 11px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+.form-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: border-color .15s; }
+.form-field input:focus { border-color: #000; }
+.btn-login { width: 100%; background: #000; color: #fff; border: none; border-radius: 8px; padding: 12px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s; margin-top: 4px; }
+.btn-login:hover { background: #222; }
+.btn-login:disabled { background: #aaa; cursor: not-allowed; }
+.login-error { font-size: 12px; color: #ef4444; margin-top: 10px; text-align: center; display: none; }
+.login-footer { margin-top: 20px; text-align: center; font-size: 12px; color: var(--muted); }
+
+/* APP */
+.app-screen { display: none; min-height: 100vh; grid-template-columns: 400px 1fr; grid-template-rows: 88px calc(100vh - 88px - 48px); grid-template-areas: "header header" "aside main"; }
+.app-screen.visible { display: grid; }
+header {
+  grid-column: 1/-1;
+  padding: 0 28px;
+  height: 88px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+}
+/* Left: brand — una sola línea: ícono | PropTools | App | logo tenant */
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.pt-wordmark {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.pt-wordmark .pt-bold { font-weight: 700; }
+.pt-sep { color: var(--border); font-weight: 300; margin: 0 8px; font-size: 20px; line-height: 1; }
+.pt-app { font-size: 17px; font-weight: 500; color: var(--ink-mid); }
+.header-tenant-badge { display: none; align-items: center; }
+.header-tenant-badge img { height: 50px; max-width: 160px; object-fit: contain; }
+/* Right: nav + status + logout */
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.db-status {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  font-family: 'DM Mono', monospace;
+}
+.db-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.db-dot.ok  { background: var(--success); }
+.db-dot.err { background: var(--error); }
+/* Nav menu */
+.nav-divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+.nav-item {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 11px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.nav-item:hover { background: var(--surface2); color: var(--ink); border-color: var(--border); }
+.nav-item.active { background: var(--surface2); color: var(--ink); border-color: var(--border); font-weight: 600; }
+.btn-logout {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-logout:hover { border-color: var(--error); color: var(--error); background: #fff5f5; }
+aside { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 20px; }
+.section-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.template-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; }
+.tpl-btn { background: var(--surface2); border: 2px solid var(--border); border-radius: 10px; padding: 9px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; transition: all .15s; color: var(--muted); font-size: 10px; font-family: inherit; line-height: 1.4; text-align: center; }
+.tpl-btn:hover { border-color: #555; color: var(--text); background: #ececec; }
+.tpl-btn.active { border-color: #000; background: #efefef; color: #000; font-weight: 700; }
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+label { font-size: 11px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 3px; }
+input[type="text"],input[type="url"],input[type="tel"],input[type="email"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; transition: border-color .15s; }
+input:focus { border-color: #000; }
+input::placeholder { color: var(--muted); opacity: .45; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.upload-area { background: var(--surface2); border: 2px dashed var(--border); border-radius: var(--radius); padding: 12px; display: flex; align-items: center; gap: 11px; cursor: pointer; transition: border-color .15s; }
+.upload-area:hover { border-color: #888; }
+.upload-preview { width: 44px; height: 44px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.upload-preview img { width: 100%; height: 100%; object-fit: cover; }
+.upload-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.upload-text strong { color: var(--text); display: block; font-size: 13px; }
+input[type="file"] { display: none; }
+.save-bar { display: flex; gap: 7px; align-items: center; }
+.save-bar input[type="text"] { flex: 1; padding: 7px 10px; font-size: 12px; }
+.btn-save { font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer; background: #000; color: #fff; white-space: nowrap; flex-shrink: 0; transition: background .15s; }
+.btn-save:hover { background: #333; }
+.btn-save:disabled { background: #aaa; cursor: not-allowed; }
+.saved-list { display: flex; flex-direction: column; gap: 6px; }
+.saved-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+.saved-item-info { flex: 1; min-width: 0; }
+.saved-item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.saved-item-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.saved-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.icon-btn:hover { border-color: #999; background: #f0f0f0; }
+.icon-btn.del:hover { border-color: #ef4444; background: #fff5f5; }
+.saved-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0; font-style: italic; }
+main { background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
+.preview-toolbar { padding: 18px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+.preview-toolbar h2 { font-size: 16px; font-weight: 700; }
+.toolbar-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.btn { font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+.btn-accent { background: #000; color: #fff; }
+.btn-accent:hover { background: #222; }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: #888; }
+.email-chrome { margin: 14px 28px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.chrome-bar { background: #f0f0f0; border-bottom: 1px solid var(--border); padding: 8px 14px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dot.r{background:#ff5f57} .dot.y{background:#febc2e} .dot.g{background:#28c840}
+.chrome-label { margin-left: 6px; font-size: 11px; color: var(--muted); font-weight: 500; }
+.email-body-wrap { padding: 20px 22px; background: #fff; min-height: 260px; }
+.email-meta { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+.email-meta p { font-size: 12px; color: #888; margin-bottom: 2px; font-family: Arial,sans-serif; }
+.email-meta strong { color: #333; }
+.email-body-text { font-family: Arial,sans-serif; font-size: 14px; color: #333; line-height: 1.6; margin-bottom: 16px; }
+.sig-separator { border: none; border-top: 1px solid #ebebeb; margin-bottom: 14px; }
+.html-output-section { margin: 0 28px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.output-header { padding: 9px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.output-header span { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+#html-code { padding: 12px 14px; font-family: 'Courier New',monospace; font-size: 11px; color: #333; white-space: pre-wrap; word-break: break-all; max-height: 140px; overflow-y: auto; line-height: 1.6; background: #f8f9ff; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #000; color: #fff; padding: 10px 22px; border-radius: 100px; font-weight: 700; font-size: 13px; transition: transform .3s cubic-bezier(.34,1.56,.64,1); pointer-events: none; z-index: 1100; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.guide-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1000; overflow-y: auto; padding: 32px 16px; }
+.guide-box { max-width: 680px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.guide-header { padding: 20px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.guide-header h2 { font-size: 17px; font-weight: 700; color: #111; margin: 0 0 2px; }
+.guide-header p { font-size: 12px; color: var(--muted); margin: 0; }
+.guide-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); font-family: inherit; }
+.guide-close:hover { background: #e8e8e8; }
+.guide-step0 { padding: 14px 28px; background: #f8f9ff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+.guide-step0-icon { width: 32px; height: 32px; border-radius: 50%; background: #000; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.guide-step0 p { font-size: 13px; font-weight: 700; color: #111; margin: 0 0 2px; }
+.guide-step0 span { font-size: 12px; color: var(--muted); }
+.guide-tabs { padding: 0 28px; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
+.gtab { font-family: inherit; font-size: 11px; font-weight: 600; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; padding: 12px 13px; cursor: pointer; white-space: nowrap; transition: all .15s; }
+.gtab:hover { color: var(--text); }
+.gtab.active { color: #000; border-bottom-color: #000; }
+.guide-content { padding: 24px 28px 28px; }
+.gstep { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+.gstep:last-child { margin-bottom: 0; }
+.gnum { width: 24px; height: 24px; border-radius: 50%; background: #000; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.gtext { font-size: 13px; color: #333; line-height: 1.65; }
+.gtext strong { color: #111; }
+.gtip { background: #f8f9ff; border: 1px solid #e2e4e9; border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 12px; color: #555; line-height: 1.6; }
+.gtip strong { color: #111; }
+
+/* Splash screen - oculta flash de login mientras se verifica sesión */
+#splash { position:fixed; inset:0; background:var(--surface2); display:flex; align-items:center; justify-content:center; z-index:9999; }
+#splash.hidden { display:none; }
+.splash-spinner { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── LOGO PROPTOOLS v2 ── */
+    :root {
+      --grad-start: #FF3A5C;
+      --grad-mid:   #C044E8;
+      --grad-end:   #5B4FE8;
+    }
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .logo-bar {
+      width: 6px;
+      height: 32px;
+      border-radius: 3px;
+      background: linear-gradient(to bottom, var(--grad-start), var(--grad-mid), var(--grad-end));
+      flex-shrink: 0;
+    }
+    .logo-wordmark {
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+    .logo-prop  { font-weight: 300; color: var(--ink, #0E0E1A); }
+    .logo-tools { font-weight: 900; letter-spacing: -1px; color: var(--ink, #0E0E1A); }
+
+    /* login screen — bigger version */
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .login-logo .logo-bar  { width: 6px; height: 36px; }
+    .login-logo .logo-wordmark { font-size: 26px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="splash">
+  <div class="splash-spinner"></div>
+</div>
+
+<div class="login-screen" id="login-screen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-bar"></div>
+      <div class="logo-wordmark"><span class="logo-prop">Prop</span><span class="logo-tools">TOOLS</span></div>
+    </div>
+      <div class="logo-wordmark"><span class="logo-prop">Prop</span><span class="logo-tools">TOOLS</span></div>
+    </div>
+    <h2>Iniciar sesi&oacute;n</h2>
+    <p>Ingres&aacute; con tu cuenta para acceder al generador de firmas.</p>
+    <div class="form-field">
+      <label>Correo electr&oacute;nico</label>
+      <input type="email" id="login-email" placeholder="tu@correo.com">
+    </div>
+    <div class="form-field">
+      <label>Contrase&ntilde;a</label>
+      <input type="password" id="login-password" placeholder="••••••••">
+    </div>
+    <button class="btn-login" id="btn-login">Ingresar</button>
+    <div class="login-error" id="login-error"></div>
+    
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app-screen" id="app-screen">
+  <header id="pt-header"></header>
+
+  <aside style="grid-area: aside;">
+    <div>
+      <p class="section-label">Template</p>
+      <div class="template-grid" id="template-grid"></div>
+    </div>
+    <div>
+      <p class="section-label">Foto de perfil</p>
+      <label for="photo-upload">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-preview" id="photo-preview">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </div>
+          <div class="upload-text">
+            <strong id="upload-title">Subir foto</strong>
+            <span id="upload-status">JPG o PNG &middot; 200x200px ideal</span>
+          </div>
+        </div>
+      </label>
+      <input type="file" id="photo-upload" accept="image/*">
+    </div>
+    <div>
+      <p class="section-label">Informacion personal</p>
+      <div class="field-group">
+        <div><label>Nombre completo</label><input type="text" id="f-name" placeholder="Ana Garcia"></div>
+        <div><label>Posicion / Cargo</label><input type="text" id="f-role" placeholder="Agente Inmobiliaria"></div>
+        <div><label>Correo electronico</label><input type="email" id="f-email" placeholder="ana@empresa.com"></div>
+        <div class="field-row">
+          <div><label>Telefono</label><input type="tel" id="f-phone" placeholder="+506 2222 0000"></div>
+          <div><label>WhatsApp</label><input type="tel" id="f-whatsapp" placeholder="+506 8888 0000"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="section-label">Redes sociales</p>
+      <div class="field-group">
+        <div><label>Facebook</label><input type="url" id="f-facebook" placeholder="https://facebook.com/tu-pagina"></div>
+        <div><label>Instagram</label><input type="url" id="f-instagram" placeholder="https://instagram.com/tu-cuenta"></div>
+        <div><label>LinkedIn</label><input type="url" id="f-linkedin" placeholder="https://linkedin.com/in/tu-perfil"></div>
+        <div><label>TikTok</label><input type="url" id="f-tiktok" placeholder="https://tiktok.com/@tu-cuenta"></div>
+      </div>
+    </div>
+    <div>
+      <p class="section-label">Guardar firma</p>
+      <div class="save-bar">
+        <input type="text" id="f-savename" placeholder="Nombre de la firma">
+        <button class="btn-save" id="btn-save">Guardar</button>
+      </div>
+    </div>
+    <div>
+      <p class="section-label">Firmas guardadas</p>
+      <div class="saved-list" id="saved-list"><p class="saved-empty">Cargando...</p></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="preview-toolbar">
+      <h2>Vista previa</h2>
+      <div class="toolbar-btns">
+        <button class="btn btn-ghost" id="btn-copy-html">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar HTML
+        </button>
+        <button class="btn btn-ghost" id="btn-download-html">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar HTML
+        </button>
+        <button class="btn btn-ghost" id="btn-save-png">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Guardar PNG
+        </button>
+        <button class="btn btn-ghost" id="btn-guide">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          Como instalar
+        </button>
+      </div>
+    </div>
+    <div class="email-chrome">
+      <div class="chrome-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="chrome-label">Nuevo mensaje &mdash; Gmail</span>
+      </div>
+      <div class="email-body-wrap">
+        <div class="email-meta">
+          <p><strong>Para:</strong> <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e487888d818a9081a481899496819785ca878b89">[email&#160;protected]</a></p>
+          <p><strong>Asunto:</strong> Propiedad en venta &mdash; Gran oportunidad</p>
+        </div>
+        <div class="email-body-text">Estimado/a,<br><br>Le escribo para compartirle informacion sobre una propiedad que podria ser de su interes...</div>
+        <hr class="sig-separator">
+        <div id="signature-preview"></div>
+      </div>
+    </div>
+    <div class="html-output-section">
+      <div class="output-header">
+        <span>HTML generado</span>
+        <button class="btn btn-accent" id="btn-copy-html2" style="padding:5px 13px;font-size:11px">Copiar</button>
+      </div>
+      <div id="html-code"></div>
+    </div>
+  </main>
+</div>
+
+<!-- GUIDE MODAL -->
+<div class="guide-overlay" id="guide-overlay">
+  <div class="guide-box">
+    <div class="guide-header">
+      <div><h2>Como instalar tu firma</h2><p>Primero copia el HTML, luego sigue los pasos de tu aplicacion</p></div>
+      <button class="guide-close" id="btn-close-guide">&#x2715;</button>
+    </div>
+    <div class="guide-step0">
+      <div class="guide-step0-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </div>
+      <div>
+        <p>Paso 1 &mdash; Copia el HTML de tu firma</p>
+        <span>Usa el boton <strong>Copiar HTML</strong> antes de abrir tu cliente de email</span>
+      </div>
+    </div>
+    <div class="guide-tabs" id="guide-tabs">
+      <button class="gtab active" data-tab="gmail-web">Gmail Web</button>
+      <button class="gtab" data-tab="gmail-android">Gmail Android</button>
+      <button class="gtab" data-tab="gmail-iphone">Gmail iPhone</button>
+      <button class="gtab" data-tab="outlook-web">Outlook Web</button>
+      <button class="gtab" data-tab="outlook-win">Outlook Windows</button>
+      <button class="gtab" data-tab="outlook-mac">Outlook Mac</button>
+      <button class="gtab" data-tab="apple-iphone">Apple Mail iPhone</button>
+      <button class="gtab" data-tab="apple-mac">Apple Mail Mac</button>
+    </div>
+    <div class="guide-content" id="guide-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const sb = createClient(
+  'https://neuzltjlezogxmhbceco.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ldXpsdGpsZXpvZ3htaGJjZWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NTMxOTksImV4cCI6MjA5NTMyOTE5OX0.p4NZzk_O2aU-KOYQPdSIkiD9TSoNgaDrC1yBKXcgfWg'
+);
+window.sb = sb; // exponer para components.js
+
+// Cargar components.js después de que sb esté disponible
+await new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = '../components.js';
+  s.onload = resolve;
+  s.onerror = reject;
+  document.head.appendChild(s);
+});
+
+/* ── Estado ── */
+let currentUser = null, currentProfile = null, currentTenant = null;
+let templates = [], currentTpl = null, photoDataUrl = null;
+const CLOUD = 'dlgrhr6lh', PRESET = 'firmas';
+
+/* ── Helpers ── */
+const el   = id => document.getElementById(id);
+const v    = id => { const e = el(id); return e ? e.value.trim() : ''; };
+const setV = (id, val) => { const e = el(id); if (e) e.value = val || ''; };
+const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toast(msg) {
+  const t = el('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+function dbStatus(state, msg) {
+  const dot  = el('db-dot');
+  const text = el('db-status-text');
+  if (dot)  dot.className = 'db-dot ' + (state === 'ok' ? 'ok' : state === 'err' ? 'err' : '');
+  if (text) text.textContent = msg;
+}
+
+/* ── Auth ── */
+async function doLogin() {
+  const email = v('login-email'), password = el('login-password').value;
+  const errEl = el('login-error'), btn = el('btn-login');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Completa todos los campos.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Ingresando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    errEl.textContent = 'Correo o contrase\u00f1a incorrectos.';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Ingresar';
+    return;
+  }
+  currentUser = data.session.user;
+  await loadContext();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = '../perfil/';
+}
+
+/* ── Cargar contexto ── */
+async function loadContext() {
+  try {
+    dbStatus('', 'Cargando...');
+    const { data: profile, error: pErr } = await sb
+      .from('users').select('*, tenants(*)').eq('auth_id', currentUser.id).single();
+    if (pErr) throw new Error('Error de perfil: ' + pErr.message);
+    if (!profile) throw new Error('Usuario no encontrado.');
+    currentProfile = profile;
+    currentTenant  = profile.tenants;
+    if (!currentTenant) throw new Error('Tenant no configurado.');
+
+    const { data: tpls } = await sb
+      .from('tenant_templates').select('*')
+      .eq('tenant_id', currentTenant.id).eq('active', true).order('sort_order');
+    templates = tpls || [];
+
+    /* Pre-llenar campos desde perfil compartido */
+    if (profile.name)      setV('f-name',     profile.name);
+    if (profile.job_title) setV('f-role',      profile.job_title);
+    if (profile.email)     setV('f-email',     profile.email);
+    if (profile.phone)     setV('f-phone',     profile.phone);
+    if (profile.whatsapp)  setV('f-whatsapp',  profile.whatsapp);
+    if (profile.instagram) setV('f-instagram', profile.instagram.startsWith('http') ? profile.instagram : 'https://instagram.com/' + profile.instagram.replace('@',''));
+    if (profile.facebook)  setV('f-facebook',  profile.facebook);
+    if (profile.linkedin)  setV('f-linkedin',  profile.linkedin);
+    if (profile.tiktok)    setV('f-tiktok',    profile.tiktok);
+
+    /* Foto — primero del perfil, sino de la última firma guardada */
+    const photoUrl = profile.photo_url || null;
+    if (photoUrl) {
+      photoDataUrl = photoUrl;
+      const _img = document.createElement('img');
+      _img.src = photoUrl; _img.alt = ''; _img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+      el('photo-preview').replaceChildren(_img);
+      el('upload-title').textContent  = 'Foto de perfil';
+      el('upload-status').textContent = 'Click para cambiar';
+      el('upload-area').style.borderColor = '#22c55e';
+    } else {
+      /* Buscar foto en la última firma guardada */
+      const { data: lastSig } = await sb.from('signatures')
+        .select('photo_url').eq('user_id', profile.id)
+        .not('photo_url', 'is', null)
+        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      if (lastSig?.photo_url) {
+        photoDataUrl = lastSig.photo_url;
+        const _img2 = document.createElement('img');
+        _img2.src = lastSig.photo_url; _img2.alt = ''; _img2.style.cssText = 'width:100%;height:100%;object-fit:cover';
+        el('photo-preview').replaceChildren(_img2);
+        el('upload-title').textContent  = 'Foto cargada';
+        el('upload-status').textContent = 'Click para cambiar';
+        el('upload-area').style.borderColor = '#22c55e';
+      }
+    }
+    if (photoDataUrl) updatePreview();
+
+    el('login-screen').style.display = 'none';
+    el('app-screen').classList.add('visible');
+    el('btn-login').disabled = false; el('btn-login').textContent = 'Ingresar';
+    dbStatus('ok', 'Conectado');
+    buildGrid(); if (templates.length) setTpl(templates[0]);
+    await loadSigs();
+  } catch(e) {
+    console.error('[loadContext]', e);
+    el('login-error').textContent = e.message; el('login-error').style.display = 'block';
+    el('btn-login').disabled = false; el('btn-login').textContent = 'Ingresar';
+    dbStatus('err', 'Error');
+    await sb.auth.signOut();
+  }
+}
+
+/* ── Guardar perfil compartido en users ── */
+async function saveProfile() {
+  if (!currentProfile) return;
+  const instaVal = v('f-instagram');
+  const instaHandle = instaVal.includes('instagram.com/')
+    ? '@' + instaVal.split('instagram.com/').pop().replace(/\//g,'')
+    : instaVal;
+  await sb.from('users').update({
+    name:      v('f-name'),
+    job_title: v('f-role'),
+    email:     v('f-email'),
+    phone:     v('f-phone'),
+    whatsapp:  v('f-whatsapp'),
+    instagram: instaHandle,
+    facebook:  v('f-facebook'),
+    linkedin:  v('f-linkedin'),
+    tiktok:    v('f-tiktok'),
+  }).eq('id', currentProfile.id);
+}
+
+/* ── Templates ── */
+function buildGrid() {
+  el('template-grid').innerHTML = templates.map(t => `
+    <button class="tpl-btn" data-id="${t.id}">
+      <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+        <circle cx="6" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="13" y1="5" x2="21" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="13" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="13" y1="13" x2="19" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      ${t.label}
+    </button>`).join('');
+  el('template-grid').querySelectorAll('.tpl-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tpl = templates.find(t => t.id === btn.dataset.id);
+      if (tpl) setTpl(tpl);
+    });
+  });
+}
+
+function setTpl(tpl) {
+  currentTpl = tpl;
+  document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.tpl-btn[data-id="${tpl.id}"]`);
+  if (btn) btn.classList.add('active');
+  updatePreview();
+}
+
+/* ── Signature builders ── */
+const SVG_ICONS = {
+  facebook: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.271h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>',
+  instagram:'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><defs><radialGradient id="ig2" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#fdf497"/><stop offset="50%" stop-color="#fd5949"/><stop offset="68%" stop-color="#d6249f"/><stop offset="100%" stop-color="#285AEB"/></radialGradient></defs><rect width="24" height="24" rx="6" fill="url(#ig2)"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="17.5" cy="6.5" r="1.2" fill="#fff"/></svg>',
+  linkedin: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#0A66C2"/><path fill="#fff" d="M7.5 9.5h-2v8h2v-8zm-1-3a1.1 1.1 0 1 0 0 2.2A1.1 1.1 0 0 0 6.5 6.5zm4 3h-2v8h2v-4.3c0-1.2.9-2 2-2s1.5.7 1.5 2V17.5h2v-4.8c0-2.2-1.2-3.5-3-3.5-1.1 0-2 .6-2.5 1.4V9.5z"/></svg>',
+  tiktok:   '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#000"/><path fill="#fff" d="M17 8.4a4.2 4.2 0 0 1-2.6-.9v5.8a3.8 3.8 0 1 1-2.6-3.6v2.1a1.7 1.7 0 1 0 1.2 1.6V5h2a2.4 2.4 0 0 0 2 2.3V8.4z"/></svg>',
+  whatsapp: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#25D366"/><path fill="#fff" d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-1 1.1-.2.2-.4.2-.7.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.4.1-.6l.5-.6c.1-.2.2-.4.3-.6 0-.2 0-.4-.1-.6-.1-.1-.7-1.7-.9-2.3-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4C7.2 8.6 6.5 9.3 6.5 10.7s1 2.8 1.2 3c.1.1 2 3.1 4.9 4.3 2.9 1.2 2.9.8 3.4.7.5-.1 1.6-.6 1.8-1.3.2-.6.2-1.1.1-1.2-.1-.1-.3-.2-.4-.2z"/></svg>'
+};
+const ICON_URLS = {
+  facebook:'https://img.icons8.com/color/48/facebook-new.png',
+  instagram:'https://img.icons8.com/color/48/instagram-new.png',
+  linkedin:'https://img.icons8.com/color/48/linkedin.png',
+  tiktok:'https://img.icons8.com/color/48/tiktok.png',
+  whatsapp:'https://img.icons8.com/color/48/whatsapp.png'
+};
+
+function socialIcons(forHTML) {
+  const nets = [{id:'f-facebook',k:'facebook'},{id:'f-instagram',k:'instagram'},{id:'f-linkedin',k:'linkedin'},{id:'f-tiktok',k:'tiktok'}];
+  const wa = v('f-whatsapp'); let h = '';
+  for (const n of nets) {
+    const url = v(n.id);
+    if (url) h += forHTML
+      ? `<a href="${url}" style="display:inline-block;margin-right:4px;vertical-align:middle"><img src="${ICON_URLS[n.k]}" width="20" height="20" style="display:block" alt="${n.k}"></a>`
+      : `<a href="${url}" style="display:inline-block;margin-right:4px;vertical-align:middle">${SVG_ICONS[n.k]}</a>`;
+  }
+  if (wa) {
+    const wu = `https://wa.me/${wa.replace(/\D/g,'')}`;
+    h += forHTML
+      ? `<a href="${wu}" style="display:inline-block;margin-right:4px;vertical-align:middle"><img src="${ICON_URLS.whatsapp}" width="20" height="20" style="display:block" alt="WhatsApp"></a>`
+      : `<a href="${wu}" style="display:inline-block;margin-right:4px;vertical-align:middle">${SVG_ICONS.whatsapp}</a>`;
+  }
+  return h;
+}
+
+function buildSig(forHTML) {
+  if (!currentTpl || !currentTenant) return '';
+  const isH = currentTpl.template_id === 't3' || currentTpl.template_id === 't4';
+  return isH ? buildH(forHTML) : buildV(forHTML);
+}
+
+function buildV(forHTML) {
+  const name=v('f-name')||'Tu Nombre', role=v('f-role')||'Agente Inmobiliaria';
+  const email=v('f-email'), phone=v('f-phone'), wa=v('f-whatsapp');
+  const icons=socialIcons(forHTML), logo=currentTpl.logo_url||currentTenant.logo_url||'';
+  const web=currentTenant.website||'', webLabel=web.replace(/https?:\/\//,'');
+  const photo = photoDataUrl
+    ? `<img src="${photoDataUrl}" width="82" height="82" style="border-radius:50%;object-fit:cover;display:block;border:2px solid #000;outline:3px solid #d0d0d0;outline-offset:2px" alt="${name}">`
+    : `<div style="width:82px;height:82px;border-radius:50%;background:#f0f0f0;border:2px solid #000;outline:3px solid #d0d0d0;outline-offset:2px;display:table-cell;text-align:center;vertical-align:middle;font-size:28px;color:#bbb">?</div>`;
+  let rows='';
+  if(phone) rows+=`<tr><td style="padding-bottom:4px;font-family:Arial,sans-serif;font-size:12px;color:#444;white-space:nowrap">&#128222;&nbsp;${phone}</td></tr>`;
+  if(wa)    rows+=`<tr><td style="padding-bottom:4px;font-family:Arial,sans-serif;font-size:12px;white-space:nowrap"><a href="https://wa.me/${wa.replace(/\D/g,'')}" style="color:#25D366;text-decoration:none">&#128241;&nbsp;${wa}</a></td></tr>`;
+  if(email) rows+=`<tr><td style="padding-bottom:4px;font-family:Arial,sans-serif;font-size:12px;color:#444;white-space:nowrap">&#9993;&nbsp;<a href="mailto:${email}" style="color:#111;text-decoration:none">${email}</a></td></tr>`;
+  if(currentTpl.extra_website) rows+=`<tr><td style="padding-bottom:4px;font-family:Arial,sans-serif;font-size:12px;color:#444;white-space:nowrap">&#127760;&nbsp;<a href="${currentTpl.extra_website}" style="color:#111;text-decoration:none">${currentTpl.extra_website.replace(/https?:\/\//,'')}</a></td></tr>`;
+  if(web) rows+=`<tr><td style="padding-bottom:4px;font-family:Arial,sans-serif;font-size:12px;color:#444;white-space:nowrap">&#127760;&nbsp;<a href="${web}" style="color:#111;text-decoration:none">${webLabel}</a></td></tr>`;
+  return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif"><tr><td style="padding-right:16px;vertical-align:top;padding-top:2px">${photo}</td><td style="vertical-align:top"><img src="${logo}" height="38" style="display:block;margin-bottom:8px" alt="logo"><p style="margin:0 0 1px;font-size:16px;font-weight:700;color:#111;font-family:Arial,sans-serif">${name}</p><p style="margin:0 0 9px;font-size:12px;color:#777;font-style:italic;font-family:Arial,sans-serif">${role}</p><table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px">${rows}</table>${icons?`<div style="display:flex;align-items:center;gap:2px;margin-top:4px">${icons}</div>`:''}</td></tr></table>`;
+}
+
+function buildH(forHTML) {
+  const name=v('f-name')||'Tu Nombre', role=v('f-role')||'Agente Inmobiliaria';
+  const email=v('f-email'), phone=v('f-phone'), wa=v('f-whatsapp');
+  const icons=socialIcons(forHTML), logo=currentTpl.logo_url||currentTenant.logo_url||'';
+  const web=currentTenant.website||'', webLabel=web.replace(/https?:\/\//,'');
+  const photo = photoDataUrl
+    ? `<img src="${photoDataUrl}" width="68" height="68" style="border-radius:50%;object-fit:cover;display:block;border:1.5px solid #ddd" alt="${name}">`
+    : `<div style="width:68px;height:68px;border-radius:50%;background:#f5f5f5;border:1.5px solid #ddd;display:table-cell;text-align:center;vertical-align:middle;font-size:24px;color:#ccc">?</div>`;
+  let contact='';
+  if(phone)   contact+=`<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:11px;color:#555">&#128222;&nbsp;${phone}</p>`;
+  if(wa)      contact+=`<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:11px"><a href="https://wa.me/${wa.replace(/\D/g,'')}" style="color:#25D366;text-decoration:none">&#128241;&nbsp;${wa}</a></p>`;
+  if(email)   contact+=`<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:11px;color:#555">&#9993;&nbsp;<a href="mailto:${email}" style="color:#555;text-decoration:none">${email}</a></p>`;
+  if(currentTpl.extra_website) contact+=`<p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:11px;color:#555">&#127760;&nbsp;<a href="${currentTpl.extra_website}" style="color:#555;text-decoration:none">${currentTpl.extra_website.replace(/https?:\/\//,'')}</a></p>`;
+  if(web) contact+=`<p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#555">&#127760;&nbsp;<a href="${web}" style="color:#555;text-decoration:none">${webLabel}</a></p>`;
+  return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif"><tr><td style="vertical-align:middle;padding-right:14px">${photo}</td><td style="vertical-align:middle;padding-right:14px;border-right:1px solid #e0e0e0"><p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111;font-family:Arial,sans-serif">${name}</p><p style="margin:0 0 7px;font-size:11px;color:#999;font-family:Arial,sans-serif;letter-spacing:.4px;text-transform:uppercase">${role}</p>${icons?`<div style="display:flex;align-items:center;gap:3px">${icons}</div>`:''}</td><td style="vertical-align:middle;padding-left:14px;padding-right:14px;border-right:1px solid #e0e0e0">${contact}</td><td style="vertical-align:middle;padding-left:18px"><img src="${logo}" height="48" style="display:block" alt="logo"></td></tr></table>`;
+}
+
+function updatePreview() {
+  el('signature-preview').innerHTML = buildSig(false);
+  el('html-code').textContent = buildSig(true);
+}
+
+/* ── Saved signatures ── */
+function renderSaved(items) {
+  const c = el('saved-list');
+  if (!items.length) { c.innerHTML = '<p class="saved-empty">Todavia no hay firmas guardadas</p>'; return; }
+  c.innerHTML = items.map(s => `
+    <div class="saved-item">
+      <div class="saved-item-info">
+        <div class="saved-item-name">${esc(s.save_name)}</div>
+        <div class="saved-item-meta">${s.name||''} &middot; ${new Date(s.updated_at||s.created_at).toLocaleDateString('es-CR')}</div>
+      </div>
+      <div class="saved-item-actions">
+        <button class="icon-btn" data-load="${s.id}" title="Cargar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        </button>
+        <button class="icon-btn del" data-del="${s.id}" data-name="${esc(s.save_name)}" title="Eliminar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+  c.querySelectorAll('[data-load]').forEach(b => b.addEventListener('click', () => loadSig(b.dataset.load)));
+  c.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delSig(b.dataset.del, b.dataset.name)));
+}
+
+async function loadSigs() {
+  if (!currentProfile) return;
+  const { data } = await sb.from('signatures').select('*').eq('user_id', currentProfile.id).order('updated_at', { ascending: false });
+  renderSaved(data || []);
+}
+
+async function saveSig() {
+  if (!currentProfile) return;
+  const saveName = v('f-savename');
+  if (!saveName) { toast('Escrib\u00e9 un nombre para la firma'); return; }
+  const btn = el('btn-save'); btn.disabled=true; btn.textContent='Guardando...';
+  const record = {
+    tenant_id: currentTenant.id, user_id: currentProfile.id,
+    save_name: saveName, template: currentTpl?.id||'',
+    photo_url: photoDataUrl||null,
+    name:v('f-name'), role:v('f-role'), email:v('f-email'),
+    phone:v('f-phone'), whatsapp:v('f-whatsapp'), facebook:v('f-facebook'),
+    instagram:v('f-instagram'), linkedin:v('f-linkedin'), tiktok:v('f-tiktok'),
+    updated_at: new Date().toISOString()
+  };
+  try {
+    const { data: existing } = await sb.from('signatures').select('id').eq('user_id', currentProfile.id).eq('save_name', saveName).maybeSingle();
+    if (existing) { await sb.from('signatures').update(record).eq('id', existing.id); toast('Firma actualizada: '+saveName); }
+    else          { await sb.from('signatures').insert(record); toast('Firma guardada: '+saveName); }
+    el('f-savename').value = '';
+    await saveProfile();  /* sincronizar perfil compartido */
+    await loadSigs();
+  } catch(e) { toast('Error: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='Guardar'; }
+}
+
+async function loadSig(id) {
+  const { data: s } = await sb.from('signatures').select('*').eq('id', id).single();
+  if (!s) return;
+  const tpl = templates.find(t => t.id === s.template);
+  if (tpl) setTpl(tpl);
+  /* Campos de texto */
+  ['name','role','email','phone','whatsapp','facebook','instagram','linkedin','tiktok'].forEach(k => setV('f-'+k, s[k]));
+  setV('f-savename', s.save_name);
+  /* Foto */
+  photoDataUrl = s.photo_url || null;
+  const prev = el('photo-preview');
+  if (photoDataUrl) {
+    const _img3 = document.createElement('img');
+    _img3.src = photoDataUrl; _img3.alt = ''; _img3.style.cssText = 'width:100%;height:100%;object-fit:cover';
+    prev.replaceChildren(_img3);
+    el('upload-title').textContent='Foto cargada';
+    el('upload-status').textContent='Click para cambiar';
+    el('upload-area').style.borderColor='#22c55e';
+  } else {
+    prev.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
+    el('upload-title').textContent='Subir foto';
+    el('upload-status').textContent='JPG o PNG \u00b7 200x200px ideal';
+    el('upload-area').style.borderColor='';
+  }
+  updatePreview();
+  toast('Firma cargada: '+s.save_name);
+}
+
+async function delSig(id, name) {
+  await sb.from('signatures').delete().eq('id', id);
+  toast('Firma eliminada: '+name); await loadSigs();
+}
+
+/* ── Upload photo ── */
+function uploadPhoto(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { el('photo-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover" alt="">`; };
+  reader.readAsDataURL(file);
+  const tEl=el('upload-title'), sEl=el('upload-status'), aEl=el('upload-area');
+  tEl.textContent='Subiendo...'; sEl.textContent='Por favor espera'; aEl.style.borderColor='#f0a500'; aEl.style.pointerEvents='none';
+  const slug=(v('f-name')||'agente').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const fd=new FormData();
+  fd.append('file',file); fd.append('upload_preset',PRESET); fd.append('public_id',`agentes/${slug}-${Date.now()}`);
+  fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`,{method:'POST',body:fd})
+    .then(r=>r.json()).then(async d=>{
+      if(d.secure_url){
+        photoDataUrl=d.secure_url;
+        tEl.textContent='Foto subida';sEl.textContent='Click para cambiar';aEl.style.borderColor='#22c55e';
+        updatePreview();
+        /* Guardar foto en perfil compartido */
+        if(currentProfile) await sb.from('users').update({photo_url:d.secure_url}).eq('id',currentProfile.id);
+      } else throw new Error(d.error?.message||'Error');
+    }).catch(e=>{tEl.textContent='Error';sEl.textContent=e.message;aEl.style.borderColor='#ef4444';})
+    .finally(()=>{aEl.style.pointerEvents='auto';});
+}
+
+/* ── Export PNG ── */
+async function exportPNG() {
+  const btn=el('btn-save-png'); if(btn){btn.textContent='Generando...';btn.disabled=true;}
+  try {
+    if(!window.html2canvas) await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    const wrapper=document.createElement('div');
+    wrapper.style.cssText='position:fixed;left:-9999px;top:0;background:#fff;padding:20px;font-family:Arial,sans-serif';
+    wrapper.innerHTML=buildSig(false); document.body.appendChild(wrapper);
+    await Promise.all(Array.from(wrapper.querySelectorAll('img')).map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=r;img.onerror=r;})));
+    const canvas=await window.html2canvas(wrapper,{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',logging:false});
+    document.body.removeChild(wrapper);
+    const slug=(v('f-name')||'firma').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=`firma-${slug}.png`; a.click();
+    toast('PNG descargado');
+  } catch(e){toast('Error: '+e.message);}
+  finally{if(btn){btn.textContent='Guardar PNG';btn.disabled=false;}}
+}
+
+/* ── Guide ── */
+const GUIDE = {
+  'gmail-web':[{t:'Abre <strong>Gmail</strong> y haz clic en el engranaje (&#9881;) arriba a la derecha.'},{t:'Selecciona <strong>Ver todos los ajustes</strong>.'},{t:'En <strong>General</strong>, baja hasta <strong>Firma</strong>.'},{t:'Clic en <strong>Crear nueva firma</strong>.'},{t:'Clic en el boton <strong>&lt;&gt;</strong> y pega el HTML copiado.'},{t:'Clic en <strong>Guardar cambios</strong>.'}],
+  'gmail-android':[{t:'Abre <strong>Gmail</strong> en tu Android.'},{t:'Toca el menu (&#9776;) → <strong>Configuracion</strong>.'},{t:'Selecciona la cuenta → <strong>Firma movil</strong>.'},{tip:'Gmail Android no renderiza HTML. Configurala desde Gmail Web en tu computadora.'}],
+  'gmail-iphone':[{t:'Abre <strong>Gmail</strong> en tu iPhone.'},{t:'Toca tu foto → <strong>Configuracion de Gmail</strong>.'},{t:'Selecciona tu cuenta → <strong>Firma</strong> → activa el interruptor.'},{tip:'Gmail iPhone no renderiza HTML. Configurala desde Gmail Web en tu computadora.'}],
+  'outlook-web':[{t:'Abre <strong>Outlook.com</strong>.'},{t:'Engranaje (&#9881;) → <strong>Ver toda la configuracion</strong>.'},{t:'<strong>Correo &rarr; Redactar y responder</strong>.'},{t:'Clic en <strong>HTML</strong> en el editor de firma y pega el codigo.'},{t:'Clic en <strong>Guardar</strong>.'}],
+  'outlook-win':[{t:'Abre <strong>Outlook</strong> en tu PC.'},{t:'<strong>Archivo &rarr; Opciones &rarr; Correo &rarr; Firmas</strong>.'},{t:'Clic en <strong>Nueva</strong>, ponle un nombre.'},{t:'Clic derecho en el editor → <strong>Ver codigo fuente</strong> y pega el HTML.'},{tip:'Truco: abre el .html en Chrome, selecciona todo (Ctrl+A), copia y pega en Outlook.'}],
+  'outlook-mac':[{t:'Abre <strong>Outlook</strong> en tu Mac.'},{t:'<strong>Outlook &rarr; Preferencias &rarr; Firmas &rarr; +</strong>.'},{t:'<strong>Editar &rarr; Pegado especial &rarr; HTML</strong> y pega.'},{tip:'Si no funciona: abre el HTML en Safari, selecciona todo (Cmd+A), pega en el editor.'}],
+  'apple-iphone':[{t:'Usa el boton <strong>Guardar PNG</strong> del toolbar.'},{t:'Guarda la imagen en tu galeria de fotos del iPhone.'},{t:'Fotos → selecciona la imagen → Compartir → <strong>Copiar foto</strong>.'},{t:'<strong>Ajustes &rarr; Aplicaciones &rarr; Mail &rarr; Firma</strong>.'},{t:'Selecciona <strong>Por cuenta</strong>, borra el texto y pega la imagen.'},{tip:'La imagen aparecera como tu firma en Apple Mail iPhone.'}],
+  'apple-mac':[{t:'Abre <strong>Mail</strong> en tu Mac.'},{t:'<strong>Mail &rarr; Configuracion &rarr; Firmas &rarr; +</strong>.'},{t:'Abre el HTML en <strong>Safari</strong>, selecciona todo (Cmd+A) y copia.'},{t:'Pega (Cmd+V) en el editor de firma de Mail.'},{tip:'Asegurate de tener internet para que Mail cargue las imagenes.'}]
+};
+
+function showTab(tabId) {
+  document.querySelectorAll('.gtab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+  const steps = GUIDE[tabId]||[]; let n=1, html='';
+  for(const s of steps){
+    if(s.tip) html+=`<div class="gtip">&#128161;&nbsp;<strong>Consejo:</strong> ${s.tip}</div>`;
+    else { html+=`<div class="gstep"><div class="gnum">${n}</div><div class="gtext">${s.t}</div></div>`;n++; }
+  }
+  el('guide-content').innerHTML = html;
+}
+
+/* ══════════════════════════════
+   EVENT LISTENERS — todos aquí
+══════════════════════════════ */
+// Login
+el('btn-login').addEventListener('click', doLogin);
+el('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// Logout
+// logout manejado por components.js → window.__ptLogout
+
+// Campos — actualizar preview en tiempo real
+['f-name','f-role','f-email','f-phone','f-whatsapp','f-facebook','f-instagram','f-linkedin','f-tiktok']
+  .forEach(id => { const inp = el(id); if(inp) inp.addEventListener('input', updatePreview); });
+
+// Foto
+el('photo-upload').addEventListener('change', e => uploadPhoto(e.target.files[0]));
+
+// Guardar firma
+el('btn-save').addEventListener('click', saveSig);
+
+// Toolbar
+el('btn-copy-html').addEventListener('click', () => {
+  navigator.clipboard.writeText(el('html-code').textContent).then(() => toast('HTML copiado'));
+});
+el('btn-copy-html2').addEventListener('click', () => {
+  navigator.clipboard.writeText(el('html-code').textContent).then(() => toast('HTML copiado'));
+});
+el('btn-download-html').addEventListener('click', () => {
+  const slug=(v('f-name')||'firma').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const blob=new Blob([buildSig(true)],{type:'text/html'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`firma-${slug}.html`; a.click(); URL.revokeObjectURL(url);
+  toast('Archivo descargado');
+});
+el('btn-save-png').addEventListener('click', exportPNG);
+
+// Guide
+el('btn-guide').addEventListener('click', () => {
+  el('guide-overlay').style.display='block'; document.body.style.overflow='hidden'; showTab('gmail-web');
+});
+el('btn-close-guide').addEventListener('click', () => {
+  el('guide-overlay').style.display='none'; document.body.style.overflow='';
+});
+el('guide-overlay').addEventListener('click', e => {
+  if(e.target === el('guide-overlay')) { el('guide-overlay').style.display='none'; document.body.style.overflow=''; }
+});
+el('guide-tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.gtab'); if(btn) showTab(btn.dataset.tab);
+});
+
+/* ── Init ── */
+{
+  const result = await initComponents({ active: 'firmas' });
+  if (result) {
+    currentUser = (await sb.auth.getSession()).data.session.user;
+    await loadContext();
+    document.getElementById('splash').classList.add('hidden');
+  }
+}
+</script>
+  <footer id="pt-footer"></footer>
+</body>
+</html>

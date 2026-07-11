@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { getMembership } from '@/lib/membership'
 import { getCantons, getDistricts } from '@/data/cr-divisions'
 import type mapboxgl from 'mapbox-gl'
 import ContactVCardModal, { type VCardViewType } from '../ContactVCardModal'
@@ -111,10 +112,9 @@ export default function PropiedadPage() {
 
   useEffect(() => {
     const sb = createClient()
-    sb.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: adminRec } = await sb.from('tenant_admins').select('tenant_id').eq('user_id', user.id).single()
-      if (!adminRec) return
+    getMembership().then(async m => {
+      if (!m) return
+      const adminRec = { tenant_id: m.tenantId }
       const [{ data: p }, { data: types }, { data: agentList }] = await Promise.all([
         sb.from('properties').select('*').eq('id', id).eq('tenant_id', adminRec.tenant_id).single(),
         sb.from('property_types').select('id,label,value,icon').eq('tenant_id', adminRec.tenant_id).order('sort_order'),

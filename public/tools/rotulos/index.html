@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rótulos — PropTools</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23FF3A5C'/%3E%3Cstop offset='50%25' stop-color='%23C044E8'/%3E%3Cstop offset='100%25' stop-color='%235B4FE8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='8' height='32' rx='3' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:    #1B6EF3;
+  --blue-dk: #0A4FC4;
+  --ink:     #0D0F12;
+  --ink-mid: #5A6070;
+  --surface: #ffffff;
+  --surface2:#F4F5F7;
+  --border:  #E2E5EA;
+  --success: #0FA870;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+  --radius:  10px;
+  --text: var(--ink);
+  --muted: var(--ink-mid);
+  --bg: var(--surface2);
+}
+body { font-family:'DM Sans',-apple-system,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; font-size:14px; }
+
+/* Splash */
+#splash { position:fixed;inset:0;background:var(--surface);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s; }
+#splash.hidden { opacity:0;pointer-events:none; }
+.splash-spinner { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+/* Login */
+.login-screen { min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px; }
+.login-box { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.06); }
+.login-logo { display:flex;align-items:center;gap:8px;margin-bottom:28px;font-size:16px;font-weight:400;color:var(--ink);letter-spacing:-0.2px; }
+.login-logo strong { font-weight:700; }
+.login-box h2 { font-size:22px;font-weight:700;margin-bottom:6px; }
+.login-box p { font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.5; }
+.form-field { margin-bottom:14px; }
+.form-field label { font-size:11px;font-weight:500;color:var(--ink-mid);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.8px;font-family:'DM Mono',monospace; }
+.form-field input { width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--ink);font-family:inherit;font-size:14px;outline:none;transition:border-color .15s; }
+.form-field input:focus { border-color:var(--blue);box-shadow:0 0 0 3px rgba(27,110,243,.1); }
+.btn-login { width:100%;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;transition:background .15s; }
+.btn-login:hover { background:var(--blue-dk); }
+.btn-login:disabled { background:#aaa;cursor:not-allowed; }
+.login-error { font-size:12px;color:var(--error);margin-top:10px;text-align:center;display:none; }
+.login-footer { margin-top:20px;text-align:center;font-size:12px;color:var(--ink-mid); }
+
+/* App shell */
+.app-screen { display:none;min-height:100vh;grid-template-columns:360px 1fr;grid-template-rows:88px calc(100vh - 88px - 48px);grid-template-areas:"header header" "aside main"; }
+.app-screen.visible { display:grid; }
+
+/* Header */
+header {
+  grid-column:1/-1;height:88px;padding:0 28px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:16px;
+  background:var(--surface);
+}
+.header-brand { display:flex;align-items:center;gap:10px; }
+.pt-wordmark { font-family:'DM Sans',sans-serif;font-size:17px;font-weight:400;color:var(--ink);letter-spacing:-0.3px;white-space:nowrap;display:flex;align-items:center; }
+.pt-wordmark .pt-bold { font-weight:700; }
+.pt-sep { color:var(--border);font-weight:300;margin:0 8px;font-size:20px;line-height:1; }
+.pt-app { font-size:17px;font-weight:500;color:var(--ink-mid); }
+.header-right { margin-left:auto;display:flex;align-items:center;gap:6px; }
+.db-status { font-size:11px;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface2);font-family:'DM Mono',monospace; }
+.db-dot { width:7px;height:7px;border-radius:50%;background:var(--warn); }
+.db-dot.ok { background:var(--success); }
+.nav-divider { width:1px;height:22px;background:var(--border);margin:0 4px; }
+.nav-item { font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:6px 11px;border-radius:7px;border:1px solid transparent;background:transparent;color:var(--ink-mid);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;text-decoration:none; }
+.nav-item:hover { background:var(--surface2);color:var(--ink);border-color:var(--border); }
+.nav-item.active { background:var(--surface2);color:var(--ink);border-color:var(--border);font-weight:600; }
+.btn-logout { font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:6px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--ink-mid);cursor:pointer;transition:all .15s; }
+.btn-logout:hover { border-color:var(--error);color:var(--error);background:#fff5f5; }
+.header-tenant-badge { display:none;align-items:center; }
+.header-tenant-badge img { height:50px;max-width:160px;object-fit:contain; }
+
+/* Aside */
+aside { background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:20px; }
+.section-label { font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-mid);margin-bottom:8px;font-family:'DM Mono',monospace; }
+
+/* Seg control */
+.seg-group { display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden; }
+.seg-btn { flex:1;padding:8px 6px;border:none;background:var(--surface2);font-family:inherit;font-size:12px;font-weight:500;color:var(--ink-mid);cursor:pointer;transition:all .15s;line-height:1.4;border-right:1px solid var(--border); }
+.seg-btn:last-child { border-right:none; }
+.seg-btn:hover { background:var(--surface);color:var(--ink); }
+.seg-btn.active { background:var(--surface);color:var(--blue);font-weight:700; }
+
+/* Template grid */
+.template-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.tpl-btn { background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:8px;cursor:pointer;transition:all .15s;font-family:inherit; }
+.tpl-btn img { width:100%;border-radius:6px;display:block; }
+.tpl-btn-label { font-size:10px;font-weight:600;color:var(--ink-mid);text-align:center;margin-top:6px; }
+.tpl-btn:hover { border-color:var(--blue); }
+.tpl-btn.active { border-color:var(--blue); }
+.tpl-btn.active .tpl-btn-label { color:var(--blue);font-weight:700; }
+
+/* Font status */
+.font-status { font-size:11px;color:var(--muted);padding:4px 0;display:flex;align-items:center;gap:6px; }
+.font-dot { width:7px;height:7px;border-radius:50%;background:#f0a500;flex-shrink:0; }
+.font-dot.ok { background:#22c55e; }
+
+/* Preset buttons */
+.preset-row { display:flex;gap:6px;margin-bottom:8px; }
+.preset-btn { flex:1;padding:7px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:11px;font-weight:600;color:var(--ink-mid);cursor:pointer;transition:all .15s; }
+.preset-btn:hover { border-color:#c0392b;color:#c0392b; }
+.preset-btn.active { background:#b01c24;border-color:#b01c24;color:white; }
+
+/* Form fields in sidebar */
+.field-group { display:flex;flex-direction:column;gap:8px; }
+.field-sm label { font-size:11px;font-weight:500;color:var(--ink-mid);display:block;margin-bottom:3px;font-family:'DM Mono',monospace;letter-spacing:0.3px; }
+.field-sm input, .field-sm textarea {
+  width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+  padding:8px 10px;color:var(--ink);font-family:inherit;font-size:13px;outline:none;transition:all .15s;
+}
+.field-sm input:focus, .field-sm textarea:focus { border-color:var(--blue);box-shadow:0 0 0 3px rgba(27,110,243,.1); }
+.field-sm textarea { resize:vertical;min-height:52px; }
+
+/* Save bar */
+.save-bar { display:flex;gap:7px;align-items:center; }
+.save-bar input { flex:1;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:inherit;color:var(--ink);outline:none; }
+.save-bar input:focus { border-color:var(--blue); }
+.btn-save { font-family:inherit;font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;border:none;cursor:pointer;background:#000;color:#fff;white-space:nowrap;flex-shrink:0; }
+.btn-save:hover { background:#333; }
+.btn-save:disabled { background:#aaa;cursor:not-allowed; }
+
+/* Saved list */
+.saved-list { display:flex;flex-direction:column;gap:6px; }
+.saved-item { background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:8px; }
+.saved-item-info { flex:1;min-width:0; }
+.saved-item-name { font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.saved-item-meta { font-size:11px;color:var(--muted);margin-top:1px; }
+.saved-item-actions { display:flex;gap:5px;flex-shrink:0; }
+.icon-btn { width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s; }
+.icon-btn:hover { border-color:#999;background:#f0f0f0; }
+.icon-btn.del:hover { border-color:#ef4444;background:#fff5f5; }
+.saved-empty { font-size:12px;color:var(--muted);text-align:center;padding:16px 0;font-style:italic; }
+
+/* Main area */
+main { background:var(--bg);overflow-y:auto;display:flex;flex-direction:column; }
+.preview-toolbar { padding:18px 28px 0;display:flex;align-items:center;justify-content:space-between; }
+.preview-toolbar h2 { font-size:16px;font-weight:700; }
+.toolbar-btns { display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end; }
+.btn { font-family:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:7px;border:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px; }
+.btn-ghost { background:var(--surface2);color:var(--text);border:1px solid var(--border); }
+.btn-ghost:hover { border-color:#888; }
+.btn:disabled { opacity:.5;cursor:not-allowed; }
+.preview-area { padding:20px 28px 28px;display:flex;justify-content:center;align-items:flex-start; }
+.canvas-wrapper { display:flex;flex-direction:column;align-items:center;gap:8px; }
+.canvas-label { font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted); }
+.canvas-wrap { border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.15); }
+canvas { display:block; }
+
+/* Toast */
+.toast { position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#000;color:#fff;padding:10px 22px;border-radius:100px;font-weight:700;font-size:13px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:1100; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+
+    /* ── LOGO PROPTOOLS v2 ── */
+    :root {
+      --grad-start: #FF3A5C;
+      --grad-mid:   #C044E8;
+      --grad-end:   #5B4FE8;
+    }
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .logo-bar {
+      width: 6px;
+      height: 32px;
+      border-radius: 3px;
+      background: linear-gradient(to bottom, var(--grad-start), var(--grad-mid), var(--grad-end));
+      flex-shrink: 0;
+    }
+    .logo-wordmark {
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+    .logo-prop  { font-weight: 300; color: var(--ink, #0E0E1A); }
+    .logo-tools { font-weight: 900; letter-spacing: -1px; color: var(--ink, #0E0E1A); }
+
+    /* login screen — bigger version */
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .login-logo .logo-bar  { width: 6px; height: 36px; }
+    .login-logo .logo-wordmark { font-size: 26px; }
+  </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash"><div class="splash-spinner"></div></div>
+
+<!-- LOGIN -->
+<div class="login-screen" id="login-screen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-bar"></div>
+      <div class="logo-wordmark"><span class="logo-prop">Prop</span><span class="logo-tools">TOOLS</span></div>
+    </div>
+      <div class="logo-wordmark"><span class="logo-prop">Prop</span><span class="logo-tools">TOOLS</span></div>
+    </div>
+    <h2>Iniciar sesi&oacute;n</h2>
+    <p>Ingres&aacute; con tu cuenta para acceder al generador de r&oacute;tulos.</p>
+    <div class="form-field"><label>Correo</label><input type="email" id="login-email" placeholder="tu@correo.com"></div>
+    <div class="form-field"><label>Contrase&ntilde;a</label><input type="password" id="login-password" placeholder="••••••••"></div>
+    <button class="btn-login" id="btn-login">Ingresar</button>
+    <div class="login-error" id="login-error"></div>
+    
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app-screen" id="app-screen">
+
+  <header id="pt-header"></header>
+
+  <aside style="grid-area: aside;">
+
+    <!-- FORMATO -->
+    <div>
+      <p class="section-label">Formato</p>
+      <div class="seg-group" id="ori-group">
+        <button class="seg-btn active" data-ori="vertical">Vertical<br><small style="font-weight:400;opacity:.7">24 × 30"</small></button>
+        <button class="seg-btn" data-ori="horizontal">Horizontal<br><small style="font-weight:400;opacity:.7">30 × 18"</small></button>
+      </div>
+    </div>
+
+    <!-- TEMPLATE -->
+    <div>
+      <p class="section-label">Template</p>
+      <div class="template-grid" id="template-grid"></div>
+      <div class="font-status"><div class="font-dot" id="font-dot"></div><span id="font-status-text">Cargando fuentes…</span></div>
+    </div>
+
+    <!-- TEXTO ROJO -->
+    <div>
+      <p class="section-label">Texto banda roja</p>
+      <div class="preset-row">
+        <button class="preset-btn active" id="p-vende">SE VENDE</button>
+        <button class="preset-btn" id="p-alquila">SE ALQUILA</button>
+      </div>
+      <div class="field-sm">
+        <label>Personalizado</label>
+        <textarea id="custom-text" placeholder="Ej: SE TRASPASA"></textarea>
+      </div>
+    </div>
+
+    <!-- INFORMACIÓN DEL AGENTE (editable) -->
+    <div>
+      <p class="section-label">Informaci&oacute;n del agente</p>
+      <div class="field-group">
+        <div class="field-sm"><label>Nombre completo</label><input type="text" id="f-name" placeholder="Ana García"></div>
+        <div class="field-sm"><label>WhatsApp / Tel&eacute;fono</label><input type="tel" id="f-whatsapp" placeholder="+506 8888 0000"></div>
+        <div class="field-sm"><label>Correo electr&oacute;nico</label><input type="email" id="f-email" placeholder="ana@remaxcentralcr.com"></div>
+      </div>
+    </div>
+
+    <!-- GUARDAR -->
+    <div>
+      <p class="section-label">Guardar r&oacute;tulo</p>
+      <div class="save-bar">
+        <input type="text" id="f-savename" placeholder="Nombre del rótulo">
+        <button class="btn-save" id="btn-save-rotulo">Guardar</button>
+      </div>
+    </div>
+
+    <!-- GUARDADOS -->
+    <div>
+      <p class="section-label">R&oacute;tulos guardados</p>
+      <div class="saved-list" id="saved-list"><p class="saved-empty">Cargando…</p></div>
+    </div>
+
+  </aside>
+
+  <main>
+    <div class="preview-toolbar">
+      <h2>Vista previa</h2>
+      <div class="toolbar-btns">
+        <button class="btn btn-ghost" id="btn-pdf">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar PDF
+        </button>
+        <button class="btn btn-ghost" id="btn-png">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Descargar PNG
+        </button>
+      </div>
+    </div>
+    <div class="preview-area">
+      <div class="canvas-wrapper">
+        <div class="canvas-label" id="canvas-label">Vertical 24 × 30"</div>
+        <div class="canvas-wrap"><canvas id="preview-canvas"></canvas></div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="qr-tmp" style="position:fixed;left:-9999px;top:-9999px;pointer-events:none;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const sb = createClient(
+  'https://neuzltjlezogxmhbceco.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ldXpsdGpsZXpvZ3htaGJjZWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NTMxOTksImV4cCI6MjA5NTMyOTE5OX0.p4NZzk_O2aU-KOYQPdSIkiD9TSoNgaDrC1yBKXcgfWg'
+);
+window.sb = sb; // exponer para components.js
+
+// Cargar components.js después de que sb esté disponible
+await new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = '../components.js';
+  s.onload = resolve;
+  s.onerror = reject;
+  document.head.appendChild(s);
+});
+
+/* ═══════════════════════════════════════════════════════
+   CONSTANTES DE LAYOUT (coordenadas en full-res 300 dpi)
+   1 pt = 300/72 = 4.1667 px
+═══════════════════════════════════════════════════════ */
+
+/* Tamaños del canvas full-res */
+const V_W = 7200, V_H = 9000;   /* Vertical 24"×30" */
+const H_W = 9000, H_H = 5400;   /* Horizontal 30"×18" */
+
+/* Margen: 1.6" × 300 = 480 px */
+const MARGIN = 480;
+
+/* ── VERTICAL ─────────────────────────────────────────
+   Espacio banda roja: 7200×1980 px
+   Margen 480 px en los 4 lados dentro de la banda.
+   Zona texto útil: x 480-6720 (w=6240), y 480-1500 (h=1020)
+   Zona blanca: y=1980 → y=7020
+   Banda azul:  y=7020 → y=9000
+─────────────────────────────────────────────────────── */
+const V = {
+  redStart: 0,    redEnd: 1980,
+  whiteEnd: 7020,
+  blueStart: 7020, blueEnd: 9000,
+
+  /* Zona útil texto rojo (márgenes 480 en los 4 lados) */
+  redTxtX1: MARGIN,          redTxtX2: V_W - MARGIN,    /* ancho útil = 6240 */
+  redTxtY1: MARGIN,          redTxtY2: 1980 - MARGIN,   /* alto útil  = 1020 */
+
+  /* Agente: empieza en y=4735, centrado en ancho completo */
+  agentStartY:  4718,
+  agentLeft:    MARGIN,
+  agentRight:   V_W - MARGIN,   /* ancho = 6240 px */
+
+  /* Fuentes: 145pt=604px, 50pt=208px */
+  nameFSmax:   604,
+  emailFSmax:  208,
+
+  /* QR: 1395×1395, posición exacta */
+  qrSize: 1395,
+  qrX:    640,
+  qrY:    7112,
+};
+
+/* ── HORIZONTAL ───────────────────────────────────────
+   Espacio banda roja: 5730×1485 px (desde x=3270, y=0)
+   Margen 480 px en los 4 lados dentro de esa zona.
+   Zona texto útil: x 3750-8520 (w=4770), y 480-1005 (h=525)
+   Centro X zona = 3270 + 5730/2 = 6135
+   Zona blanca: y=1485 → y=4050
+   Banda azul:  y=4050 → y=5400
+─────────────────────────────────────────────────────── */
+const H = {
+  redStart: 0,   redEnd: 1485,
+  whiteEnd: 4050,
+  blueStart: 4050, blueEnd: 5400,
+
+  /* Zona de texto rojo (derecha del globo, 5730px de ancho) */
+  textZoneX:   3270,
+  textZoneW:   5730,
+  textZoneCX:  3270 + 5730 / 2,   /* = 6135 */
+
+  /* Zona útil texto rojo (márgenes 480 en los 4 lados dentro de la zona de texto)
+     X: desde textZoneX+MARGIN hasta H_W-MARGIN = 3270+480=3750 → 9000-480=8520, ancho=4770
+     Y: desde MARGIN hasta redEnd-MARGIN = 480 → 1005, alto=525
+     Centro X de esa zona = (3750+8520)/2 = 6135 */
+  redTxtX1: 3270 + MARGIN,          redTxtX2: H_W - MARGIN,    /* 3750→8520, ancho=4770 */
+  redTxtY1: 239,                     redTxtY2: 1485 - 239,      /* 239→1246, alto=1007  */
+
+  /* Agente: y diferente por template */
+  agentStartY_remax:   1715,
+  agentStartY_sunrise: 1700,
+
+  /* Fuentes — remax tiene nombre en 2 líneas, necesita fs menor */
+  nameFSmax:        604,   /* base (usado por sunrise 1 línea) */
+  nameFSmax_remax:  510,   /* REMAX horizontal: 2 líneas */
+  emailFSmax:       208,
+
+  /* QR: posición exacta */
+  qrSize: 1260,
+  qrX:    1144,
+  qrY:    3886,
+};
+
+/* Templates */
+const TEMPLATES = [
+  {
+    id:'remax-central', label:'REMAX Central',
+    v_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988162/vertical-remax_no6qeh.png',
+    h_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988162/horizontal-remax_e5rnn6.png',
+    is_sunrise: false,
+    h_name_lines: 2,  /* nombre en 2 líneas horizontal */
+  },
+  {
+    id:'team-sunrise', label:'Team Sunrise',
+    v_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988163/vertical-sunrise_i6ssjf.png',
+    h_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988163/horizontal-sunrise_s62rqt.png',
+    is_sunrise: true,
+    h_name_lines: 1,  /* nombre en 1 línea horizontal */
+  },
+];
+
+/* Fuentes */
+const F_NARROW_BOLD = 'https://res.cloudinary.com/dlgrhr6lh/raw/upload/v1774650941/Gotham_Narrow_Bold_arzjpl.otf';
+const F_LIGHT       = 'https://res.cloudinary.com/dlgrhr6lh/raw/upload/v1774650942/Gotham-Light_fqu7wc.otf';
+
+const COLECCION = 'rotulos';
+
+/* ═══════════════════════════════════════════════════
+   ESTADO
+═══════════════════════════════════════════════════ */
+let currentUser    = null;
+let currentProfile = null;
+let currentTenant  = null;
+let currentOri     = 'vertical';
+let currentTpl     = TEMPLATES[0];
+let mainText       = 'SE VENDE';
+let fontsReady     = false;
+const imgCache     = {};
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+const el   = id => document.getElementById(id);
+const v    = id => { const e=el(id); return e?e.value.trim():''; };
+const setV = (id,val) => { const e=el(id); if(e) e.value=val||''; };
+const esc  = s  => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toast(msg){
+  const t=el('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function loadImg(url){
+  if(imgCache[url]) return Promise.resolve(imgCache[url]);
+  return new Promise((res,rej)=>{
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>{ imgCache[url]=img; res(img); };
+    img.onerror=()=>rej(new Error('No se pudo cargar: '+url));
+    img.src=url;
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   FUENTES
+═══════════════════════════════════════════════════ */
+async function loadFonts(){
+  try{
+    el('font-dot').className='font-dot';
+    el('font-status-text').textContent='Cargando fuentes…';
+    const [b,l]=await Promise.all([
+      new FontFace('GothamNarrowBold',`url(${F_NARROW_BOLD})`,{weight:'700'}).load(),
+      new FontFace('GothamLight',     `url(${F_LIGHT})`,      {weight:'300'}).load(),
+    ]);
+    document.fonts.add(b); document.fonts.add(l);
+    fontsReady=true;
+    el('font-dot').className='font-dot ok';
+    el('font-status-text').textContent='Fuentes Gotham listas';
+    renderPreview();
+  }catch(e){
+    console.warn('[fonts]',e);
+    el('font-status-text').textContent='Usando fuente alternativa';
+    renderPreview();
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   AUTH / CONTEXTO
+═══════════════════════════════════════════════════ */
+async function doLogin(){
+  const email=v('login-email'), pass=el('login-password').value;
+  const errEl=el('login-error'), btn=el('btn-login');
+  errEl.style.display='none';
+  if(!email||!pass){ errEl.textContent='Completa todos los campos.'; errEl.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Ingresando…';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){ errEl.textContent='Correo o contraseña incorrectos.'; errEl.style.display='block'; btn.disabled=false; btn.textContent='Ingresar'; return; }
+  currentUser=data.session.user;
+  await loadContext();
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  window.location.href='../perfil/';
+}
+
+async function loadContext(){
+  try{
+    const {data:p, error:pErr}=await sb
+      .from('users')
+      .select('*,tenants(*)')
+      .eq('auth_id', currentUser.id)
+      .single();
+    if(pErr||!p) throw new Error('Usuario no encontrado.');
+    currentProfile=p; currentTenant=p.tenants;
+
+    /* Pre-llenar campos desde perfil */
+    if(p.name)     setV('f-name',    p.name);
+    if(p.whatsapp) setV('f-whatsapp',p.whatsapp);
+    if(p.email)    setV('f-email',   p.email);
+
+    if(el('login-screen')) el('login-screen').style.display='none';
+    el('app-screen').classList.add('visible');
+    if(el('btn-login')){ el('btn-login').disabled=false; el('btn-login').textContent='Ingresar'; }
+    if(el('db-dot')) el('db-dot').className='db-dot ok';
+    if(el('db-status-text')) el('db-status-text').textContent='Conectado';
+
+    buildTemplateGrid();
+    await loadSaved();
+    await loadFonts();
+    renderPreview();
+  }catch(e){
+    console.error('[loadContext]', e);
+    if(el('login-error')){ el('login-error').textContent=e.message; el('login-error').style.display='block'; }
+    if(el('btn-login')){ el('btn-login').disabled=false; el('btn-login').textContent='Ingresar'; }
+    // Solo cerrar sesión si el error es de auth, no de DOM
+    if(e.message && (e.message.includes('no encontrado') || e.message.includes('auth'))) {
+      await sb.auth.signOut();
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   TEMPLATE GRID
+═══════════════════════════════════════════════════ */
+function buildTemplateGrid(){
+  const grid=el('template-grid');
+  grid.innerHTML=TEMPLATES.map(t=>`
+    <button class="tpl-btn${t.id===currentTpl.id?' active':''}" data-id="${t.id}">
+      <img src="${currentOri==='vertical'?t.v_url:t.h_url}" crossorigin="anonymous" alt="${t.label}">
+      <div class="tpl-btn-label">${t.label}</div>
+    </button>`).join('');
+  grid.querySelectorAll('.tpl-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t=TEMPLATES.find(x=>x.id===btn.dataset.id);
+      if(t){ currentTpl=t; grid.querySelectorAll('.tpl-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderPreview(); }
+    });
+  });
+}
+function refreshGridThumbs(){
+  el('template-grid').querySelectorAll('.tpl-btn').forEach(btn=>{
+    const t=TEMPLATES.find(x=>x.id===btn.dataset.id);
+    if(t) btn.querySelector('img').src=currentOri==='vertical'?t.v_url:t.h_url;
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTROLES UI
+═══════════════════════════════════════════════════ */
+el('ori-group').querySelectorAll('.seg-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    currentOri=btn.dataset.ori;
+    el('ori-group').querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    el('canvas-label').textContent=currentOri==='vertical'?'Vertical 24×30"':'Horizontal 30×18"';
+    refreshGridThumbs();
+    renderPreview();
+  });
+});
+
+el('p-vende').addEventListener('click',()=>{ mainText='SE VENDE'; el('custom-text').value=''; syncPresets(); renderPreview(); });
+el('p-alquila').addEventListener('click',()=>{ mainText='SE ALQUILA'; el('custom-text').value=''; syncPresets(); renderPreview(); });
+el('custom-text').addEventListener('input',()=>{
+  const txt=el('custom-text').value.trim();
+  if(txt){ mainText=txt.toUpperCase(); el('p-vende').classList.remove('active'); el('p-alquila').classList.remove('active'); renderPreview(); }
+});
+function syncPresets(){
+  el('p-vende').classList.toggle('active', mainText==='SE VENDE');
+  el('p-alquila').classList.toggle('active', mainText==='SE ALQUILA');
+}
+
+/* Re-render al editar campos del agente */
+['f-name','f-whatsapp','f-email'].forEach(id=>{ const inp=el(id); if(inp) inp.addEventListener('input',renderPreview); });
+
+el('btn-pdf').addEventListener('click', downloadPDF);
+el('btn-png').addEventListener('click', downloadPNG);
+// logout manejado por components.js → window.__ptLogout
+el('btn-login').addEventListener('click', doLogin);
+el('login-password').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+el('btn-save-rotulo').addEventListener('click', saveRotulo);
+
+/* ═══════════════════════════════════════════════════
+   QR
+═══════════════════════════════════════════════════ */
+function makeQRCanvas(text, sizePx){
+  /* Borde blanco: padding ~5% del tamaño total */
+  const pad    = Math.round(sizePx * 0.05);
+  const qrSize = sizePx - pad * 2;   /* QR interior sin el borde */
+  return new Promise(resolve=>{
+    const div=el('qr-tmp');
+    div.innerHTML='';
+    div.style.width=div.style.height=qrSize+'px';
+    new QRCode(div,{ text, width:qrSize, height:qrSize,
+      colorDark:'#0c2749', colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.M });
+    setTimeout(()=>{
+      const node=div.querySelector('canvas')||div.querySelector('img');
+      if(!node){ resolve(null); return; }
+      /* Canvas final con borde blanco */
+      const c=document.createElement('canvas');
+      c.width=c.height=sizePx;
+      const ctx=c.getContext('2d');
+      /* Fondo blanco (el borde) */
+      ctx.fillStyle='#ffffff';
+      ctx.fillRect(0,0,sizePx,sizePx);
+      /* QR centrado con padding */
+      if(node.tagName==='CANVAS'){
+        ctx.drawImage(node, pad, pad, qrSize, qrSize);
+      } else {
+        const tmp=document.createElement('canvas');
+        tmp.width=tmp.height=qrSize;
+        tmp.getContext('2d').drawImage(node,0,0,qrSize,qrSize);
+        ctx.drawImage(tmp, pad, pad, qrSize, qrSize);
+      }
+      resolve(c);
+    },180);
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════════════ */
+const PREVIEW_MAX=740;
+
+async function renderPreview(){
+  const W=currentOri==='vertical'?V_W:H_W;
+  const Ht=currentOri==='vertical'?V_H:H_H;
+  const scale=PREVIEW_MAX/Math.max(W,Ht);
+  const canvas=el('preview-canvas');
+  canvas.width=Math.round(W*scale);
+  canvas.height=Math.round(Ht*scale);
+  await drawRotulo(canvas, scale);
+}
+
+async function renderHiRes(){
+  const W=currentOri==='vertical'?V_W:H_W;
+  const Ht=currentOri==='vertical'?V_H:H_H;
+  const c=document.createElement('canvas'); c.width=W; c.height=Ht;
+  await drawRotulo(c, 1);
+  return c;
+}
+
+/* ── Función principal de dibujo ── */
+async function drawRotulo(canvas, s){
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, Ht=canvas.height;
+
+  /* Fondo blanco */
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,W,Ht);
+
+  /* Template de fondo */
+  const tplUrl=currentOri==='vertical'?currentTpl.v_url:currentTpl.h_url;
+  try{ const bg=await loadImg(tplUrl); ctx.drawImage(bg,0,0,W,Ht); }
+  catch(e){ console.error('[tpl]',e); }
+
+  /* Fuente */
+  const fn=fontsReady?'GothamNarrowBold':'"Arial Black",Arial,sans-serif';
+
+  if(currentOri==='vertical'){
+    await drawVertical(ctx, s, fn, W, Ht);
+  } else {
+    await drawHorizontal(ctx, s, fn, W, Ht);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER VERTICAL
+═══════════════════════════════════════════════════ */
+async function drawVertical(ctx, s, fn, W, Ht){
+  const lay=V;
+
+  /* ── Texto banda roja ──────────────────────────────
+     Zona útil: x 480-6720 (w=6240), y 480-1500 (h=1020)
+     Centro de esa zona útil.
+  ── */
+  {
+    const cx  = (lay.redTxtX1 + lay.redTxtX2) / 2 * s;
+    const cy  = (lay.redTxtY1 + lay.redTxtY2) / 2 * s;
+    const maxW = (lay.redTxtX2 - lay.redTxtX1) * s;
+    const maxH = (lay.redTxtY2 - lay.redTxtY1) * s;
+    drawAutoText(ctx, mainText, cx, cy, maxW, maxH, fn);
+  }
+
+  /* ── Datos del agente ────────────────────────────
+     Nombre 1 línea, phone mismo size, email 50pt.
+     Empieza y=4735, centrado verticalmente hacia y=whiteEnd.
+  ── */
+  {
+    const agCX   = (lay.agentLeft + lay.agentRight) / 2 * s;
+    const maxW   = (lay.agentRight - lay.agentLeft) * s;
+    const startY = lay.agentStartY * s;
+    const endY   = lay.whiteEnd * s;
+
+    const name  = (v('f-name')    ||'').toUpperCase();
+    const phone = (v('f-whatsapp')||'');
+    const email = (v('f-email')   ||'').toUpperCase();
+
+    const layout=calcAgentLayout(ctx, name, phone, email, maxW, startY, endY, fn, lay, s, false);
+    drawAgentText(ctx, layout, agCX, fn);
+  }
+
+  /* ── QR ──────────────────────────────────────────
+     1395×1395 px, posición exacta x=640, y=7112
+  ── */
+  const waPhone=v('f-whatsapp').replace(/\D/g,'');
+  if(waPhone){
+    const qrSizePx=Math.round(lay.qrSize*s);
+    const qrX=Math.round(lay.qrX*s);
+    const qrY=Math.round(lay.qrY*s);
+    try{
+      const waUrl=`https://wa.me/${waPhone}`;
+      const qrC=await makeQRCanvas(waUrl, qrSizePx);
+      if(qrC) ctx.drawImage(qrC, qrX, qrY, qrSizePx, qrSizePx);
+    }catch(e){ console.warn('[QR]',e); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER HORIZONTAL
+═══════════════════════════════════════════════════ */
+async function drawHorizontal(ctx, s, fn, W, Ht){
+  const lay=H;
+
+  /* ── Texto banda roja ──────────────────────────────
+     Zona útil: x 3750-8520 (w=4770), y 480-1005 (h=525)
+     Centro de esa zona útil.
+  ── */
+  {
+    const cx  = (lay.redTxtX1 + lay.redTxtX2) / 2 * s;
+    const cy  = (lay.redTxtY1 + lay.redTxtY2) / 2 * s;
+    const maxW= (lay.redTxtX2 - lay.redTxtX1) * s;
+    const maxH= (lay.redTxtY2 - lay.redTxtY1) * s;
+    drawAutoText(ctx, mainText, cx, cy, maxW, maxH, fn);
+  }
+
+  /* ── Datos del agente ────────────────────────────
+     Zona: textZoneCX, ancho=5730, empieza y=1710, hasta y=4050.
+     nombre: 1 línea si Sunrise, 2 líneas si REMAX.
+  ── */
+  {
+    const agCX  = lay.textZoneCX * s;
+    const maxW  = lay.textZoneW * s;
+    const agStartRaw = currentTpl.is_sunrise ? lay.agentStartY_sunrise : lay.agentStartY_remax;
+    const startY= agStartRaw * s;
+    const endY  = lay.whiteEnd * s;
+
+    const name  = (v('f-name')    ||'').toUpperCase();
+    const phone = (v('f-whatsapp')||'');
+    const email = (v('f-email')   ||'').toUpperCase();
+    const forceTwoLines = currentTpl.h_name_lines===2;
+
+    const layout=calcAgentLayout(ctx, name, phone, email, maxW, startY, endY, fn, lay, s, forceTwoLines);
+    drawAgentText(ctx, layout, agCX, fn);
+  }
+
+  /* ── QR ──────────────────────────────────────────
+     x=1144, y=3890, size=1260
+  ── */
+  const waPhone=v('f-whatsapp').replace(/\D/g,'');
+  if(waPhone){
+    const qrSizePx=Math.round(lay.qrSize*s);
+    const qrX=Math.round(lay.qrX*s);
+    const qrY=Math.round(lay.qrY*s);
+    try{
+      const waUrl=`https://wa.me/${waPhone}`;
+      const qrC=await makeQRCanvas(waUrl, qrSizePx);
+      if(qrC) ctx.drawImage(qrC, qrX, qrY, qrSizePx, qrSizePx);
+    }catch(e){ console.warn('[QR]',e); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   CÁLCULO LAYOUT AGENTE
+   Retorna { lines: [{text, fs, y}], ... }
+   Parte de los fs máximos y reduce hasta que todo cabe
+   vertical y horizontalmente.
+═══════════════════════════════════════════════════ */
+function calcAgentLayout(ctx, name, phone, email, maxW, startY, endY, fn, lay, s, forceTwoLines){
+  /* REMAX horizontal fuerza 2 líneas → usar nameFSmax_remax si existe */
+  const rawNameFS  = (forceTwoLines && lay.nameFSmax_remax) ? lay.nameFSmax_remax : lay.nameFSmax;
+  const nameFSmax  = rawNameFS * s;
+  const emailFSmax = lay.emailFSmax * s;
+  const availH     = endY - startY;  /* altura disponible */
+
+  /* Espaciado entre bloques */
+  const GAP_NAME_PHONE = 20 * s;   /* gap nombre→phone */
+  /* GAP_PHONE_EMAIL se calcula después del loop cuando nameFS tiene valor */
+
+  /* Intentar ajustar tamaños */
+  let nameFS  = nameFSmax;
+  let emailFS = emailFSmax;
+
+  /* Determinar partes del nombre */
+  const getNameParts = (fs) => {
+    if(forceTwoLines){
+      /* REMAX horizontal: siempre 2 líneas */
+      return splitName2Lines(name);
+    }
+    /* Vertical y Sunrise horizontal: 1 sola línea */
+    /* Si no cabe en 1 línea con el fs actual, reducimos el fs en el loop */
+    return [name];
+  };
+
+  /* Loop: reducir nameFS hasta que todo quepa en maxW y en availH */
+  for(let iter=0; iter<600; iter++){
+    const nameParts = getNameParts(nameFS);
+    const lineH     = nameFS * 1.10;   /* interlineado compacto */
+    const emailLineH= emailFS * 0.05;
+
+    /* Comprobar ancho de cada parte */
+    let allFit=true;
+    ctx.font=`bold ${nameFS}px ${fn}`;
+    for(const part of nameParts){
+      if(ctx.measureText(part).width > maxW*0.95){ allFit=false; break; }
+    }
+    /* Phone mismo FS que nombre */
+    if(phone){
+      if(ctx.measureText(phone).width > maxW*0.95) allFit=false;
+    }
+    /* Email */
+    if(email && emailFS>4*s){
+      ctx.font=`bold ${emailFS}px ${fn}`;
+      if(ctx.measureText(email).width > maxW*0.95) allFit=false;
+    }
+
+    /* Comprobar altura total del bloque */
+    const nLines   = nameParts.length;
+    const hasPhone = phone.length>0;
+    const hasEmail = email.length>0;
+    const blockH   = nLines*lineH
+                   + (hasPhone ? GAP_NAME_PHONE + nameFS * 0.38 : 0)
+                   + (hasEmail ? nameFS*0.28 + emailLineH : 0);
+
+    if(allFit && blockH<=availH) break;
+
+    /* Reducir */
+    if(nameFS > 8*s) nameFS -= s*0.5;
+    /* emailFS proporcional pero con mínimo */
+    emailFS = Math.max(8*s, nameFS * (lay.emailFSmax/lay.nameFSmax));
+  }
+
+  /* Construir líneas con posiciones Y */
+  const GAP_PHONE_EMAIL = nameFS * 0.28;  /* calculado aquí donde nameFS tiene valor */
+  const nameParts  = getNameParts(nameFS);
+  const lineH      = nameFS  * 1.10;
+  const emailLineH = emailFS * 0.05;
+  const hasPhone   = phone.length>0;
+  const hasEmail   = email.length>0;
+
+  const blockH = nameParts.length*lineH
+               + (hasPhone ? GAP_NAME_PHONE + nameFS * 0.38 : 0)
+               + (hasEmail ? GAP_PHONE_EMAIL + emailLineH : 0);
+
+  /* agentStartY es el top fijo del bloque — sin centrado vertical */
+  const lines=[];
+  let y=startY + lineH/2;
+
+  for(const part of nameParts){
+    lines.push({ text:part, fs:nameFS, y });
+    y += lineH;
+  }
+  if(hasPhone){
+    y += GAP_NAME_PHONE;
+    lines.push({ text:phone, fs:nameFS, y, baseline:'middle' });
+    /* bottom del phone ≈ y + nameFS*0.35 (cap-height con baseline=middle) */
+    y += nameFS * 0.38;
+  }
+  if(hasEmail){
+    y += GAP_PHONE_EMAIL;
+    /* email con baseline=top — y es el top del email */
+    lines.push({ text:email, fs:emailFS, y, baseline:'top' });
+  }
+
+  return { lines };
+}
+
+function drawAgentText(ctx, layout, cx, fn){
+  ctx.textAlign='center'; ctx.fillStyle='#111111';
+  for(const line of layout.lines){
+    ctx.font=`bold ${line.fs}px ${fn}`;
+    ctx.textBaseline = line.baseline || 'middle';
+    ctx.fillText(line.text, cx, line.y);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   TEXTO AUTOMÁTICO BANDA ROJA
+   1 línea si cabe; 2 líneas si no.
+   Tamaño más grande posible.
+═══════════════════════════════════════════════════ */
+function drawAutoText(ctx, text, cx, cy, maxW, maxH, fn){
+  ctx.fillStyle='#ffffff';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+
+  const fontTpl = `bold 1px ${fn}`;
+  const fsMax1  = maxH * 0.88;   /* tamaño máximo que cabe en la altura */
+
+  /* ── Decisión 1 línea vs 2 líneas ──
+     Medir el texto al tamaño MÁXIMO (fsMax1).
+     Si a ese tamaño YA cabe en el ancho → 1 línea.
+     Si no → 2 líneas. (No usar fitFS aquí — fitFS siempre haría que quepa.) */
+  ctx.font = `bold ${fsMax1}px ${fn}`;
+  const fitsOneLine = ctx.measureText(text).width <= maxW;
+
+  if(fitsOneLine){
+    /* 1 línea al tamaño más grande posible respetando maxW y maxH */
+    const fs = fitFS(ctx, text, maxW, fontTpl, 10, fsMax1);
+    ctx.font  = `bold ${fs}px ${fn}`;
+    ctx.fillText(text, cx, cy);
+    return;
+  }
+
+  /* ── 2 líneas ──
+     Buscar la partición más equilibrada de palabras. */
+  const words = text.split(' ');
+  if(words.length < 2){
+    /* Sin espacios: reducir hasta que quepa en 1 línea */
+    const fs = fitFS(ctx, text, maxW, fontTpl, 10, fsMax1);
+    ctx.font  = `bold ${fs}px ${fn}`;
+    ctx.fillText(text, cx, cy);
+    return;
+  }
+
+  /* Probar todas las particiones y elegir la más equilibrada */
+  ctx.font = fontTpl.replace('1px','100px');
+  let bestMid=1, bestDiff=Infinity;
+  for(let i=1; i<words.length; i++){
+    const wA = ctx.measureText(words.slice(0,i).join(' ')).width;
+    const wB = ctx.measureText(words.slice(i).join(' ')).width;
+    if(Math.abs(wA-wB) < bestDiff){ bestDiff=Math.abs(wA-wB); bestMid=i; }
+  }
+  const l1    = words.slice(0, bestMid).join(' ');
+  const l2    = words.slice(bestMid).join(' ');
+  const wider = ctx.measureText(l1).width >= ctx.measureText(l2).width ? l1 : l2;
+
+  /* Techo por altura: 2 líneas con interlineado 1.75 deben caber en maxH */
+  const fsCeilH = maxH / 1.75;
+  /* Techo por ancho: la línea más ancha cabe en maxW */
+  const fs2 = fitFS(ctx, wider, maxW, fontTpl, 10, fsCeilH);
+  const lh  = fs2 * 0.875;
+
+  ctx.font = `bold ${fs2}px ${fn}`;
+  ctx.fillText(l1, cx, cy - lh / 2);
+  ctx.fillText(l2, cx, cy + lh / 2);
+}
+function fitFS(ctx, text, maxW, fontTpl, minPx, maxPx){
+  let lo=minPx, hi=maxPx;
+  while(hi-lo>0.5){
+    const mid=(lo+hi)/2;
+    ctx.font=fontTpl.replace('1px',`${mid}px`);
+    ctx.measureText(text).width<=maxW ? lo=mid : hi=mid;
+  }
+  return lo;
+}
+
+/* Divide nombre en 2 líneas */
+function splitName2Lines(name){
+  const words=name.trim().split(/\s+/);
+  if(words.length<=1) return [name,''];
+  if(words.length===2) return [words[0],words[1]];
+  const mid=Math.ceil(words.length/2);
+  return [words.slice(0,mid).join(' '), words.slice(mid).join(' ')];
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORTAR
+═══════════════════════════════════════════════════ */
+function slugName(){
+  return `rotulo-${currentTpl.id}-${currentOri}-${mainText.toLowerCase().replace(/\s+/g,'-')}`;
+}
+
+async function downloadPDF(){
+  const btn=el('btn-pdf'); btn.disabled=true; btn.textContent='Generando PDF…';
+  try{
+    if(!window.jspdf){
+      await new Promise((res,rej)=>{
+        const sc=document.createElement('script');
+        sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        sc.onload=res; sc.onerror=rej; document.head.appendChild(sc);
+      });
+    }
+    const {jsPDF}=window.jspdf;
+    const hiRes=await renderHiRes();
+    const wIn=currentOri==='vertical'?24:30;
+    const hIn=currentOri==='vertical'?30:18;
+    const pdf=new jsPDF({
+      orientation:currentOri==='vertical'?'portrait':'landscape',
+      unit:'in', format:[wIn,hIn]
+    });
+    pdf.addImage(hiRes.toDataURL('image/jpeg',0.97),'JPEG',0,0,wIn,hIn);
+    pdf.save(slugName()+'.pdf');
+    toast('PDF descargado ✓');
+  }catch(e){ console.error(e); toast('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='Descargar PDF'; }
+}
+
+async function downloadPNG(){
+  const btn=el('btn-png'); btn.disabled=true; btn.textContent='Generando PNG…';
+  try{
+    const hiRes=await renderHiRes();
+    const a=document.createElement('a');
+    a.href=hiRes.toDataURL('image/png'); a.download=slugName()+'.png'; a.click();
+    toast('PNG descargado ✓');
+  }catch(e){ console.error(e); toast('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='Descargar PNG'; }
+}
+
+/* ═══════════════════════════════════════════════════
+   GUARDAR / CARGAR RÓTULOS (Supabase)
+═══════════════════════════════════════════════════ */
+async function saveRotulo(){
+  if(!currentProfile){ toast('Sin sesión activa'); return; }
+  const saveName=v('f-savename');
+  if(!saveName){ toast('Escribe un nombre para el rótulo'); return; }
+  const btn=el('btn-save-rotulo'); btn.disabled=true; btn.textContent='Guardando…';
+  const record={
+    user_id:    currentUser.id,
+    save_name:  saveName,
+    orientacion: currentOri,
+    template:   currentTpl.id,
+    texto_rojo: mainText,
+    name:       v('f-name'),
+    whatsapp:   v('f-whatsapp'),
+    email:      v('f-email'),
+  };
+  try{
+    const {data:ex}=await sb.from(COLECCION).select('id').eq('user_id',currentUser.id).eq('save_name',saveName).maybeSingle();
+    if(ex){ await sb.from(COLECCION).update(record).eq('id',ex.id); toast('Rótulo actualizado: '+saveName); }
+    else  { await sb.from(COLECCION).insert(record);                toast('Rótulo guardado: '+saveName); }
+    el('f-savename').value='';
+    await loadSaved();
+  }catch(e){ console.error(e); toast('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='Guardar'; }
+}
+
+async function loadSaved(){
+  if(!currentProfile) return;
+  try{
+    const {data}=await sb.from(COLECCION).select('*').eq('user_id',currentUser.id).order('updated_at',{ascending:false});
+    renderSaved(data||[]);
+  }catch(e){ console.error('[loadSaved]',e); el('saved-list').innerHTML='<p class="saved-empty">Error al cargar</p>'; }
+}
+
+function renderSaved(items){
+  const c=el('saved-list');
+  if(!items||!items.length){ c.innerHTML='<p class="saved-empty">No hay rótulos guardados</p>'; return; }
+  c.innerHTML=items.map(s=>`
+    <div class="saved-item">
+      <div class="saved-item-info">
+        <div class="saved-item-name">${esc(s.save_name)}</div>
+        <div class="saved-item-meta">${esc(s.name||'')} &middot; ${s.orientacion||''} &middot; ${new Date(s.updated_at||s.created_at).toLocaleDateString('es-CR')}</div>
+      </div>
+      <div class="saved-item-actions">
+        <button class="icon-btn" data-load="${s.id}" title="Cargar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        </button>
+        <button class="icon-btn del" data-del="${s.id}" data-name="${esc(s.save_name)}" title="Eliminar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+  c.querySelectorAll('[data-load]').forEach(b=>b.addEventListener('click',()=>loadRotulo(b.dataset.load)));
+  c.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delRotulo(b.dataset.del,b.dataset.name)));
+}
+
+async function loadRotulo(id){
+  const {data:s}=await sb.from(COLECCION).select('*').eq('id',id).single();
+  if(!s) return;
+  /* Orientación */
+  currentOri=s.orientacion||'vertical';
+  el('ori-group').querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.ori===currentOri));
+  el('canvas-label').textContent=currentOri==='vertical'?'Vertical 24×30"':'Horizontal 30×18"';
+  /* Template */
+  const tpl=TEMPLATES.find(t=>t.id===s.template);
+  if(tpl){ currentTpl=tpl; el('template-grid').querySelectorAll('.tpl-btn').forEach(b=>{b.classList.toggle('active',b.dataset.id===tpl.id);}); }
+  /* Texto */
+  mainText=s.texto_rojo||'SE VENDE';
+  if(mainText==='SE VENDE')     { el('p-vende').classList.add('active'); el('p-alquila').classList.remove('active'); el('custom-text').value=''; }
+  else if(mainText==='SE ALQUILA'){ el('p-alquila').classList.add('active'); el('p-vende').classList.remove('active'); el('custom-text').value=''; }
+  else { el('p-vende').classList.remove('active'); el('p-alquila').classList.remove('active'); el('custom-text').value=s.texto_rojo; }
+  /* Agente */
+  setV('f-name',    s.name);
+  setV('f-whatsapp',s.whatsapp);
+  setV('f-email',   s.email);
+  setV('f-savename',s.save_name);
+  refreshGridThumbs();
+  renderPreview();
+  toast('Rótulo cargado: '+s.save_name);
+}
+
+async function delRotulo(id, name){
+  if(!confirm(`¿Eliminar "${name}"?`)) return;
+  await sb.from(COLECCION).delete().eq('id',id);
+  toast('Rótulo eliminado: '+name);
+  await loadSaved();
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+{
+  const result = await initComponents({ active: 'rotulos' });
+  if (result) {
+    currentUser = (await sb.auth.getSession()).data.session.user;
+    await loadContext();
+    el('splash').classList.add('hidden');
+    // Soporte para ?id=ID (carga desde admin) y ?download=png|pdf
+    const _urlParams = new URLSearchParams(window.location.search);
+    const _loadId    = _urlParams.get('id');
+    const _download  = _urlParams.get('download'); // 'png' | 'pdf'
+    if (_loadId) {
+      await loadRotulo(_loadId);
+      if (_download === 'png') { await downloadPNG(); window.close(); }
+      if (_download === 'pdf') { await downloadPDF(); window.close(); }
+    }
+  }
+}
+</script>
+  <footer id="pt-footer"></footer>
+</body>
+</html>

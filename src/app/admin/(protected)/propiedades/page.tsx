@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { getMembership } from '@/lib/membership'
 
 const CRM_STATUS_LABELS: Record<string, string> = {
   draft:        'Borrador',
@@ -130,12 +131,9 @@ export default function PropiedadesPage() {
   }, [])
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: adminRec } = await supabase
-        .from('tenant_admins').select('tenant_id').eq('user_id', user.id).single()
-      if (!adminRec) return
+    getMembership().then(async m => {
+      if (!m) return
+      const adminRec = { tenant_id: m.tenantId }
       setTenantId(adminRec.tenant_id)
       const ps = localStorage.getItem('propiedades_page_size')
       if (ps !== null && !isNaN(Number(ps))) setPageSize(Number(ps))

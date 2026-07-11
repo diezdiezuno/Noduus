@@ -41,12 +41,12 @@ const NAV_STANDALONE = [
 
 // Catálogo PropTools — el tenant solo ve las que tiene en tenants.proptools_apps
 const PROPTOOLS_CATALOG: Record<string, { icon: string; label: string; href: string }> = {
-  firmas:       { icon: '✍️', label: 'Firmas',       href: 'https://proptools.app/firmas/' },
-  tarjetas:     { icon: '💳', label: 'Tarjetas',     href: 'https://proptools.app/tarjetas/' },
-  rotulos:      { icon: '🪧', label: 'Rótulos',      href: 'https://proptools.app/rotulos/' },
-  valoraciones: { icon: '📈', label: 'Valoraciones', href: 'https://proptools.app/valoraciones/' },
-  calendario:   { icon: '📅', label: 'Calendario',   href: 'https://proptools.app/calendario/' },
-  equipos:      { icon: '📷', label: 'Equipos',      href: 'https://proptools.app/equipos/' },
+  firmas:       { icon: '✍️', label: 'Firmas',       href: '/tools/firmas/' },
+  tarjetas:     { icon: '💳', label: 'Tarjetas',     href: '/tools/tarjetas/' },
+  rotulos:      { icon: '🪧', label: 'Rótulos',      href: '/tools/rotulos/' },
+  valoraciones: { icon: '📈', label: 'Valoraciones', href: '/tools/valoraciones/' },
+  calendario:   { icon: '📅', label: 'Calendario',   href: '/tools/calendario/' },
+  equipos:      { icon: '📷', label: 'Equipos',      href: '/tools/equipos/' },
 }
 
 // Rutas de listado que usan el ancho completo de la pantalla
@@ -67,10 +67,10 @@ interface SearchResult {
 
 // ── Types ─────────────────────────────────────────────────────
 interface Tenant { id: string; name: string; slug: string; logo_url: string | null; theme: Record<string, string>; proptools_apps?: string[] | null }
-interface Props   { tenant: Tenant; userEmail: string; children: React.ReactNode }
+interface Props   { tenant: Tenant; userEmail: string; role?: 'admin' | 'agent'; children: React.ReactNode }
 
 // ── Component ─────────────────────────────────────────────────
-export default function AdminShell({ tenant, userEmail, children }: Props) {
+export default function AdminShell({ tenant, userEmail, role = 'admin', children }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
 
@@ -90,12 +90,21 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
 
   // Grupo PropTools según las apps activas del tenant
   const ptApps = (tenant.proptools_apps ?? []).filter(s => PROPTOOLS_CATALOG[s])
-  const navGroups = ptApps.length > 0
-    ? [...NAV_GROUPS, {
+  const ptGroup = ptApps.length > 0
+    ? [{
         key: 'proptools', label: 'PropTools', icon: '🧰',
         items: ptApps.map(s => ({ ...PROPTOOLS_CATALOG[s], external: true })),
       }]
+    : []
+  // Agentes: solo CRM (sin Configuración) + PropTools. Admins: todo.
+  const baseGroups = role === 'agent'
+    ? NAV_GROUPS.filter(g => g.key === 'crm').map(g => ({
+        ...g,
+        items: g.items.filter(i => i.href !== '/admin/crm-config'),
+      }))
     : NAV_GROUPS
+  const navGroups = [...baseGroups, ...ptGroup]
+  const standalone = role === 'agent' ? [] : NAV_STANDALONE
 
   // ── Nav group collapse — all closed by default ────────────
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
@@ -339,7 +348,7 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
             )
           })}
 
-          {NAV_STANDALONE.map(({ href, icon, label }) => {
+          {standalone.map(({ href, icon, label }) => {
             const active = pathname.startsWith(href)
             return (
               <div key={href}>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { getMembership } from '@/lib/membership'
 import { getCantons, getDistricts } from '@/data/cr-divisions'
 import type mapboxgl from 'mapbox-gl'
 import ContactVCardModal, { type VCardViewType } from '../ContactVCardModal'
@@ -137,11 +138,9 @@ export default function NuevaPropiedadPage() {
   /* ── Load data ── */
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: adminRec } = await supabase
-        .from('tenant_admins').select('tenant_id').eq('user_id', user.id).single()
-      if (!adminRec) return
+    getMembership().then(async m => {
+      if (!m) return
+      const adminRec = { tenant_id: m.tenantId }
       setTenantId(adminRec.tenant_id)
 
       const [{ data: types }, { data: agentList }] = await Promise.all([

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { COUNTRIES } from '@/data/countries'
 import ContactForm from '@/components/crm/ContactForm'
+import { getMembership } from '@/lib/membership'
 import ContactVCardModal, { type VCardViewType } from '../propiedades/ContactVCardModal'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -306,25 +307,22 @@ export default function ClientesClient() {
   // ── Init ──────────────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: adminRec } = await supabase
-        .from('tenant_admins').select('tenant_id, role').eq('user_id', user.id).single()
-      if (!adminRec) return
+    getMembership().then(async m => {
+      if (!m) return
 
-      setTenantId(adminRec.tenant_id)
-      setUserId(user.id)
-      setIsAdmin(adminRec.role === 'admin')
+      setTenantId(m.tenantId)
+      setUserId(m.userId)
+      setIsAdmin(m.isAdmin)
 
       const [{ data: typesData }, { data: sourcesData }] =
         await Promise.all([
-          supabase.from('contact_types').select('id,name,color').eq('tenant_id', adminRec.tenant_id).order('position'),
-          supabase.from('contact_sources').select('id,name').eq('tenant_id', adminRec.tenant_id).order('position'),
+          supabase.from('contact_types').select('id,name,color').eq('tenant_id', m.tenantId).order('position'),
+          supabase.from('contact_sources').select('id,name').eq('tenant_id', m.tenantId).order('position'),
         ])
 
       setTypes(typesData ?? [])
       setSources(sourcesData ?? [])
-      await loadContacts(adminRec.tenant_id, '', '', '')
+      await loadContacts(m.tenantId, '', '', '')
       setPageLoading(false)
     })
   }, [loadContacts])

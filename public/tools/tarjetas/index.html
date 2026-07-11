@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarjetas — PropTools</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23FF3A5C'/%3E%3Cstop offset='50%25' stop-color='%23C044E8'/%3E%3Cstop offset='100%25' stop-color='%235B4FE8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='8' height='32' rx='3' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:    #1B6EF3;
+  --blue-dk: #0A4FC4;
+  --ink:     #0D0F12;
+  --ink-mid: #5A6070;
+  --surface: #ffffff;
+  --surface2:#F4F5F7;
+  --border:  #E2E5EA;
+  --success: #0FA870;
+  --warn:    #F59E0B;
+  --error:   #EF4444;
+  --radius:  10px;
+  --text: var(--ink);
+  --muted: var(--ink-mid);
+  --bg: var(--surface2);
+}
+body { font-family:'DM Sans',-apple-system,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; font-size:14px; }
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }
+.login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+.login-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; font-size: 16px; font-weight: 400; color: var(--ink); letter-spacing: -0.2px; }
+.login-logo strong { font-weight: 700; }
+.login-box h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.login-box p { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.5; }
+.form-field { margin-bottom: 14px; }
+.form-field label { font-size: 11px; font-weight: 500; color: var(--ink-mid); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'DM Mono', monospace; }
+.form-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--ink); font-family: inherit; font-size: 14px; outline: none; transition: border-color .15s; }
+.form-field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(27,110,243,.1); }
+.btn-login { width: 100%; background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 12px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: background .15s; }
+.btn-login:hover { background: var(--blue-dk); }
+.btn-login:disabled { background: #aaa; cursor: not-allowed; }
+.login-error { font-size: 12px; color: var(--error); margin-top: 10px; text-align: center; display: none; }
+.login-footer { margin-top: 20px; text-align: center; font-size: 12px; color: var(--ink-mid); }
+.app-screen { display: none; min-height: 100vh; grid-template-columns: 360px 1fr; grid-template-rows: 88px calc(100vh - 88px - 48px); grid-template-areas: "header header" "aside main"; }
+.app-screen.visible { display: grid; }
+header {
+  grid-column: 1/-1; height: 88px; padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px;
+  background: var(--surface);
+}
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.pt-wordmark { font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 400; color: var(--ink); letter-spacing: -0.3px; white-space: nowrap; display: flex; align-items: center; }
+.pt-wordmark .pt-bold { font-weight: 700; }
+.pt-sep { color: var(--border); font-weight: 300; margin: 0 8px; font-size: 20px; line-height: 1; }
+.pt-app { font-size: 17px; font-weight: 500; color: var(--ink-mid); }
+.header-tenant-badge { display: none; align-items: center; }
+.header-tenant-badge img { height: 50px; max-width: 160px; object-fit: contain; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.db-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); background: var(--surface2); font-family: 'DM Mono', monospace; }
+.db-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.db-dot.ok { background: var(--success); }
+.nav-divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+.nav-item { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; padding: 6px 11px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--ink-mid); cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+.nav-item:hover { background: var(--surface2); color: var(--ink); border-color: var(--border); }
+.nav-item.active { background: var(--surface2); color: var(--ink); border-color: var(--border); font-weight: 600; }
+.btn-logout { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--ink-mid); cursor: pointer; transition: all .15s; }
+.btn-logout:hover { border-color: var(--error); color: var(--error); background: #fff5f5; }
+aside { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 20px; }
+.section-label { font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-mid); margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+.template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tpl-btn { background: var(--surface2); border: 2px solid var(--border); border-radius: 10px; padding: 8px; cursor: pointer; transition: all .15s; font-family: inherit; }
+.tpl-btn img { width: 100%; border-radius: 6px; display: block; }
+.tpl-btn-label { font-size: 10px; font-weight: 600; color: var(--ink-mid); text-align: center; margin-top: 6px; }
+.tpl-btn:hover { border-color: var(--blue); }
+.tpl-btn.active { border-color: var(--blue); }
+.tpl-btn.active .tpl-btn-label { color: var(--blue); font-weight: 700; }
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+label { font-size: 11px; font-weight: 500; color: var(--ink-mid); display: block; margin-bottom: 3px; font-family: 'DM Mono', monospace; letter-spacing: 0.3px; }
+input[type="text"],input[type="url"],input[type="tel"],input[type="email"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--ink); font-family: inherit; font-size: 13px; outline: none; transition: all .15s; }
+input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(27,110,243,.1); }
+input::placeholder { color: var(--ink-mid); opacity: .4; }
+.upload-area { background: var(--surface2); border: 2px dashed var(--border); border-radius: var(--radius); padding: 12px; display: flex; align-items: center; gap: 11px; cursor: pointer; transition: border-color .15s; }
+.upload-area:hover { border-color: var(--blue); }
+.upload-preview { width: 44px; height: 44px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.upload-preview img { width: 100%; height: 100%; object-fit: cover; }
+.upload-text { font-size: 12px; color: var(--ink-mid); line-height: 1.5; }
+.upload-text strong { color: var(--ink); display: block; font-size: 13px; }
+input[type="file"] { display: none; }
+/* NAV, PHOTO GUIDELINES */
+.save-bar { display: flex; gap: 7px; align-items: center; }
+.save-bar input[type="text"] { flex: 1; padding: 7px 10px; font-size: 12px; }
+.btn-save { font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer; background: #000; color: #fff; white-space: nowrap; flex-shrink: 0; }
+.btn-save:hover { background: #333; }
+.btn-save:disabled { background: #aaa; cursor: not-allowed; }
+.saved-list { display: flex; flex-direction: column; gap: 6px; }
+.saved-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+.saved-item-info { flex: 1; min-width: 0; }
+.saved-item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.saved-item-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.saved-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.icon-btn:hover { border-color: #999; background: #f0f0f0; }
+.icon-btn.del:hover { border-color: #ef4444; background: #fff5f5; }
+.saved-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0; font-style: italic; }
+.font-status { font-size: 11px; color: var(--muted); padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+.font-dot { width: 7px; height: 7px; border-radius: 50%; background: #f0a500; flex-shrink: 0; }
+.font-dot.ok { background: #22c55e; }
+main { background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
+.preview-toolbar { padding: 18px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+.preview-toolbar h2 { font-size: 16px; font-weight: 700; }
+.toolbar-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.btn { font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: #888; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.preview-area { padding: 20px 28px 28px; display: flex; gap: 28px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+.card-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.card-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.card-canvas-wrap { border-radius: 10px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.15); }
+canvas { display: block; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #000; color: #fff; padding: 10px 22px; border-radius: 100px; font-weight: 700; font-size: 13px; transition: transform .3s cubic-bezier(.34,1.56,.64,1); pointer-events: none; z-index: 1100; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* PHOTO GUIDELINES */
+.photo-guidelines { margin-top: 10px; }
+.guidelines-toggle { width: 100%; display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .15s; }
+.guidelines-toggle:hover { border-color: #888; color: var(--text); }
+.guidelines-toggle .chevron { margin-left: auto; transition: transform .2s; }
+.guidelines-toggle.open .chevron { transform: rotate(180deg); }
+.guidelines-content { display: none; padding-top: 12px; }
+.guidelines-content.open { display: block; }
+.guidelines-intro { font-size: 12px; color: var(--muted); line-height: 1.55; margin-bottom: 12px; }
+.guidelines-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.guide-preview { width: 100%; aspect-ratio: 4/5; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--border); background: #fff; }
+.guide-preview svg { width: 100%; height: 100%; display: block; }
+.guide-preview.checkered { background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%), linear-gradient(-45deg, #e0e0e0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e0e0e0 75%), linear-gradient(-45deg, transparent 75%, #e0e0e0 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px; }
+.guide-item.good .guide-preview { border-color: #22c55e; }
+.guide-item.bad .guide-preview { border-color: #ef4444; }
+.guide-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.good-badge { background: #dcfce7; color: #16a34a; }
+.bad-badge { background: #fee2e2; color: #dc2626; }
+.guide-desc { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.4; }
+.guidelines-specs { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; display: flex; flex-direction: column; gap: 7px; }
+.spec-title { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.spec-row { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: var(--muted); line-height: 1.45; }
+.spec-icon { flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+
+    /* ── LOGO PROPTOOLS v2 ── */
+    :root {
+      --grad-start: #FF3A5C;
+      --grad-mid:   #C044E8;
+      --grad-end:   #5B4FE8;
+    }
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .logo-bar {
+      width: 6px;
+      height: 32px;
+      border-radius: 3px;
+      background: linear-gradient(to bottom, var(--grad-start), var(--grad-mid), var(--grad-end));
+      flex-shrink: 0;
+    }
+    .logo-wordmark {
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+    .logo-prop  { font-weight: 300; color: var(--ink, #0E0E1A); }
+    .logo-tools { font-weight: 900; letter-spacing: -1px; color: var(--ink, #0E0E1A); }
+
+    /* login screen — bigger version */
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .login-logo .logo-bar  { width: 6px; height: 36px; }
+    .login-logo .logo-wordmark { font-size: 26px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="splash">
+  <div class="splash-spinner"></div>
+</div>
+
+<div class="login-screen" id="login-screen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-bar"></div>
+      <div class="logo-wordmark"><span class="logo-prop">Prop</span><span class="logo-tools">TOOLS</span></div>
+    </div>
+      <div class="logo-wordmark"><span class="logo-prop">Prop</span><span class="logo-tools">TOOLS</span></div>
+    </div>
+    <h2>Iniciar sesi&oacute;n</h2>
+    <p>Ingres&aacute; con tu cuenta para acceder al generador de tarjetas.</p>
+    <div class="form-field"><label>Correo</label><input type="email" id="login-email" placeholder="tu@correo.com"></div>
+    <div class="form-field"><label>Contrase&ntilde;a</label><input type="password" id="login-password" placeholder="••••••••"></div>
+    <button class="btn-login" id="btn-login">Ingresar</button>
+    <div class="login-error" id="login-error"></div>
+    
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app-screen" id="app-screen">
+  <header id="pt-header"></header>
+
+  <aside style="grid-area: aside;">
+    <div>
+      <p class="section-label">Template</p>
+      <div class="template-grid" id="template-grid"></div>
+      <div class="font-status"><div class="font-dot" id="font-dot"></div><span id="font-status-text">Cargando fuentes...</span></div>
+    </div>
+    <div>
+      <p class="section-label">Foto de perfil</p>
+      <label for="photo-upload">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-preview" id="photo-preview">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </div>
+          <div class="upload-text"><strong id="upload-title">Subir foto</strong><span id="upload-status">PNG con fondo transparente ideal</span></div>
+        </div>
+      </label>
+      <input type="file" id="photo-upload" accept="image/*">
+
+      <!-- Guidelines de foto -->
+      <div class="photo-guidelines">
+        <button class="guidelines-toggle" id="guidelines-toggle">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Gu&iacute;a para la foto
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="guidelines-content" id="guidelines-content">
+          <p class="guidelines-intro">La foto debe ser de busto, sobre fondo blanco o transparente, con buena iluminaci&oacute;n y encuadre centrado.</p>
+
+          <!-- Ejemplos: correcto vs incorrecto -->
+          <div class="guidelines-grid">
+
+            <!-- ✅ CORRECTO 1: Fondo blanco, busto centrado -->
+            <div class="guide-item good">
+              <div class="guide-preview">
+                <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="80" height="100" fill="#ffffff"/>
+                  <!-- Busto persona centrado -->
+                  <ellipse cx="40" cy="32" rx="14" ry="16" fill="#d4a574"/>
+                  <!-- Cuello -->
+                  <rect x="36" y="46" width="8" height="8" fill="#d4a574"/>
+                  <!-- Hombros / cuerpo -->
+                  <ellipse cx="40" cy="72" rx="22" ry="16" fill="#2c3e8c"/>
+                  <!-- Cabello -->
+                  <ellipse cx="40" cy="22" rx="14" ry="10" fill="#3d2200"/>
+                  <rect x="26" y="22" width="4" height="14" rx="2" fill="#3d2200"/>
+                  <rect x="50" y="22" width="4" height="14" rx="2" fill="#3d2200"/>
+                </svg>
+              </div>
+              <div class="guide-badge good-badge">✓ Correcto</div>
+              <p class="guide-desc">Fondo blanco, busto centrado, cara visible</p>
+            </div>
+
+            <!-- ✅ CORRECTO 2: Fondo transparente PNG -->
+            <div class="guide-item good">
+              <div class="guide-preview checkered">
+                <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                  <ellipse cx="40" cy="32" rx="14" ry="16" fill="#d4a574"/>
+                  <rect x="36" y="46" width="8" height="8" fill="#d4a574"/>
+                  <ellipse cx="40" cy="72" rx="22" ry="16" fill="#c0392b"/>
+                  <ellipse cx="40" cy="22" rx="14" ry="10" fill="#1a0a00"/>
+                  <rect x="26" y="22" width="4" height="14" rx="2" fill="#1a0a00"/>
+                  <rect x="50" y="22" width="4" height="14" rx="2" fill="#1a0a00"/>
+                </svg>
+              </div>
+              <div class="guide-badge good-badge">✓ Ideal</div>
+              <p class="guide-desc">PNG con fondo transparente</p>
+            </div>
+
+            <!-- ❌ MAL 1: Foto de cuerpo entero -->
+            <div class="guide-item bad">
+              <div class="guide-preview">
+                <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="80" height="100" fill="#f5f5f5"/>
+                  <!-- Figura completa pequeña -->
+                  <ellipse cx="40" cy="18" rx="8" ry="9" fill="#d4a574"/>
+                  <ellipse cx="40" cy="14" rx="8" ry="6" fill="#3d2200"/>
+                  <rect x="34" y="27" width="6" height="5" fill="#d4a574"/>
+                  <ellipse cx="40" cy="42" rx="11" ry="12" fill="#2c3e8c"/>
+                  <rect x="33" y="54" width="6" height="22" fill="#1a1a4e"/>
+                  <rect x="41" y="54" width="6" height="22" fill="#1a1a4e"/>
+                  <rect x="33" y="74" width="6" height="8" rx="2" fill="#333"/>
+                  <rect x="41" y="74" width="6" height="8" rx="2" fill="#333"/>
+                  <!-- X roja -->
+                  <line x1="5" y1="5" x2="75" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="75" y1="5" x2="5" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="guide-badge bad-badge">✗ Evitar</div>
+              <p class="guide-desc">Cuerpo entero — figura queda muy peque&ntilde;a</p>
+            </div>
+
+            <!-- ❌ MAL 2: Fondo de color / escenario -->
+            <div class="guide-item bad">
+              <div class="guide-preview">
+                <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Fondo con escenario -->
+                  <rect width="80" height="100" fill="#87CEEB"/>
+                  <rect x="0" y="70" width="80" height="30" fill="#228B22"/>
+                  <rect x="55" y="30" width="15" height="40" fill="#8B4513"/>
+                  <ellipse cx="62" cy="28" rx="12" ry="14" fill="#2d5a1b"/>
+                  <!-- Persona -->
+                  <ellipse cx="30" cy="35" rx="10" ry="12" fill="#d4a574"/>
+                  <ellipse cx="30" cy="26" rx="10" ry="8" fill="#3d2200"/>
+                  <rect x="25" y="46" width="6" height="6" fill="#d4a574"/>
+                  <ellipse cx="30" cy="62" rx="14" ry="12" fill="#8B0000"/>
+                  <!-- X roja -->
+                  <line x1="5" y1="5" x2="75" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="75" y1="5" x2="5" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="guide-badge bad-badge">✗ Evitar</div>
+              <p class="guide-desc">Fondo de color o con elementos</p>
+            </div>
+
+            <!-- ❌ MAL 3: Foto oscura / mala iluminación -->
+            <div class="guide-item bad">
+              <div class="guide-preview">
+                <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="80" height="100" fill="#2a2a2a"/>
+                  <ellipse cx="40" cy="32" rx="14" ry="16" fill="#7a6050" opacity="0.7"/>
+                  <rect x="36" y="46" width="8" height="8" fill="#7a6050" opacity="0.7"/>
+                  <ellipse cx="40" cy="72" rx="22" ry="16" fill="#1a1a3e" opacity="0.8"/>
+                  <ellipse cx="40" cy="22" rx="14" ry="10" fill="#1a0a00"/>
+                  <!-- X roja -->
+                  <line x1="5" y1="5" x2="75" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="75" y1="5" x2="5" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="guide-badge bad-badge">✗ Evitar</div>
+              <p class="guide-desc">Poca iluminaci&oacute;n o foto oscura</p>
+            </div>
+
+            <!-- ❌ MAL 4: Cara cortada / mal encuadre -->
+            <div class="guide-item bad">
+              <div class="guide-preview">
+                <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="80" height="100" fill="#ffffff"/>
+                  <!-- Cara cortada arriba -->
+                  <ellipse cx="40" cy="5" rx="18" ry="18" fill="#d4a574"/>
+                  <rect x="22" y="5" width="36" height="18" fill="#d4a574"/>
+                  <rect x="34" y="21" width="12" height="10" fill="#d4a574"/>
+                  <ellipse cx="40" cy="50" rx="26" ry="20" fill="#2c3e8c"/>
+                  <!-- X roja -->
+                  <line x1="5" y1="5" x2="75" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="75" y1="5" x2="5" y2="95" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="guide-badge bad-badge">✗ Evitar</div>
+              <p class="guide-desc">Cara cortada o mal encuadre</p>
+            </div>
+
+          </div><!-- /guidelines-grid -->
+
+          <div class="guidelines-specs">
+            <p class="spec-title">Especificaciones t&eacute;cnicas</p>
+            <div class="spec-row"><span class="spec-icon">📐</span><span>Formato vertical (portrait), m&iacute;nimo 600×800px</span></div>
+            <div class="spec-row"><span class="spec-icon">🎨</span><span>PNG con fondo transparente o JPEG fondo blanco</span></div>
+            <div class="spec-row"><span class="spec-icon">💡</span><span>Iluminaci&oacute;n frontal uniforme, sin sombras duras</span></div>
+            <div class="spec-row"><span class="spec-icon">👤</span><span>Encuadre de busto: desde la cabeza hasta el pecho</span></div>
+            <div class="spec-row"><span class="spec-icon">👔</span><span>Vestimenta formal o business casual</span></div>
+          </div>
+        </div><!-- /guidelines-content -->
+      </div><!-- /photo-guidelines -->
+    </div>
+    <div>
+      <p class="section-label">Informacion</p>
+      <div class="field-group">
+        <div><label>Nombre completo</label><input type="text" id="f-name" placeholder="Ana Garcia"></div>
+        <div><label>WhatsApp / Tel&eacute;fono</label><input type="tel" id="f-whatsapp" placeholder="+506 8888 0000"></div>
+        <div><label>Correo electr&oacute;nico</label><input type="email" id="f-email" placeholder="ana@empresa.com"></div>
+        <div><label>Instagram</label><input type="text" id="f-instagram" placeholder="@tu_cuenta"></div>
+      </div>
+    </div>
+    <div>
+      <p class="section-label">Guardar tarjeta</p>
+      <div class="save-bar">
+        <input type="text" id="f-savename" placeholder="Nombre de la tarjeta">
+        <button class="btn-save" id="btn-save-card">Guardar</button>
+      </div>
+    </div>
+    <div>
+      <p class="section-label">Tarjetas guardadas</p>
+      <div class="saved-list" id="saved-list"><p class="saved-empty">Cargando...</p></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="preview-toolbar">
+      <h2>Vista previa</h2>
+      <div class="toolbar-btns">
+        <button class="btn btn-ghost" id="btn-download-pdf">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar PDF
+        </button>
+        <button class="btn btn-ghost" id="btn-download-png">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Descargar PNG
+        </button>
+        <button class="btn btn-ghost" id="btn-download-digital">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/></svg>
+          Tarjeta digital
+        </button>
+      </div>
+    </div>
+    <div class="preview-area">
+      <div class="card-wrapper"><div class="card-label">Frente</div><div class="card-canvas-wrap"><canvas id="canvas-front" width="354" height="638"></canvas></div></div>
+      <div class="card-wrapper"><div class="card-label">Reverso</div><div class="card-canvas-wrap"><canvas id="canvas-back" width="354" height="638"></canvas></div></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const sb = createClient(
+  'https://neuzltjlezogxmhbceco.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ldXpsdGpsZXpvZ3htaGJjZWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NTMxOTksImV4cCI6MjA5NTMyOTE5OX0.p4NZzk_O2aU-KOYQPdSIkiD9TSoNgaDrC1yBKXcgfWg'
+);
+window.sb = sb; // exponer para components.js
+
+// Cargar components.js después de que sb esté disponible
+await new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = '../components.js';
+  s.onload = resolve;
+  s.onerror = reject;
+  document.head.appendChild(s);
+});
+
+/* ── Dimensiones ── */
+const CARD_W=591, CARD_H=1063, DISP_W=354, DISP_H=638;
+const SCALE=DISP_W/CARD_W;
+
+/* ── Templates ── */
+const TEMPLATES = [
+  {
+    id:'remax-central', label:'REMAX Central',
+    front_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576398/frente-remax_zhorik.png',
+    back_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576399/reverso-remax_agzjhe.png',
+    is_sunrise:false,
+    /* Foto: área blanca medida pixel a pixel
+       Borde izq: x=79 (estable desde y=88)
+       Borde der: x=590
+       Borde sup: y=28 en x=79 (redondeado)
+       Borde inf: y=825
+       Radio sup-izq: ~60px, Radio inf-izq: ~89px */
+    photo:{x:79,y:28,w:511,h:797,rTL:60,rTR:0,rBR:0,rBL:89},
+    /* Banda nombre: y=826 a y=1015, h=189 */
+    band:{y:826,h:189},
+    /* Reverso: área blanca x=46, centro x=319 */
+    back:{wx:46,cx:319,textY:730,textEndY:880},
+  },
+  {
+    id:'team-sunrise', label:'Team Sunrise',
+    front_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576399/frente-sunrise_tl2bst.png',
+    back_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576401/reverso-sunrise_fofnuw.png',
+    is_sunrise:true,
+    photo:{x:79,y:28,w:511,h:797,rTL:60,rTR:0,rBR:0,rBL:89},
+    band:{y:826,h:114},
+    back:{wx:46,cx:319,textY:730,textEndY:855},
+  }
+];
+
+/* ── Estado ── */
+let currentUser=null,currentProfile=null,currentTenant=null;
+let currentTpl=TEMPLATES[0], photoImg=null, photoDataUrl=null;
+let fontsReady=false;
+const CARD_COL='tarjetas';
+
+/* ── Helpers ── */
+const el  = id=>document.getElementById(id);
+const v   = id=>{const e=el(id);return e?e.value.trim():''};
+const setV= (id,val)=>{const e=el(id);if(e)e.value=val||''};
+const esc = s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toast(msg){
+  const t=el('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function loadImg(url){
+  return new Promise((res,rej)=>{
+    const img=new Image();img.crossOrigin='anonymous';
+    img.onload=()=>res(img);img.onerror=()=>rej(new Error('No se pudo cargar: '+url));
+    img.src=url;
+  });
+}
+
+/* ── Fuentes Gotham ── */
+async function loadFonts(){
+  try{
+    el('font-dot').className='font-dot';
+    el('font-status-text').textContent='Cargando fuentes...';
+    const [b,l]=await Promise.all([
+      new FontFace('GothamNarrowBold','url(https://res.cloudinary.com/dlgrhr6lh/raw/upload/v1774650941/Gotham_Narrow_Bold_arzjpl.otf)',{weight:'700'}).load(),
+      new FontFace('GothamLight','url(https://res.cloudinary.com/dlgrhr6lh/raw/upload/v1774650942/Gotham-Light_fqu7wc.otf)',{weight:'300'}).load()
+    ]);
+    document.fonts.add(b);document.fonts.add(l);
+    fontsReady=true;
+    el('font-dot').className='font-dot ok';
+    el('font-status-text').textContent='Fuentes Gotham listas';
+    renderCards();
+  }catch(e){
+    console.warn('[fonts]',e);
+    el('font-status-text').textContent='Usando fuente alternativa';
+    renderCards();
+  }
+}
+
+/* ── Auth ── */
+async function doLogin(){
+  const email=v('login-email'),password=el('login-password').value;
+  const errEl=el('login-error'),btn=el('btn-login');
+  errEl.style.display='none';
+  if(!email||!password){errEl.textContent='Completa todos los campos.';errEl.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Ingresando...';
+  const{data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){errEl.textContent='Correo o contrase\u00f1a incorrectos.';errEl.style.display='block';btn.disabled=false;btn.textContent='Ingresar';return;}
+  currentUser=data.session.user;await loadContext();
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  window.location.href='../perfil/';
+}
+async function loadContext(){
+  try{
+    const{data:p,error:pErr}=await sb.from('users').select('*,tenants(*)').eq('auth_id',currentUser.id).single();
+    if(pErr||!p)throw new Error('Usuario no encontrado.');
+    currentProfile=p; currentTenant=p.tenants;
+
+    /* Pre-llenar campos desde perfil compartido */
+    if(p.name)    setV('f-name',    p.name);
+    if(p.whatsapp)setV('f-whatsapp',p.whatsapp);
+    if(p.email)   setV('f-email',   p.email);
+    if(p.instagram)setV('f-instagram',p.instagram);
+
+    /* Foto compartida */
+    if(p.photo_url && !photoDataUrl){
+      photoDataUrl=p.photo_url;
+      photoImg=await loadImg(p.photo_url).catch(()=>null);
+      if(photoImg){
+        el('photo-preview').innerHTML=`<img src="${p.photo_url}" style="width:100%;height:100%;object-fit:cover" alt="">`;
+        el('upload-title').textContent='Foto de perfil';
+        el('upload-status').textContent='Click para cambiar';
+        el('upload-area').style.borderColor='#22c55e';
+      }
+    }
+
+    el('login-screen').style.display='none';
+    el('app-screen').classList.add('visible');
+    el('btn-login').disabled=false;el('btn-login').textContent='Ingresar';
+    if(el('db-dot')) el('db-dot').className='db-dot ok';
+    if(el('db-status-text')) el('db-status-text').textContent='Conectado';
+    buildGrid();setTpl(TEMPLATES[0]);
+    await loadSaved();loadFonts();
+  }catch(e){
+    el('login-error').textContent=e.message;el('login-error').style.display='block';
+    el('btn-login').disabled=false;el('btn-login').textContent='Ingresar';
+    await sb.auth.signOut();
+  }
+}
+
+/* ── Guardar perfil compartido en users ── */
+async function saveProfile(){
+  if(!currentProfile)return;
+  const updates={
+    name:      v('f-name'),
+    whatsapp:  v('f-whatsapp'),
+    email:     v('f-email'),
+    instagram: v('f-instagram'),
+    photo_url: photoDataUrl||null,
+  };
+  await sb.from('users').update(updates).eq('id',currentProfile.id);
+}
+
+/* ── Grid templates ── */
+function buildGrid(){
+  el('template-grid').innerHTML=TEMPLATES.map(t=>`
+    <button class="tpl-btn" data-id="${t.id}">
+      <img src="${t.front_url}" crossorigin="anonymous" alt="${t.label}">
+      <div class="tpl-btn-label">${t.label}</div>
+    </button>`).join('');
+  el('template-grid').querySelectorAll('.tpl-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{const t=TEMPLATES.find(x=>x.id===btn.dataset.id);if(t)setTpl(t);});
+  });
+}
+function setTpl(tpl){
+  currentTpl=tpl;
+  document.querySelectorAll('.tpl-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.querySelector(`.tpl-btn[data-id="${tpl.id}"]`);
+  if(btn)btn.classList.add('active');
+  renderCards();
+}
+
+/* ══════════════════════════════
+   RENDER FRENTE
+══════════════════════════════ */
+async function renderFront(canvas){
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  /* Scale dinámico — funciona tanto en display (354px) como en hi-res (591px) */
+  const s=W/CARD_W;
+  ctx.clearRect(0,0,W,H);
+  if(!currentTpl)return;
+
+  /* 1. Fondo */
+  try{const bg=await loadImg(currentTpl.front_url);ctx.drawImage(bg,0,0,W,H);}
+  catch(e){ctx.fillStyle='#1a2744';ctx.fillRect(0,0,W,H);}
+
+  /* 2. Foto del agente — coordenadas en full res, escaladas por s */
+  if(photoImg){
+    const ax=46*s, ay=155*s, aw=545*s, ah=673*s;  /* y=155 a y=828 */
+    const rTL=Math.round(80*s);
+    const rBL=Math.round(89*s);
+
+    ctx.save();
+    ctx.beginPath();
+    /* sup-izq: redondeada */
+    ctx.moveTo(ax+rTL, ay);
+    /* sup-der: recta */
+    ctx.lineTo(ax+aw, ay);
+    /* inf-der: recta */
+    ctx.lineTo(ax+aw, ay+ah);
+    /* inf-izq: redondeada */
+    ctx.lineTo(ax+rBL, ay+ah);
+    ctx.quadraticCurveTo(ax, ay+ah, ax, ay+ah-rBL);
+    /* izq hasta curva sup-izq */
+    ctx.lineTo(ax, ay+rTL);
+    ctx.quadraticCurveTo(ax, ay, ax+rTL, ay);
+    ctx.closePath();
+    ctx.clip();
+
+    /* Cover — alinear arriba para no cortar cabeza */
+    const ratio=photoImg.width/photoImg.height;
+    const areaRatio=aw/ah;
+    let sw,sh,sx,sy;
+    if(ratio>areaRatio){sh=ah;sw=sh*ratio;sx=ax+(aw-sw)/2;sy=ay;}
+    else{sw=aw;sh=sw/ratio;sx=ax;sy=ay;}
+    ctx.drawImage(photoImg,sx,sy,sw,sh);
+    ctx.restore();
+  }
+
+  /* 3. Nombre en banda azul */
+  const name=v('f-name')||'TU NOMBRE';
+  const bandY=Math.round(currentTpl.band.y*s);
+  const bandH=Math.round(currentTpl.band.h*s);
+  const fn=fontsReady?'GothamNarrowBold':'Arial Black,Arial';
+  ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
+
+  if(currentTpl.is_sunrise){
+    let fs=Math.round(58*s);
+    ctx.font=`bold ${fs}px ${fn}`;
+    while(fs>11&&ctx.measureText(name.toUpperCase()).width>W*0.92){fs--;ctx.font=`bold ${fs}px ${fn}`;}
+    ctx.fillText(name.toUpperCase(),W/2,bandY+bandH/2);
+  }else{
+    const parts=name.toUpperCase().trim().split(' ');
+    let l1,l2;
+    if(parts.length===1){l1=parts[0];l2='';}
+    else if(parts.length===2){l1=parts[0];l2=parts[1];}
+    else{const m=Math.ceil(parts.length/2);l1=parts.slice(0,m).join(' ');l2=parts.slice(m).join(' ');}
+    let fs=Math.round(58*s);
+    ctx.font=`bold ${fs}px ${fn}`;
+    const lng=l1.length>=(l2||'').length?l1:l2;
+    while(fs>11&&ctx.measureText(lng).width>W*0.88){fs--;ctx.font=`bold ${fs}px ${fn}`;}
+    /* También verificar que las 2 líneas quepan verticalmente en la banda */
+    const lh=fs*1.25,totalH=l2?lh*2:lh;
+    while(fs>11&&totalH>bandH*0.85){fs--;ctx.font=`bold ${fs}px ${fn}`;}
+    const lhF=fs*1.25,totalHF=l2?lhF*2:lhF;
+    const startY=bandY+(bandH-totalHF)/2+lhF/2;
+    ctx.fillText(l1,W/2,startY);
+    if(l2)ctx.fillText(l2,W/2,startY+lhF);
+  }
+}
+
+/* ══════════════════════════════
+   RENDER REVERSO
+   QR con logo WhatsApp en centro
+══════════════════════════════ */
+async function renderBack(canvas){
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  /* Scale dinámico */
+  const s=W/CARD_W;
+  ctx.clearRect(0,0,W,H);
+  if(!currentTpl)return;
+
+  /* 1. Fondo */
+  try{const bg=await loadImg(currentTpl.back_url);ctx.drawImage(bg,0,0,W,H);}
+  catch(e){ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);}
+
+  const whiteStartX=currentTpl.back.wx;
+  const whiteWidth=CARD_W-whiteStartX;
+  const whiteCenterX=Math.round((whiteStartX+whiteWidth/2)*s);
+
+  const wa=v('f-whatsapp')||'';
+  const waClean=wa.replace(/\D/g,'');
+  const qrData=waClean?`https://wa.me/${waClean}`:'https://wa.me/50600000000';
+  const qrApiUrl=`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(qrData)}&bgcolor=ffffff&color=000000&format=png&margin=2`;
+
+  /* QR: 400px full res, centrado en área blanca, empieza en y=100 */
+  const qSize=Math.round(400*s);
+  const qx=whiteCenterX-qSize/2;
+  const qy=Math.round(100*s);
+
+  try{
+    const qrImg=await loadImg(qrApiUrl);
+    ctx.drawImage(qrImg,qx,qy,qSize,qSize);
+    /* Sin logo en el centro — QR limpio para mejor lectura */
+  }catch(e){console.warn('[QR]',e);}
+
+  /* Texto: teléfono en y=750, email e instagram debajo */
+  const phone=v('f-whatsapp')||'';
+  const email=v('f-email')||'';
+  const insta=v('f-instagram')||'';
+  const fontBase=fontsReady?'GothamLight':'Arial';
+
+  ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle='#111111';
+
+  const maxW=Math.round(whiteWidth*0.82*s);
+  let ty=Math.round(750*s);
+  const gapS=Math.round(12*s);
+
+  /* Teléfono */
+  if(phone){
+    let fs=Math.max(Math.round(44*s),16);
+    ctx.font=`300 ${fs}px ${fontBase}`;
+    while(fs>13&&ctx.measureText(phone).width>maxW){fs--;ctx.font=`300 ${fs}px ${fontBase}`;}
+    ctx.fillText(phone,whiteCenterX,ty);
+    ty+=fs+gapS;
+  }
+
+  /* Email e Instagram — mismo tamaño, determinado por el texto más largo */
+  const instaHandle=insta?(insta.startsWith('@')?insta:'@'+insta):'';
+  let smFs=Math.max(Math.round(26*s),10);
+  ctx.font=`300 ${smFs}px ${fontBase}`;
+  const longest=email.length>instaHandle.length?email:instaHandle;
+  while(smFs>9&&ctx.measureText(longest).width>maxW-Math.round(smFs*1.5)){smFs--;ctx.font=`300 ${smFs}px ${fontBase}`;}
+
+  if(email){
+    ctx.font=`300 ${smFs}px ${fontBase}`;
+    ctx.fillText(email,whiteCenterX,ty);
+    ty+=smFs+gapS;
+  }
+
+  if(instaHandle){
+    const iconSz=Math.round(smFs*1.1);
+    const textW=(()=>{ctx.font=`300 ${smFs}px ${fontBase}`;return ctx.measureText(instaHandle).width;})();
+    const totalW=iconSz+Math.round(4*s)+textW;
+    const startX=whiteCenterX-totalW/2;
+    const iconY=ty+(smFs-iconSz)/2;
+
+    /* Ícono Instagram */
+    const ix=startX,iy=iconY,is=iconSz,ir=is*0.22;
+    ctx.save();
+    const grad=ctx.createLinearGradient(ix,iy+is,ix+is,iy);
+    grad.addColorStop(0,'#f09433');grad.addColorStop(0.25,'#e6683c');
+    grad.addColorStop(0.5,'#dc2743');grad.addColorStop(0.75,'#cc2366');grad.addColorStop(1,'#bc1888');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.moveTo(ix+ir,iy);ctx.lineTo(ix+is-ir,iy);ctx.quadraticCurveTo(ix+is,iy,ix+is,iy+ir);
+    ctx.lineTo(ix+is,iy+is-ir);ctx.quadraticCurveTo(ix+is,iy+is,ix+is-ir,iy+is);
+    ctx.lineTo(ix+ir,iy+is);ctx.quadraticCurveTo(ix,iy+is,ix,iy+is-ir);
+    ctx.lineTo(ix,iy+ir);ctx.quadraticCurveTo(ix,iy,ix+ir,iy);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=is*0.1;
+    ctx.beginPath();ctx.arc(ix+is/2,iy+is/2,is*0.28,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ix+is*0.72,iy+is*0.28,is*0.07,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle='#111111';ctx.textAlign='left';
+    ctx.font=`300 ${smFs}px ${fontBase}`;
+    ctx.fillText(instaHandle,startX+iconSz+Math.round(4*s),ty);
+    ctx.textAlign='center';
+  }
+}
+
+async function renderCards(){
+  await Promise.all([renderFront(el('canvas-front')),renderBack(el('canvas-back'))]);
+}
+
+/* ── Upload foto ── */
+function uploadPhoto(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    photoImg=await loadImg(e.target.result);
+    photoDataUrl=e.target.result;
+    el('photo-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover" alt="">`;
+    el('upload-title').textContent='Foto cargada';
+    el('upload-status').textContent='Click para cambiar';
+    el('upload-area').style.borderColor='#22c55e';
+    renderCards();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── Guardar / cargar ── */
+function renderSaved(items){
+  const c=el('saved-list');
+  if(!items||!items.length){c.innerHTML='<p class="saved-empty">No hay tarjetas guardadas</p>';return;}
+  c.innerHTML=items.map(s=>`
+    <div class="saved-item">
+      <div class="saved-item-info">
+        <div class="saved-item-name">${esc(s.save_name)}</div>
+        <div class="saved-item-meta">${esc(s.name||'')} &middot; ${new Date(s.updated_at||s.created_at).toLocaleDateString('es-CR')}</div>
+      </div>
+      <div class="saved-item-actions">
+        <button class="icon-btn" data-load="${s.id}" title="Cargar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        </button>
+        <button class="icon-btn del" data-del="${s.id}" data-name="${esc(s.save_name)}" title="Eliminar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+  c.querySelectorAll('[data-load]').forEach(b=>b.addEventListener('click',()=>loadCard(b.dataset.load)));
+  c.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delCard(b.dataset.del,b.dataset.name)));
+}
+
+async function loadSaved(){
+  if(!currentProfile)return;
+  try{
+    const{data}=await sb.from(CARD_COL).select('*').eq('user_id',currentProfile.id).order('updated_at',{ascending:false});
+    renderSaved(data||[]);
+  }catch(e){console.error('[loadSaved]',e);el('saved-list').innerHTML='<p class="saved-empty">Error al cargar</p>';}
+}
+
+async function saveCard(){
+  if(!currentProfile){toast('Sin sesi\u00f3n activa');return;}
+  const saveName=v('f-savename');
+  if(!saveName){toast('Escrib\u00e9 un nombre para la tarjeta');return;}
+  const btn=el('btn-save-card');btn.disabled=true;btn.textContent='Guardando...';
+  const record={
+    tenant_id:currentTenant.id,user_id:currentProfile.id,
+    save_name:saveName,template:currentTpl?.id||'',
+    photo_url:photoDataUrl||null,
+    name:v('f-name'),whatsapp:v('f-whatsapp'),
+    email:v('f-email'),instagram:v('f-instagram'),
+    updated_at:new Date().toISOString()
+  };
+  try{
+    const{data:ex}=await sb.from(CARD_COL).select('id').eq('user_id',currentProfile.id).eq('save_name',saveName).maybeSingle();
+    if(ex){await sb.from(CARD_COL).update(record).eq('id',ex.id);toast('Tarjeta actualizada: '+saveName);}
+    else{await sb.from(CARD_COL).insert(record);toast('Tarjeta guardada: '+saveName);}
+    el('f-savename').value='';
+    await saveProfile();  /* sincronizar perfil compartido */
+    await loadSaved();
+  }catch(e){console.error('[saveCard]',e);toast('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Guardar';}
+}
+
+async function loadCard(id){
+  const{data:s}=await sb.from(CARD_COL).select('*').eq('id',id).single();
+  if(!s)return;
+  const tpl=TEMPLATES.find(t=>t.id===s.template);
+  if(tpl)setTpl(tpl);
+  photoDataUrl=s.photo_url||null;
+  if(photoDataUrl){
+    photoImg=await loadImg(photoDataUrl);
+    el('photo-preview').innerHTML=`<img src="${photoDataUrl}" style="width:100%;height:100%;object-fit:cover" alt="">`;
+    el('upload-title').textContent='Foto cargada';el('upload-status').textContent='Click para cambiar';
+    el('upload-area').style.borderColor='#22c55e';
+  }else{
+    photoImg=null;photoDataUrl=null;
+    el('photo-preview').innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
+    el('upload-title').textContent='Subir foto';el('upload-status').textContent='PNG con fondo transparente ideal';
+    el('upload-area').style.borderColor='';
+  }
+  ['name','whatsapp','email','instagram'].forEach(k=>setV('f-'+k,s[k]));
+  setV('f-savename',s.save_name);
+  renderCards();toast('Tarjeta cargada: '+s.save_name);
+}
+
+async function delCard(id,name){
+  await sb.from(CARD_COL).delete().eq('id',id);
+  toast('Tarjeta eliminada: '+name);
+  await loadSaved();
+}
+
+/* ── Helper: renderizar a alta resolución sin tocar el display ── */
+async function renderHiRes() {
+  /* Crear canvas temporales a resolución completa */
+  const hf = document.createElement('canvas');
+  hf.width=CARD_W; hf.height=CARD_H;
+  const hb = document.createElement('canvas');
+  hb.width=CARD_W; hb.height=CARD_H;
+
+  /* Renderizar directo en canvas hi-res (s = CARD_W/CARD_W = 1.0) */
+  await renderFront(hf);
+  await renderBack(hb);
+
+  return {
+    fd: hf.toDataURL('image/png'),
+    bd: hb.toDataURL('image/png')
+  };
+}
+
+/* ── Descargar PDF ── */
+async function downloadPDF(){
+  const btn=el('btn-download-pdf');btn.disabled=true;btn.textContent='Generando PDF...';
+  try{
+    if(!window.jspdf){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
+      });
+    }
+    const{jsPDF}=window.jspdf;
+    const{fd,bd}=await renderHiRes();
+
+    /* Tarjeta 9x5cm = portrait 5cm ancho, 9cm alto */
+    const pdf=new jsPDF({orientation:'portrait',unit:'cm',format:[5,9]});
+    pdf.addImage(fd,'PNG',0,0,5,9);
+    pdf.addPage([5,9],'portrait');
+    pdf.addImage(bd,'PNG',0,0,5,9);
+
+    const slug=(v('f-name')||'tarjeta').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    pdf.save(`tarjeta-${slug}.pdf`);
+    toast('PDF descargado ✓');
+  }catch(e){console.error(e);toast('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Descargar PDF';}
+}
+
+/* ── Descargar PNG (frente y reverso por separado) ── */
+async function downloadPNG(){
+  const btn=el('btn-download-png');btn.disabled=true;btn.textContent='Generando...';
+  try{
+    const{fd,bd}=await renderHiRes();
+    const slug=(v('f-name')||'tarjeta').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const a1=document.createElement('a');a1.href=fd;a1.download=`tarjeta-${slug}-frente.png`;a1.click();
+    await new Promise(r=>setTimeout(r,400));
+    const a2=document.createElement('a');a2.href=bd;a2.download=`tarjeta-${slug}-reverso.png`;a2.click();
+    toast('PNG descargado ✓');
+  }catch(e){toast('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Descargar PNG';}
+}
+
+/* ── Tarjeta digital: frente + reverso lado a lado en un solo PNG ── */
+async function downloadDigital(){
+  const btn=el('btn-download-digital');btn.disabled=true;btn.textContent='Generando...';
+  try{
+    const{fd,bd}=await renderHiRes();
+
+    /* Canvas combinado: 2 tarjetas lado a lado con gap */
+    const gap=Math.round(CARD_W*0.05);  /* 5% de gap entre tarjetas */
+    const combined=document.createElement('canvas');
+    combined.width=CARD_W*2+gap;
+    combined.height=CARD_H;
+    const ctx=combined.getContext('2d');
+
+    /* Fondo gris claro */
+    ctx.fillStyle='#f0f2f5';
+    ctx.fillRect(0,0,combined.width,combined.height);
+
+    /* Dibujar frente y reverso */
+    const fi=await loadImg(fd);
+    const bi=await loadImg(bd);
+    ctx.drawImage(fi,0,0,CARD_W,CARD_H);
+    ctx.drawImage(bi,CARD_W+gap,0,CARD_W,CARD_H);
+
+    const slug=(v('f-name')||'tarjeta').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const a=document.createElement('a');
+    a.href=combined.toDataURL('image/png');
+    a.download=`tarjeta-${slug}-digital.png`;
+    a.click();
+    toast('Tarjeta digital descargada ✓');
+  }catch(e){console.error(e);toast('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Tarjeta digital';}
+}
+
+/* ── Event listeners ── */
+el('btn-login').addEventListener('click',doLogin);
+el('login-password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+// logout manejado por components.js → window.__ptLogout
+el('photo-upload').addEventListener('change',e=>uploadPhoto(e.target.files[0]));
+el('btn-download-pdf').addEventListener('click',downloadPDF);
+el('btn-download-png').addEventListener('click',downloadPNG);
+el('btn-download-digital').addEventListener('click',downloadDigital);
+el('btn-save-card').addEventListener('click',saveCard);
+el('guidelines-toggle').addEventListener('click',()=>{
+  const btn=el('guidelines-toggle'), content=el('guidelines-content');
+  btn.classList.toggle('open');
+  content.classList.toggle('open');
+});
+['f-name','f-whatsapp','f-email','f-instagram'].forEach(id=>{
+  const inp=el(id);if(inp)inp.addEventListener('input',renderCards);
+});
+
+/* ── Init ── */
+{
+  const result = await initComponents({ active: 'tarjetas' });
+  if (result) {
+    currentUser = (await sb.auth.getSession()).data.session.user;
+    await loadContext();
+    document.getElementById('splash').classList.add('hidden');
+    // Soporte para ?id=ID (carga desde admin) y ?download=png|pdf
+    const _urlParams = new URLSearchParams(window.location.search);
+    const _loadId    = _urlParams.get('id');
+    const _download  = _urlParams.get('download'); // 'png' | 'pdf'
+    if (_loadId) {
+      await loadCard(_loadId);
+      if (_download === 'png')  { await downloadPNG();  window.close(); }
+      if (_download === 'pdf')  { await downloadPDF();  window.close(); }
+    }
+  }
+}
+</script>
+  <footer id="pt-footer"></footer>
+</body>
+</html>

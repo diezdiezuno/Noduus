@@ -1,0 +1,2765 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · PropTools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <script src="../components.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:       #1B6EF3;
+      --blue-light: #EBF2FF;
+      --blue-dark:  #1258CC;
+      --ink:        #0D0F12;
+      --ink-mid:    #5A6070;
+      --ink-light:  #8C95A6;
+      --surface:    #fff;
+      --surface2:   #F4F5F7;
+      --border:     #E2E5EA;
+      --green:      #16A34A;
+      --green-light:#F0FDF4;
+      --red:        #DC2626;
+      --red-light:  #FEF2F2;
+      --amber:      #D97706;
+      --amber-light:#FFFBEB;
+      --radius:     10px;
+      --shadow-sm:  0 1px 3px rgba(13,15,18,.06), 0 1px 2px rgba(13,15,18,.04);
+      --shadow-md:  0 4px 16px rgba(13,15,18,.08), 0 1px 4px rgba(13,15,18,.04);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--surface2);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ───────────────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 88px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      gap: 16px;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--blue);
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+    }
+
+    .logo-mark svg { width: 20px; height: 20px; }
+
+    .logo-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: -.3px;
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+    }
+
+    .header-section-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-mid);
+    }
+
+    .header-spacer { flex: 1; }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--blue-light);
+      border: 2px solid var(--border);
+      object-fit: cover;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      overflow: hidden;
+    }
+
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .user-info { line-height: 1.3; }
+    .user-name { font-size: 13px; font-weight: 500; }
+    .user-role {
+      font-size: 11px;
+      color: var(--blue);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ── LAYOUT ───────────────────────────────────────── */
+    .app { display: block; flex: 1; min-height: 0; }
+
+
+
+    /* ── MAIN ─────────────────────────────────────────── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 36px 40px 80px;
+    }
+
+    .page-header {
+      margin-bottom: 32px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -.4px;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      color: var(--ink-mid);
+      font-size: 14px;
+    }
+
+    /* ── GRID ─────────────────────────────────────────── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* ── CARD ─────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -.2px;
+    }
+
+    .card-subtitle {
+      font-size: 13px;
+      color: var(--ink-mid);
+      margin-top: 2px;
+    }
+
+    .card-body { padding: 24px; }
+
+    /* ── FORM ─────────────────────────────────────────── */
+    .form-group { margin-bottom: 18px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+
+    label .optional {
+      font-weight: 400;
+      color: var(--ink-light);
+      font-size: 12px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--surface);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      appearance: none;
+    }
+
+    textarea {
+      height: auto;
+      padding: 10px 12px;
+      resize: vertical;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(27,110,243,.12);
+    }
+
+    input::placeholder, textarea::placeholder { color: var(--ink-light); }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A6070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    .input-hint {
+      font-size: 12px;
+      color: var(--ink-light);
+      margin-top: 5px;
+    }
+
+    /* ── BUTTON ───────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 18px;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 1px 3px rgba(27,110,243,.3);
+    }
+
+    .btn-primary:hover { background: var(--blue-dark); }
+
+    .btn-primary:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-mid);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { background: var(--surface2); color: var(--ink); }
+
+    .btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+
+    .btn-danger {
+      background: var(--red-light);
+      color: var(--red);
+      border: 1px solid #FECACA;
+    }
+
+    .btn-danger:hover { background: #FEE2E2; }
+
+    .btn-loading svg { animation: spin .7s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── INVITE FORM ──────────────────────────────────── */
+    .invite-form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .invite-form-actions .btn-primary { flex: 1; }
+
+    /* ── STATUS BADGE ─────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: .3px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      text-transform: uppercase;
+    }
+
+    .badge-pending  { background: var(--amber-light); color: var(--amber); }
+    .badge-accepted { background: var(--green-light);  color: var(--green); }
+    .badge-expired  { background: var(--surface2);     color: var(--ink-mid); }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ── INVITES TABLE ────────────────────────────────── */
+    .invites-table { width: 100%; border-collapse: collapse; }
+
+    .invites-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--ink-light);
+      font-family: 'DM Mono', monospace;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .invites-table th:first-child { padding-left: 24px; }
+    .invites-table th:last-child  { padding-right: 24px; text-align: right; }
+
+    .invites-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--surface2);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .invites-table td:first-child { padding-left: 24px; }
+    .invites-table td:last-child  { padding-right: 24px; text-align: right; }
+
+    .invites-table tr:last-child td { border-bottom: none; }
+
+    .td-email {
+      font-weight: 500;
+      color: var(--ink);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+
+    .td-date { color: var(--ink-mid); font-size: 12px; }
+
+    /* ── PREVIEW CARD ─────────────────────────────────── */
+    .preview-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+      color: var(--ink-light);
+      margin-bottom: 10px;
+    }
+
+    .email-preview {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 13px;
+    }
+
+    .ep-topbar {
+      background: var(--surface2);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ep-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .ep-body {
+      background: #F8F9FB;
+      padding: 0;
+    }
+
+    .email-frame {
+      background: #fff;
+      margin: 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+
+    .ef-header {
+      background: var(--blue);
+      padding: 28px 28px 24px;
+    }
+
+    .ef-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .ef-logo-mark {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,.2);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+    }
+
+    .ef-logo-text { color: #fff; font-size: 15px; font-weight: 600; }
+
+    .ef-headline { color: #fff; font-size: 20px; font-weight: 600; line-height: 1.3; }
+
+    .ef-body { padding: 28px; }
+
+    .ef-greeting { font-size: 14px; color: var(--ink); margin-bottom: 14px; line-height: 1.6; }
+    .ef-greeting strong { color: var(--blue); }
+
+    .ef-message { font-size: 13px; color: var(--ink-mid); line-height: 1.6; margin-bottom: 22px; }
+
+    .ef-cta {
+      display: block;
+      background: var(--blue);
+      color: #fff;
+      text-align: center;
+      padding: 13px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      margin-bottom: 20px;
+    }
+
+    .ef-divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    .ef-small { font-size: 11px; color: var(--ink-light); line-height: 1.6; }
+    .ef-small a { color: var(--blue); text-decoration: none; }
+
+    .ef-footer {
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      padding: 16px 28px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--ink-light);
+    }
+
+    /* ── STATS ROW ────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--ink-light);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .stat-value.blue   { color: var(--blue); }
+    .stat-value.amber  { color: var(--amber); }
+    .stat-value.green  { color: var(--green); }
+
+    /* ── ALERT ────────────────────────────────────────── */
+    .alert {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      border: 1px solid;
+    }
+
+    .alert-success { background: var(--green-light);  border-color: #BBF7D0; color: #15803D; }
+    .alert-error   { background: var(--red-light);    border-color: #FECACA; color: var(--red); }
+    .alert-info    { background: var(--blue-light);   border-color: #BFDBFE; color: #1D4ED8; }
+    .alert-warning { background: var(--amber-light);  border-color: #FDE68A; color: var(--amber); }
+
+    .alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+    .alert-hidden { display: none; }
+
+    /* ── EMPTY STATE ──────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--ink-mid);
+    }
+
+    .empty-state svg {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 14px;
+      opacity: .35;
+    }
+
+    .empty-state p { font-size: 13px; }
+
+    /* ── GATE ─────────────────────────────────────────── */
+    #gate {
+      position: fixed;
+      inset: 0;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .gate-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    .gate-label { font-size: 13px; color: var(--ink-mid); }
+
+    /* ── TOAST ────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 500;
+    }
+
+    .toast {
+      background: var(--ink);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      box-shadow: var(--shadow-md);
+      animation: slideUp .25s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toast.success { background: var(--green); }
+    .toast.error   { background: var(--red); }
+
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    /* ── COPY LINK ────────────────────────────────────── */
+    .copy-link-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .copy-input {
+      flex: 1;
+      height: 36px;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--ink-mid);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0 10px;
+      cursor: text;
+    }
+
+    
+    /* ── ADMIN TABS ──────────────────────────────────── */
+    .admin-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+      margin-top: -8px;
+    }
+
+    .admin-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink-mid);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+      user-select: none;
+      margin-bottom: -1px;
+    }
+
+    .admin-tab:hover { color: var(--ink); }
+
+    .admin-tab.active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+      font-weight: 600;
+    }
+
+    .admin-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .admin-panel { display: none; }
+    .admin-panel.active { display: block; }
+
+    /* ── EQUIPOS PANEL ───────────────────────────────── */
+    .eq-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .eq-form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 14px;
+      align-items: end;
+      margin-top: 14px;
+    }
+
+    .eq-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .eq-table { width: 100%; border-collapse: collapse; }
+
+    .eq-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--ink-light);
+      font-family: 'DM Mono', monospace;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .eq-table th:first-child { padding-left: 24px; }
+    .eq-table th:last-child  { padding-right: 24px; text-align: right; }
+
+    .eq-table td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--surface2);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .eq-table td:first-child { padding-left: 24px; }
+    .eq-table td:last-child  { padding-right: 24px; text-align: right; }
+    .eq-table tr:last-child td { border-bottom: none; }
+
+    .tipo-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: .3px;
+    }
+
+    .tipo-laptop    { background: #EDE9FE; color: #5B21B6; }
+    .tipo-proyector { background: #DBEAFE; color: #1D4ED8; }
+    .tipo-camara    { background: #EFF6FF; color: var(--blue); }
+    .tipo-dron      { background: #FEF3C7; color: #92400E; }
+    .tipo-audio     { background: #D1FAE5; color: #065F46; }
+    .tipo-otro      { background: var(--surface2); color: var(--ink-mid); }
+
+    .estado-select {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      cursor: pointer;
+      color: var(--ink);
+      padding: 4px 28px 4px 10px;
+      height: 30px;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235A6070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color .15s;
+    }
+
+    .estado-select:focus { border-color: var(--blue); }
+    .estado-disponible  { border-color: #BBF7D0; background-color: var(--green-light); color: var(--green); }
+    .estado-reservado   { border-color: #BFDBFE; background-color: var(--blue-light);  color: var(--blue); }
+    .estado-mantenimiento { border-color: #FDE68A; background-color: var(--amber-light); color: var(--amber); }
+
+    .eq-search {
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--ink);
+      outline: none;
+      width: 220px;
+      transition: border-color .15s;
+    }
+    .eq-search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(27,110,243,.1); }
+
+    
+    /* ── CALENDARIO ADMIN ────────────────────────────── */
+    .cal-week-grid {
+      display: grid;
+      min-width: 600px;
+    }
+    .cal-week-header {
+      display: grid;
+      border-bottom: 1px solid var(--border);
+    }
+    .cal-week-day-header {
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: .7px;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      border-right: 1px solid var(--border);
+    }
+    .cal-week-day-header:last-child { border-right: none; }
+    .cal-week-day-header .day-num {
+      font-size: 18px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      letter-spacing: -1px;
+      color: var(--ink);
+      display: block;
+      margin-bottom: 2px;
+    }
+    .cal-week-day-header.today .day-num {
+      color: var(--blue);
+    }
+    .cal-week-body {
+      display: grid;
+      position: relative;
+    }
+    .cal-hour-row {
+      display: grid;
+      border-bottom: 1px solid var(--surface2);
+      min-height: 48px;
+    }
+    .cal-hour-label {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--ink-light);
+      padding: 4px 6px 0;
+      width: 48px;
+      flex-shrink: 0;
+      text-align: right;
+      line-height: 1;
+    }
+    .cal-hour-cell {
+      border-right: 1px solid var(--surface2);
+      min-height: 48px;
+      position: relative;
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .cal-hour-cell:last-child { border-right: none; }
+    .cal-hour-cell:hover { background: var(--blue-light); }
+    .cal-event-block {
+      position: absolute;
+      left: 2px; right: 2px;
+      border-radius: 5px;
+      padding: 3px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      cursor: pointer;
+      z-index: 1;
+      line-height: 1.3;
+      box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    }
+    .cal-color-opt.selected {
+      border-color: var(--ink) !important;
+      transform: scale(1.15);
+    }
+    .cal-list-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background .12s;
+      border-left: 3px solid transparent;
+    }
+    .cal-list-item:hover { background: var(--surface2); }
+    .cal-list-item.active { background: var(--blue-light); border-left-color: var(--blue); }
+    .cal-list-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .cal-list-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .cal-list-count { font-size: 11px; color: var(--ink-light); font-family: 'DM Mono', monospace; }
+    .modal-open { display: flex !important; }
+
+    /* ── RESPONSIVE ───────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .content-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 820px) {
+      main  { padding: 24px 20px; }
+    }
+  
+    /* ── LOGO PROPTOOLS v2 ── */
+    :root {
+      --grad-start: #FF3A5C;
+      --grad-mid:   #C044E8;
+      --grad-end:   #5B4FE8;
+    }
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .logo-bar {
+      width: 6px;
+      height: 32px;
+      border-radius: 3px;
+      background: linear-gradient(to bottom, var(--grad-start), var(--grad-mid), var(--grad-end));
+      flex-shrink: 0;
+    }
+    .logo-wordmark {
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+    .logo-prop  { font-weight: 300; color: var(--ink, #0E0E1A); }
+    .logo-tools { font-weight: 900; letter-spacing: -1px; color: var(--ink, #0E0E1A); }
+
+    /* login screen — bigger version */
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .login-logo .logo-bar  { width: 6px; height: 36px; }
+    .login-logo .logo-wordmark { font-size: 26px; }
+  </style>
+</head>
+<body>
+
+<!-- Loading gate -->
+<div id="gate">
+  <div class="gate-spinner"></div>
+  <span class="gate-label">Verificando acceso…</span>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- HEADER -->
+<header id="pt-header"></header>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- MAIN -->
+  <main>
+
+    <div class="page-header">
+      <div class="page-title">Administración</div>
+      <div class="page-subtitle">Gestión de agentes, invitaciones y equipos de oficina.</div>
+    </div>
+
+    <!-- Admin Tabs -->
+    <div class="admin-tabs">
+      <div class="admin-tab active" id="tab-agentes" onclick="switchAdminTab('agentes')">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 14c0-3.038 2.462-5.5 5.5-5.5s5.5 2.462 5.5 5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Agentes
+      </div>
+      <div class="admin-tab" id="tab-equipos" onclick="switchAdminTab('equipos')">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 14h6M8 12v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Equipos de oficina
+      </div>
+      <div class="admin-tab" id="tab-calendario" onclick="switchAdminTab('calendario')">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h14M5 1v2M11 1v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Calendario
+      </div>
+      <div class="admin-tab" id="tab-materiales" onclick="switchAdminTab('materiales')">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1.5" width="6.5" height="8" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1.5" width="6.5" height="8" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="11" width="6.5" height="3.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="11" width="6.5" height="3.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/></svg>
+        Materiales
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+         PANEL: AGENTES
+    ════════════════════════════════════════════════════ -->
+    <div class="admin-panel active" id="panel-agentes">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Agentes activos</div>
+        <div class="stat-value blue" id="stat-active">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Invitaciones pendientes</div>
+        <div class="stat-value amber" id="stat-pending">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total del equipo</div>
+        <div class="stat-value green" id="stat-total">–</div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+
+      <!-- LEFT: Users + Invitations tables -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- ACTIVE USERS TABLE -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Agentes activos</div>
+              <div class="card-subtitle">Usuarios con acceso al sistema en este tenant</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-users" title="Actualizar agentes">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7A6 6 0 1 0 7 1a6 6 0 0 0-4.5 2M1 1v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Actualizar
+            </button>
+          </div>
+
+          <div id="users-loading" style="padding:32px;text-align:center;color:var(--ink-light);font-size:13px;">Cargando…</div>
+
+          <table class="invites-table" id="users-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Agente</th>
+                <th>Cargo</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+
+          <div class="empty-state" id="users-empty" style="display:none;">
+            <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="14" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M5 36c0-8.284 6.716-15 15-15s15 6.716 15 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <p>No hay agentes activos en este tenant.</p>
+          </div>
+        </div>
+
+        <!-- INVITATIONS TABLE -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Invitaciones enviadas</div>
+              <div class="card-subtitle">Historial de invitaciones para este tenant</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh" title="Actualizar">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7A6 6 0 1 0 7 1a6 6 0 0 0-4.5 2M1 1v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Actualizar
+            </button>
+          </div>
+
+          <div id="invites-loading" style="padding:40px;text-align:center;color:var(--ink-light);font-size:13px;">
+            Cargando…
+          </div>
+
+          <table class="invites-table" id="invites-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Enviado</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="invites-tbody"></tbody>
+          </table>
+
+          <div class="empty-state" id="invites-empty" style="display:none;">
+            <svg viewBox="0 0 40 40" fill="none"><path d="M8 30V16l12-10 12 10v14a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.5"/><path d="M15 32V22h10v10" stroke="currentColor" stroke-width="1.5"/></svg>
+            <p>No hay invitaciones aún. Envía tu primera invitación.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Invite form + preview -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Invite form -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Invitar agente</div>
+              <div class="card-subtitle">Se enviará un email con acceso al sistema</div>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <div id="form-alert" class="alert alert-hidden"></div>
+
+            <div class="form-group">
+              <label for="inv-email">Correo electrónico</label>
+              <input type="email" id="inv-email" placeholder="agente@remax.cr" autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+              <label for="inv-name">Nombre completo <span class="optional">(opcional)</span></label>
+              <input type="text" id="inv-name" placeholder="Ana García" />
+            </div>
+
+            <div class="form-group">
+              <label for="inv-message">Mensaje personalizado <span class="optional">(opcional)</span></label>
+              <textarea id="inv-message" rows="3" placeholder="¡Te estamos esperando en el equipo!"
+                oninput="updatePreview()"></textarea>
+            </div>
+
+            <div class="invite-form-actions">
+              <button class="btn btn-ghost" type="button" id="btn-preview-toggle">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7s2.5-5 6-5 6 5 6 5-2.5 5-6 5-6-5-6-5z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="7" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg>
+                Ver email
+              </button>
+              <button class="btn btn-primary" id="btn-send" type="button">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12 2L2 6.5 6 7.5M12 2L8 12 6 7.5M12 2L6 7.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Enviar invitación
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email preview -->
+        <div id="email-preview-wrapper" style="display:none;">
+          <div class="preview-label">Vista previa del email</div>
+          <div class="email-preview">
+            <div class="ep-topbar">
+              <div class="ep-dot" style="background:#FF5F56;"></div>
+              <div class="ep-dot" style="background:#FFBD2E;"></div>
+              <div class="ep-dot" style="background:#27C93F;"></div>
+              <span style="font-size:11px;color:var(--ink-light);margin-left:8px;font-family:'DM Mono',monospace;">Invitación · PropTools</span>
+            </div>
+            <div class="ep-body">
+              <div class="email-frame">
+
+                <!-- Header oscuro -->
+                <div style="background:#0D0F12;padding:24px 28px 20px;">
+                  <!-- Logo barra degradada + wordmark -->
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                    <div style="width:5px;height:30px;border-radius:2px;background:linear-gradient(to bottom,#FF3A5C,#C044E8,#5B4FE8);flex-shrink:0;"></div>
+                    <div style="font-size:18px;line-height:1;letter-spacing:-0.5px;">
+                      <span style="font-weight:300;color:#fff;">Prop</span><span style="font-weight:900;color:#fff;letter-spacing:-1px;">TOOLS</span>
+                    </div>
+                  </div>
+                  <div class="ef-headline" id="prev-headline" style="color:#fff;font-size:16px;font-weight:700;white-space:nowrap;">Te invitamos a unirte al equipo</div>
+                </div>
+
+                <!-- Body -->
+                <div class="ef-body">
+                  <div class="ef-greeting">Hola <strong id="prev-name">Agente</strong>,</div>
+                  <div class="ef-message" id="prev-message">
+                    Has sido invitado/a a unirte a <strong>REMAX Central</strong> en PropTools, la plataforma de marketing digital para profesionales inmobiliarios.
+                  </div>
+                  <!-- CTA degradado -->
+                  <a class="ef-cta" href="#" style="background:linear-gradient(to right,#FF3A5C,#C044E8,#5B4FE8);">Crear mi cuenta →</a>
+                  <div class="ef-divider"></div>
+                  <div class="ef-small">
+                    Si no esperabas esta invitación, podés ignorar este mensaje.<br/>
+                    El enlace expirará en 7 días.
+                  </div>
+                </div>
+
+                <!-- Footer fondo claro -->
+                <div style="background:#F4F5F7;border-top:1px solid #E2E5EA;padding:12px 28px;display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="width:3px;height:16px;border-radius:2px;background:linear-gradient(to bottom,#FF3A5C,#C044E8,#5B4FE8);"></div>
+                    <span style="font-size:11px;font-weight:300;color:#0D0F12;">Prop</span><span style="font-size:11px;font-weight:900;color:#0D0F12;letter-spacing:-0.5px;">TOOLS</span>
+                  </div>
+                  <span style="font-size:10px;color:#0D0F12;">REMAX Central</span>
+                  <div style="display:flex;align-items:baseline;gap:4px;">
+                    <span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#0a0a0a;">10101<span style="color:#22c55e;">▌</span></span>
+                    <span style="font-family:'DM Mono',monospace;font-size:9px;color:#0D0F12;">dB^r&gt;</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end right col -->
+    </div><!-- end grid -->
+
+  </div><!-- end panel-agentes -->
+
+    <!-- ═══════════════════════════════════════════════════
+         PANEL: EQUIPOS
+    ════════════════════════════════════════════════════ -->
+    <div class="admin-panel" id="panel-equipos">
+
+      <!-- Equipos Stats -->
+      <div class="eq-stats">
+        <div class="stat-card">
+          <div class="stat-label">Total equipos</div>
+          <div class="stat-value blue" id="eq-stat-total">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Disponibles</div>
+          <div class="stat-value green" id="eq-stat-disponibles">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Reservados</div>
+          <div class="stat-value amber" id="eq-stat-reservados">–</div>
+        </div>
+      </div>
+
+      <!-- Agregar equipo -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Agregar equipo</div>
+            <div class="card-subtitle">Registra un nuevo equipo disponible para reserva</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="eq-form-grid">
+            <div class="form-group" style="margin:0">
+              <label>Tipo</label>
+              <select id="eq-tipo">
+                <option value="">Seleccionar…</option>
+                <option value="camara">Cámara</option>
+                <option value="dron">Dron</option>
+                <option value="laptop">Laptop</option>
+                <option value="proyector">Proyector</option>
+                <option value="audio">Equipo de audio</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Marca</label>
+              <input type="text" id="eq-marca" placeholder="ej. Dell, Sony, Canon" />
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Modelo</label>
+              <input type="text" id="eq-modelo" placeholder="ej. XPS 15, Alpha 7" />
+            </div>
+          </div>
+          <div class="eq-form-grid-2">
+            <div class="form-group" style="margin:0">
+              <label>Nombre / Identificador</label>
+              <input type="text" id="eq-nombre" placeholder="ej. Laptop Sala A" />
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Descripción <span class="optional">(opcional)</span></label>
+              <input type="text" id="eq-descripcion" placeholder="Notas adicionales" />
+            </div>
+            <button class="btn btn-primary" onclick="eqAgregar()" style="white-space:nowrap;">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+              Agregar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventario -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Inventario</div>
+            <div class="card-subtitle">Equipos registrados en el sistema</div>
+          </div>
+          <input type="text" class="eq-search" placeholder="Buscar equipo…" oninput="eqRenderTable()" id="eq-search">
+        </div>
+
+        <div id="eq-loading" style="padding:40px;text-align:center;color:var(--ink-light);font-size:13px;">Cargando…</div>
+
+        <table class="eq-table" id="eq-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>Equipo</th>
+              <th>Tipo</th>
+              <th>Marca / Modelo</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="eq-tbody"></tbody>
+        </table>
+
+        <div class="empty-state" id="eq-empty" style="display:none;">
+          <svg viewBox="0 0 40 40" fill="none"><rect x="4" y="8" width="32" height="22" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M14 32h12M20 30v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <p>No hay equipos registrados aún.</p>
+        </div>
+      </div>
+
+    </div><!-- end panel-equipos -->
+
+    <!-- ═══════════════════════════════════════════════════
+         PANEL: CALENDARIO
+    ════════════════════════════════════════════════════ -->
+    <div class="admin-panel" id="panel-calendario">
+
+      <!-- Header row: selector de calendario + botón nuevo -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div>
+            <div class="stat-label" style="margin-bottom:6px;">Calendario</div>
+            <select id="cal-admin-selector" onchange="calAdminLoadCalendar()" style="height:36px;padding:0 32px 0 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink);background:var(--surface);outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235A6070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;min-width:200px;">
+              <option value="">Seleccionar calendario…</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:22px;">
+            <button class="btn btn-ghost btn-sm" onclick="calAdminPrevWeek()">‹</button>
+            <span id="cal-admin-week-label" style="font-size:13px;font-weight:500;padding:0 8px;line-height:32px;white-space:nowrap;">—</span>
+            <button class="btn btn-ghost btn-sm" onclick="calAdminNextWeek()">›</button>
+            <button class="btn btn-ghost btn-sm" onclick="calAdminToday()">Hoy</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:22px;">
+          <button class="btn btn-ghost btn-sm" onclick="calAdminShowNuevoCalendario()">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Nuevo calendario
+          </button>
+          <button class="btn btn-primary" onclick="calAdminShowNuevoEvento()" id="btn-nuevo-evento-admin" style="height:32px;padding:0 14px;font-size:13px;" disabled>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+            Nuevo evento
+          </button>
+        </div>
+      </div>
+
+
+
+      <!-- Calendarios list + semana grid lado a lado -->
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;">
+
+        <!-- Lista de calendarios -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Calendarios</div></div>
+          <div id="cal-admin-list" style="padding:8px 0;">
+            <div style="padding:20px;text-align:center;color:var(--ink-light);font-size:13px;">Cargando…</div>
+          </div>
+        </div>
+
+        <!-- Vista semanal -->
+        <div class="card" style="overflow:hidden;">
+          <div id="cal-admin-week-grid" style="overflow-x:auto;">
+            <div style="padding:40px;text-align:center;color:var(--ink-light);font-size:13px;">Seleccioná un calendario para ver los eventos.</div>
+          </div>
+        </div>
+
+      </div>
+
+
+        </div><!-- end panel-calendario -->
+
+    <!-- ═══════════════════════════════════════════════
+         PANEL: MATERIALES
+    ══════════════════════════════════════════════════ -->
+    <div id="panel-materiales" class="admin-panel">
+
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;">
+        <div class="stat-card"><div class="stat-number" id="mat-count-tarjetas">—</div><div class="stat-label">Tarjetas</div></div>
+        <div class="stat-card"><div class="stat-number" id="mat-count-rotulos">—</div><div class="stat-label">Rótulos</div></div>
+        <div class="stat-card"><div class="stat-number" id="mat-count-total">—</div><div class="stat-label">Total materiales</div></div>
+      </div>
+
+      <!-- Content -->
+      <div id="mat-loading" style="text-align:center;padding:48px;color:var(--ink-mid);font-size:14px;">Cargando materiales…</div>
+      <div id="mat-empty"   style="display:none;text-align:center;padding:48px;color:var(--ink-mid);font-size:14px;">No hay materiales guardados aún.</div>
+      <div id="mat-content" style="display:none;"></div>
+
+    </div>
+
+
+<!-- Modales calendario admin (fuera del panel) -->
+<!-- Modal: Nuevo / Editar evento (admin) -->
+<div id="modal-nuevo-evento-admin" style="display:none;position:fixed;inset:0;background:rgba(13,15,18,.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:12px;padding:28px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(13,15,18,.18);">
+    <div style="font-size:16px;font-weight:600;margin-bottom:20px;" id="modal-admin-ev-label">Nuevo evento</div>
+    <input type="hidden" id="ev-admin-edit-id" value="">
+    <div class="form-group">
+      <label>Título</label>
+      <input type="text" id="ev-admin-titulo" placeholder="Título del evento">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="ev-admin-fecha">
+      </div>
+      <div class="form-group">
+        <label>Asignar a agente <span class="optional">(opcional)</span></label>
+        <select id="ev-admin-agente">
+          <option value="">Toda la oficina</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <button type="button" id="ev-admin-todo-dia-btn" onclick="calAdminToggleTodoDia()"
+        style="height:28px;padding:0 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--ink-mid);cursor:pointer;transition:all .15s;">
+        Todo el dia
+      </button>
+      <input type="hidden" id="ev-admin-todo-dia" value="0">
+    </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="ev-admin-horas-row">
+      <div class="form-group">
+        <label>Hora inicio</label>
+        <input type="time" id="ev-admin-hora-ini" value="09:00">
+      </div>
+      <div class="form-group">
+        <label>Hora fin <span class="optional">(opcional)</span></label>
+        <input type="time" id="ev-admin-hora-fin" value="10:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripción <span class="optional">(opcional)</span></label>
+      <textarea id="ev-admin-desc" rows="2" placeholder="Detalles del evento…"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;" id="modal-admin-ev-actions">
+      <button class="btn btn-ghost" onclick="calAdminCloseModal('modal-nuevo-evento-admin')" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" id="btn-admin-guardar-evento" onclick="calAdminGuardarEvento()" style="flex:1;">Crear evento</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal: Nuevo calendario -->
+<div id="modal-nuevo-cal" style="display:none;position:fixed;inset:0;background:rgba(13,15,18,.45);z-index:200;display:none;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:12px;padding:28px;width:440px;max-width:95vw;box-shadow:0 8px 40px rgba(13,15,18,.18);">
+    <div style="font-size:16px;font-weight:600;margin-bottom:20px;">Nuevo calendario</div>
+    <div class="form-group">
+      <label>Nombre del calendario</label>
+      <input type="text" id="new-cal-nombre" placeholder="ej. Reuniones de equipo, Turnos, etc.">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="cal-color-picker">
+        <div class="cal-color-opt" data-color="#1B6EF3" style="width:28px;height:28px;border-radius:50%;background:#1B6EF3;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#1B6EF3',this)"></div>
+        <div class="cal-color-opt" data-color="#16A34A" style="width:28px;height:28px;border-radius:50%;background:#16A34A;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#16A34A',this)"></div>
+        <div class="cal-color-opt" data-color="#DC2626" style="width:28px;height:28px;border-radius:50%;background:#DC2626;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#DC2626',this)"></div>
+        <div class="cal-color-opt" data-color="#D97706" style="width:28px;height:28px;border-radius:50%;background:#D97706;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#D97706',this)"></div>
+        <div class="cal-color-opt" data-color="#7C3AED" style="width:28px;height:28px;border-radius:50%;background:#7C3AED;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#7C3AED',this)"></div>
+        <div class="cal-color-opt" data-color="#0891B2" style="width:28px;height:28px;border-radius:50%;background:#0891B2;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#0891B2',this)"></div>
+        <div class="cal-color-opt" data-color="#BE185D" style="width:28px;height:28px;border-radius:50%;background:#BE185D;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#BE185D',this)"></div>
+        <div class="cal-color-opt" data-color="#065F46" style="width:28px;height:28px;border-radius:50%;background:#065F46;cursor:pointer;border:3px solid transparent;" onclick="calSelectColor('#065F46',this)"></div>
+      </div>
+      <input type="hidden" id="new-cal-color" value="#1B6EF3">
+    </div>
+    <div class="form-group">
+      <label>Descripción <span class="optional">(opcional)</span></label>
+      <input type="text" id="new-cal-desc" placeholder="Descripción del calendario">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button class="btn btn-ghost" onclick="calAdminCloseModal('modal-nuevo-cal')" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" onclick="calAdminCrearCalendario()" style="flex:1;">Crear calendario</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar agente -->
+<div id="modal-edit-user" style="display:none;position:fixed;inset:0;background:rgba(13,15,18,.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:12px;padding:28px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(13,15,18,.18);">
+    <div style="font-size:16px;font-weight:600;margin-bottom:20px;">Editar agente</div>
+    <input type="hidden" id="edit-user-id">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="form-group" style="margin:0;grid-column:1/-1;">
+        <label>Nombre completo</label>
+        <input type="text" id="edit-user-name" placeholder="Ana García">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Cargo / Puesto <span class="optional">(opcional)</span></label>
+        <input type="text" id="edit-user-jobtitle" placeholder="Agente de bienes raíces">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Rol</label>
+        <select id="edit-user-role">
+          <option value="agent">Agente</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Email <span class="optional">(opcional)</span></label>
+        <input type="email" id="edit-user-email" placeholder="ana@remax.cr">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>WhatsApp <span class="optional">(opcional)</span></label>
+        <input type="text" id="edit-user-whatsapp" placeholder="+506 8888-8888">
+      </div>
+      <div class="form-group" style="margin:0;grid-column:1/-1;">
+        <label>Instagram <span class="optional">(opcional)</span></label>
+        <input type="text" id="edit-user-instagram" placeholder="@usuario">
+      </div>
+      <div class="form-group" style="margin:0;grid-column:1/-1;">
+        <label>URL de foto <span class="optional">(opcional)</span></label>
+        <input type="text" id="edit-user-photo" placeholder="https://…">
+        <div class="input-hint">URL de imagen en Cloudinary o cualquier CDN público.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="$('modal-edit-user').style.display='none'" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditUser()" style="flex:1;">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Resetear contraseña -->
+<div id="modal-reset-pw" style="display:none;position:fixed;inset:0;background:rgba(13,15,18,.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:12px;padding:28px;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(13,15,18,.18);">
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Resetear contraseña</div>
+    <div id="reset-pw-subtitle" style="font-size:13px;color:var(--ink-mid);margin-bottom:20px;"></div>
+    <input type="hidden" id="reset-pw-auth-id">
+    <div class="form-group">
+      <label>Nueva contraseña</label>
+      <input type="password" id="reset-pw-new" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Confirmar contraseña</label>
+      <input type="password" id="reset-pw-confirm" placeholder="Repetí la contraseña" autocomplete="new-password">
+    </div>
+    <div id="reset-pw-error" style="display:none;margin-top:12px;padding:10px 14px;background:var(--red-light);color:var(--red);border-radius:8px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-ghost" id="btn-reset-pw-cancel" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" id="btn-reset-pw-save" style="flex:1;">Guardar contraseña</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar invitación -->
+<div id="modal-edit-invite" style="display:none;position:fixed;inset:0;background:rgba(13,15,18,.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:12px;padding:28px;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(13,15,18,.18);">
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Editar invitación</div>
+    <div style="font-size:13px;color:var(--ink-mid);margin-bottom:20px;">Solo se pueden editar invitaciones pendientes.</div>
+    <input type="hidden" id="edit-inv-id">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="edit-inv-email" disabled style="opacity:.6;cursor:not-allowed;">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Nombre completo <span class="optional">(opcional)</span></label>
+      <input type="text" id="edit-inv-name" placeholder="Ana García">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="$('modal-edit-invite').style.display='none'" style="flex:1;">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditInvite()" style="flex:1;">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+  </main>
+</div>
+
+<!-- SUPABASE CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ── CONFIG ─────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+const SUPABASE_URL  = 'https://neuzltjlezogxmhbceco.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ldXpsdGpsZXpvZ3htaGJjZWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NTMxOTksImV4cCI6MjA5NTMyOTE5OX0.p4NZzk_O2aU-KOYQPdSIkiD9TSoNgaDrC1yBKXcgfWg';
+const INVITE_FN     = `${SUPABASE_URL}/functions/v1/invite-agent`;
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let currentUser = null;
+let currentProfile = null;
+let previewVisible = false;
+
+// ── UTILS ──────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function toast(msg, type = 'default') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const span = document.createElement('span');
+  span.textContent = msg;
+  el.appendChild(span);
+  $('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function showAlert(msg, type = 'info') {
+  const el = $('form-alert');
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v4M8 11h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span></span>`;
+  el.querySelector('span').textContent = msg;
+}
+
+function hideAlert() {
+  $('form-alert').className = 'alert alert-hidden';
+}
+
+function initials(name = '') {
+  return name.trim().split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase() || '?';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '–';
+  return new Date(iso).toLocaleDateString('es-CR', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+// ── PREVIEW ────────────────────────────────────────────────
+function updatePreview() {
+  const name = $('inv-name').value.trim() || 'Agente';
+  const msg  = $('inv-message').value.trim();
+  $('prev-name').textContent = name;
+  $('prev-headline').textContent = `${name}, te invitamos a unirte al equipo`;
+  if (msg) {
+    $('prev-message').innerHTML = `${esc(msg)}<br/><br/>Has sido invitado/a a <strong>PropTools</strong>, la plataforma de marketing digital para profesionales inmobiliarios de <strong>REMAX Central</strong>.`;
+  } else {
+    $('prev-message').innerHTML = `Has sido invitado/a a unirte a <strong>REMAX Central</strong> en PropTools, la plataforma de marketing digital para profesionales inmobiliarios.`;
+  }
+}
+
+$('inv-name').addEventListener('input', updatePreview);
+
+$('btn-preview-toggle').addEventListener('click', () => {
+  previewVisible = !previewVisible;
+  $('email-preview-wrapper').style.display = previewVisible ? 'block' : 'none';
+  $('btn-preview-toggle').innerHTML = previewVisible
+    ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7l5-5m6 0L7 7m0 0l-5 5m5-5l5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg> Ocultar`
+    : `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7s2.5-5 6-5 6 5 6 5-2.5 5-6 5-6-5-6-5z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="7" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg> Ver email`;
+});
+
+// ── SEND INVITE ────────────────────────────────────────────
+$('btn-send').addEventListener('click', async () => {
+  hideAlert();
+  const email   = $('inv-email').value.trim();
+  const name    = $('inv-name').value.trim();
+  const role    = '';  // campo eliminado del formulario
+  const message = $('inv-message').value.trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showAlert('Por favor ingresá un correo electrónico válido.', 'error');
+    $('inv-email').focus();
+    return;
+  }
+
+  const btn = $('btn-send');
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="white" stroke-width="1.5" stroke-dasharray="3 2"/></svg> Enviando…`;
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token;
+
+    const res = await fetch(INVITE_FN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        email,
+        name: name || null,
+        job_title: role || null,
+        message: message || null,
+        tenant_id: currentProfile?.tenant_id || null,
+        invited_by: currentProfile?.name || 'Admin',
+        tenant_name: currentProfile?.tenants?.name || 'REMAX Central'
+      })
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+
+    toast('✓ Invitación enviada correctamente', 'success');
+    showAlert(`Invitación enviada a <strong>${email}</strong>. El agente recibirá un link para crear su cuenta.`, 'success');
+
+    // Clear form
+    ['inv-email','inv-name','inv-message'].forEach(id => $(id).value = '');
+    updatePreview();
+
+    // Reload invites list
+    await loadInvites();
+
+  } catch (err) {
+    console.error(err);
+    showAlert(`Error al enviar la invitación: ${err.message}`, 'error');
+    toast('✗ Error al enviar invitación', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12 2L2 6.5 6 7.5M12 2L8 12 6 7.5M12 2L6 7.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Enviar invitación`;
+  }
+});
+
+// ── LOAD INVITES ───────────────────────────────────────────
+async function loadInvites() {
+  $('invites-loading').style.display = 'block';
+  $('invites-table').style.display   = 'none';
+  $('invites-empty').style.display   = 'none';
+
+  try {
+    const { data, error } = await sb
+      .from('invitations')
+      .select('*')
+      .eq('tenant_id', currentProfile?.tenant_id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    $('invites-loading').style.display = 'none';
+
+    if (!data || data.length === 0) {
+      $('invites-empty').style.display = 'block';
+      updateStats([]);
+      return;
+    }
+
+    renderInvites(data);
+    updateStats(data);
+
+  } catch (err) {
+    console.error('loadInvites:', err);
+    $('invites-loading').innerHTML = '<span style="color:var(--red)">Error al cargar invitaciones.</span>';
+  }
+}
+
+function renderInvites(rows) {
+  const tbody = $('invites-tbody');
+  tbody.innerHTML = '';
+
+  rows.forEach(row => {
+    const statusMap = {
+      pending:  '<span class="badge badge-pending"><span class="badge-dot"></span>Pendiente</span>',
+      accepted: '<span class="badge badge-accepted"><span class="badge-dot"></span>Aceptada</span>',
+      expired:  '<span class="badge badge-expired"><span class="badge-dot"></span>Expirada</span>',
+    };
+
+    const isPending = row.status === 'pending';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="td-email">${esc(row.email)}</div>
+        ${row.name ? `<div style="font-size:12px;color:var(--ink-mid);margin-top:2px;">${esc(row.name)}</div>` : ''}
+      </td>
+      <td class="td-date">${fmtDate(row.created_at)}</td>
+      <td>${statusMap[row.status] || statusMap.pending}</td>
+      <td>
+        <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+          ${isPending ? `
+            <button class="btn btn-ghost btn-sm" onclick="resendInvite('${row.id}','${row.email}')">Reenviar</button>
+            <button class="btn btn-ghost btn-sm" onclick="openEditInvite('${row.id}','${row.email}','${(row.name||'').replace(/'/g,"\\'")}')">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5l2 2-7 7H1.5V9l7-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Editar
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteInvite('${row.id}','${row.email}')">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 3h9M4.5 3V1.5h3V3M5 5.5v3M7 5.5v3M2.5 3l.75 7.5h5.5L9.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Eliminar
+            </button>
+          ` : `
+            <button class="btn btn-ghost btn-sm" disabled style="opacity:.4">Reenviar</button>
+          `}
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  $('invites-table').style.display = 'table';
+}
+
+// ── EDIT INVITE ────────────────────────────────────────────
+function openEditInvite(id, email, name) {
+  $('edit-inv-id').value    = id;
+  $('edit-inv-email').value = email;
+  $('edit-inv-name').value  = name;
+  $('modal-edit-invite').style.display = 'flex';
+}
+
+async function saveEditInvite() {
+  const id   = $('edit-inv-id').value;
+  const name = $('edit-inv-name').value.trim();
+
+  const { error } = await sb.from('invitations')
+    .update({ name: name || null })
+    .eq('id', id);
+
+  if (error) { toast('Error al actualizar: ' + error.message, 'error'); return; }
+
+  toast('✓ Invitación actualizada', 'success');
+  $('modal-edit-invite').style.display = 'none';
+  await loadInvites();
+}
+
+// ── DELETE INVITE ──────────────────────────────────────────
+async function deleteInvite(id, email) {
+  if (!confirm(`¿Eliminar la invitación enviada a ${email}?`)) return;
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      },
+      body: JSON.stringify({ type: 'invitation', invitation_id: id })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+    toast('Invitación eliminada');
+    await loadInvites();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function updateStats(rows) {
+  const pending  = rows.filter(r => r.status === 'pending').length;
+  const accepted = rows.filter(r => r.status === 'accepted').length;
+
+  $('stat-pending').textContent = pending;
+
+  // Active agents (from users table) – best-effort
+  sb.from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', currentProfile?.tenant_id)
+    .eq('role', 'agent')
+    .then(({ count }) => {
+      $('stat-active').textContent = count ?? '–';
+      $('stat-total').textContent  = (count ?? 0) + accepted;
+    });
+}
+
+async function resendInvite(id, email) {
+  toast(`Reenviando a ${email}…`);
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(INVITE_FN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      },
+      body: JSON.stringify({
+        email,
+        resend: true,
+        invitation_id: id,
+        tenant_id: currentProfile?.tenant_id,
+        invited_by: currentProfile?.name,
+        tenant_name: currentProfile?.tenants?.name || 'REMAX Central'
+      })
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    toast('✓ Email reenviado', 'success');
+  } catch (err) {
+    toast(`✗ ${err.message}`, 'error');
+  }
+}
+
+// ── LOAD USERS ─────────────────────────────────────────────
+async function loadUsers() {
+  $('users-loading').style.display = 'block';
+  $('users-table').style.display   = 'none';
+  $('users-empty').style.display   = 'none';
+
+  try {
+    const { data, error } = await sb
+      .from('users')
+      .select('id, auth_id, name, email, job_title, role, photo_url')
+      .eq('tenant_id', currentProfile?.tenant_id)
+      .order('name');
+
+    if (error) throw error;
+
+    $('users-loading').style.display = 'none';
+
+    if (!data || data.length === 0) {
+      $('users-empty').style.display = 'block';
+      return;
+    }
+
+    renderUsers(data);
+  } catch (err) {
+    console.error('loadUsers:', err);
+    $('users-loading').innerHTML = '<span style="color:var(--red)">Error al cargar agentes.</span>';
+  }
+}
+
+function renderUsers(rows) {
+  const tbody = $('users-tbody');
+  tbody.innerHTML = '';
+
+  rows.forEach(row => {
+    const ini = (row.name || row.email || '?').trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const roleTag = row.role === 'admin'
+      ? `<span class="badge" style="background:var(--blue-light);color:var(--blue);">Admin</span>`
+      : `<span class="badge" style="background:var(--surface2);color:var(--ink-mid);">Agente</span>`;
+
+    const tr = document.createElement('tr');
+    tr.dataset.row = JSON.stringify(row);
+    const avatarContent = row.photo_url
+      ? `<img src="${esc(row.photo_url)}" style="width:32px;height:32px;object-fit:cover;border-radius:50%;flex-shrink:0;">`
+      : `<div class="avatar" style="width:32px;height:32px;font-size:11px;flex-shrink:0;">${esc(ini)}</div>`;
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${avatarContent}
+          <div style="font-weight:500;font-size:13px;">${esc(row.name || '—')}</div>
+        </div>
+      </td>
+      <td class="td-date">${esc(row.job_title || '—')}</td>
+      <td><div class="td-email" style="font-size:11px;">${esc(row.email || '—')}</div></td>
+      <td>${roleTag}</td>
+      <td>
+        <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="openEditUser(this)">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5l2 2-7 7H1.5V9l7-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Editar
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="openResetPw(this)">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="2" y="5" width="8" height="6" rx="1.2" stroke="currentColor" stroke-width="1.2"/><path d="M4 5V3.5a2 2 0 1 1 4 0V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Resetear PW
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${row.id}','${(row.name||row.email||'').replace(/'/g,"\\'")}','${(row.auth_id||'')}')">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 3h9M4.5 3V1.5h3V3M5 5.5v3M7 5.5v3M2.5 3l.75 7.5h5.5L9.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Eliminar
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  $('users-table').style.display = 'table';
+}
+
+// ── EDIT USER ──────────────────────────────────────────────
+function openEditUser(btn) {
+  const row = JSON.parse(btn.closest('tr').dataset.row);
+  $('edit-user-id').value        = row.id;
+  $('edit-user-name').value      = row.name      || '';
+  $('edit-user-jobtitle').value  = row.job_title || '';
+  $('edit-user-role').value      = row.role      || 'agent';
+  $('edit-user-email').value     = row.email     || '';
+  $('edit-user-whatsapp').value  = row.whatsapp  || '';
+  $('edit-user-instagram').value = row.instagram || '';
+  $('edit-user-photo').value     = row.photo_url || '';
+  $('modal-edit-user').style.display = 'flex';
+}
+
+async function saveEditUser() {
+  const id = $('edit-user-id').value;
+  const name = $('edit-user-name').value.trim();
+  if (!name) { toast('El nombre es requerido', 'error'); return; }
+
+  const payload = {
+    name,
+    job_title:  $('edit-user-jobtitle').value.trim()  || null,
+    role:       $('edit-user-role').value,
+    email:      $('edit-user-email').value.trim()     || null,
+    whatsapp:   $('edit-user-whatsapp').value.trim()  || null,
+    instagram:  $('edit-user-instagram').value.trim() || null,
+    photo_url:  $('edit-user-photo').value.trim()     || null,
+  };
+
+  const { error } = await sb.from('users').update(payload).eq('id', id);
+
+  if (error) {
+    console.error('saveEditUser error:', error);
+    toast('Error al guardar: ' + error.message, 'error');
+    return;
+  }
+
+  toast('✓ Agente actualizado', 'success');
+  $('modal-edit-user').style.display = 'none';
+  await loadUsers();
+}
+
+// ── DELETE USER ────────────────────────────────────────────
+async function deleteUser(id, name, authId) {
+  if (!confirm(`¿Eliminar el perfil y cuenta de "${name}"?\n\nEsto eliminará su acceso al sistema por completo.`)) return;
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      },
+      body: JSON.stringify({ type: 'user', user_id: id, auth_id: authId })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+    toast('✓ Agente eliminado', 'success');
+    await Promise.all([loadUsers(), updateStatsAfterDelete()]);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ── RESET PASSWORD ─────────────────────────────────────────
+function openResetPw(btn) {
+  const row = JSON.parse(btn.closest('tr').dataset.row);
+  $('reset-pw-auth-id').value = row.auth_id || '';
+  $('reset-pw-subtitle').textContent = `Cambiando contraseña de: ${row.name || row.email || 'usuario'}`;
+  $('reset-pw-new').value = '';
+  $('reset-pw-confirm').value = '';
+  $('reset-pw-error').style.display = 'none';
+  $('modal-reset-pw').style.display = 'flex';
+  setTimeout(() => $('reset-pw-new').focus(), 50);
+}
+
+async function confirmResetPw() {
+  const authId   = $('reset-pw-auth-id').value;
+  const newPw    = $('reset-pw-new').value;
+  const confirm  = $('reset-pw-confirm').value;
+  const errorEl  = $('reset-pw-error');
+
+  errorEl.style.display = 'none';
+
+  if (!newPw || newPw.length < 8) {
+    errorEl.textContent = 'La contraseña debe tener al menos 8 caracteres.';
+    errorEl.style.display = 'block';
+    $('reset-pw-new').focus();
+    return;
+  }
+
+  if (newPw !== confirm) {
+    errorEl.textContent = 'Las contraseñas no coinciden.';
+    errorEl.style.display = 'block';
+    $('reset-pw-confirm').focus();
+    return;
+  }
+
+  const btn = $('btn-reset-pw-save');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/reset-user-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      },
+      body: JSON.stringify({ auth_id: authId, new_password: newPw })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+
+    $('modal-reset-pw').style.display = 'none';
+    toast('✓ Contraseña actualizada correctamente', 'success');
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar contraseña';
+  }
+}
+
+async function updateStatsAfterDelete() {
+  const { count } = await sb.from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', currentProfile?.tenant_id)
+    .eq('role', 'agent');
+  $('stat-active').textContent = count ?? '–';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const btnRefreshUsers = $('btn-refresh-users');
+  if (btnRefreshUsers) btnRefreshUsers.addEventListener('click', loadUsers);
+
+  $('btn-reset-pw-cancel').addEventListener('click', () => {
+    $('modal-reset-pw').style.display = 'none';
+  });
+  $('btn-reset-pw-save').addEventListener('click', confirmResetPw);
+
+  // Cerrar modal al hacer clic en el backdrop
+  $('modal-reset-pw').addEventListener('click', (e) => {
+    if (e.target === $('modal-reset-pw')) $('modal-reset-pw').style.display = 'none';
+  });
+});
+
+// ── BOOT ───────────────────────────────────────────────────
+
+
+// ── CALENDARIO ADMIN ────────────────────────────────────────────
+let _calendarios = [];
+let _calSelId = null;
+let _calSelColor = '#1B6EF3';
+let _calAdminWeekStart = null;
+let _calAgentes = [];
+
+function calAdminInit() {
+  _calAdminWeekStart = calStartOfWeek(new Date());
+  calAdminRenderWeekLabel();
+  calAdminLoadCalendarios();
+  calAdminLoadAgentes();
+}
+
+// ── Semana ──
+function calStartOfWeek(d) {
+  const date = new Date(d); date.setHours(0,0,0,0);
+  const day = date.getDay();
+  date.setDate(date.getDate() - day + (day === 0 ? -6 : 1)); // lunes
+  return date;
+}
+
+function calAdminRenderWeekLabel() {
+  const end = new Date(_calAdminWeekStart);
+  end.setDate(end.getDate() + 6);
+  const fmt = d => d.getDate() + ' ' + ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()];
+  $('cal-admin-week-label').textContent = fmt(_calAdminWeekStart) + ' – ' + fmt(end);
+}
+
+function calAdminPrevWeek() {
+  _calAdminWeekStart = new Date(_calAdminWeekStart);
+  _calAdminWeekStart.setDate(_calAdminWeekStart.getDate() - 7);
+  calAdminRenderWeekLabel();
+  if (_calSelId) calAdminLoadCalendar();
+}
+
+function calAdminNextWeek() {
+  _calAdminWeekStart = new Date(_calAdminWeekStart);
+  _calAdminWeekStart.setDate(_calAdminWeekStart.getDate() + 7);
+  calAdminRenderWeekLabel();
+  if (_calSelId) calAdminLoadCalendar();
+}
+
+function calAdminToday() {
+  _calAdminWeekStart = calStartOfWeek(new Date());
+  calAdminRenderWeekLabel();
+  if (_calSelId) calAdminLoadCalendar();
+}
+
+// ── Cargar calendarios ──
+async function calAdminLoadCalendarios() {
+  const { data, error } = await sb.from('calendarios').select('*').order('nombre');
+  if (error) { toast('Error cargando calendarios: ' + error.message, 'error'); return; }
+  _calendarios = data || [];
+
+  // Render lista
+  const list = $('cal-admin-list');
+  if (!_calendarios.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink-light);font-size:13px;">No hay calendarios aún.</div>';
+  } else {
+    list.innerHTML = _calendarios.map(c => `
+      <div class="cal-list-item${_calSelId === c.id ? ' active' : ''}" onclick="calAdminSelectCalendario('${c.id}')">
+        <div class="cal-list-dot" style="background:${c.color||'#1B6EF3'}"></div>
+        <span class="cal-list-name">${c.nombre}</span>
+        <button onclick="event.stopPropagation();calAdminEliminarCalendario('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink-light);font-size:16px;padding:0 2px;line-height:1;" title="Eliminar">×</button>
+      </div>`).join('');
+  }
+
+  // Selector
+  const sel = $('cal-admin-selector');
+  sel.innerHTML = '<option value="">Seleccionar calendario…</option>' +
+    _calendarios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  if (_calSelId) {
+    sel.value = _calSelId;
+  } else if (_calendarios.length) {
+    calAdminSelectCalendario(_calendarios[0].id);
+  }
+}
+
+async function calAdminLoadAgentes() {
+  const { data } = await sb.from('users').select('id, nombre, auth_id').eq('role','agent').order('nombre');
+  _calAgentes = data || [];
+  const sel = $('ev-admin-agente');
+  if (sel) {
+    sel.innerHTML = '<option value="">Toda la oficina</option>' +
+      _calAgentes.map(a => `<option value="${a.auth_id}">${a.nombre || a.auth_id}</option>`).join('');
+  }
+}
+
+function calAdminSelectCalendario(id) {
+  _calSelId = id;
+  $('cal-admin-selector').value = id;
+  $('btn-nuevo-evento-admin').disabled = false;
+  document.querySelectorAll('.cal-list-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.cal-list-item').forEach(el => {
+    if (el.onclick?.toString().includes(id)) el.classList.add('active');
+  });
+  calAdminLoadCalendar();
+}
+
+// ── Vista semanal ──
+async function calAdminLoadCalendar() {
+  const selId = $('cal-admin-selector').value;
+  // _calSelId para nuevos eventos usa el selector; pero la vista muestra TODOS
+  if (selId) { _calSelId = selId; $('btn-nuevo-evento-admin').disabled = false; }
+  else { $('btn-nuevo-evento-admin').disabled = true; }
+
+  if (!_calendarios.length) return;
+
+  const weekEnd = new Date(_calAdminWeekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const ini = toISODate(_calAdminWeekStart);
+  const fin = toISODate(weekEnd);
+
+  // Cargar eventos de TODOS los calendarios a la vez
+  const calIds = _calendarios.map(c => c.id);
+  const { data: eventos } = await sb.from('eventos_calendario')
+    .select('*')
+    .in('calendario_id', calIds)
+    .gte('fecha', ini)
+    .lte('fecha', fin)
+    .order('hora_inicio');
+
+  // Pasar mapa de colores por calendario_id
+  const colorMap = {};
+  _calendarios.forEach(c => { colorMap[c.id] = c.color || '#1B6EF3'; });
+
+  calAdminRenderWeek(eventos || [], colorMap);
+}
+
+function calAdminRenderWeek(eventos, colorMap) {
+  // colorMap: { calendario_id -> color } o string de color legacy
+  const getColor = (e) => typeof colorMap === 'string' ? colorMap : (colorMap[e.calendario_id] || '#1B6EF3');
+  const grid = $('cal-admin-week-grid');
+  const today = toISODate(new Date());
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(_calAdminWeekStart);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+
+  const DIAS = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
+  const HORAS = Array.from({length: 14}, (_, i) => i + 7); // 7am–8pm
+
+  // Separar eventos todo el dia de los eventos con hora
+  const todosDia = eventos.filter(e => e.todo_dia);
+  const conHora  = eventos.filter(e => !e.todo_dia);
+
+  // Header
+  let html = `<div style="display:grid;grid-template-columns:48px repeat(7,1fr);border-bottom:1px solid var(--border);">
+    <div></div>`;
+  days.forEach((d, i) => {
+    const iso = toISODate(d);
+    const isToday = iso === today;
+    html += `<div style="padding:10px 4px;text-align:center;border-left:1px solid var(--border);">
+      <span style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-light);">${DIAS[i]}</span>
+      <span style="display:block;font-size:18px;font-weight:700;letter-spacing:-1px;color:${isToday?'var(--blue)':'var(--ink)'};">${d.getDate()}</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Fila "Todo el dia" — solo si hay eventos de todo el dia en la semana
+  if (todosDia.length > 0) {
+    html += `<div style="display:grid;grid-template-columns:48px repeat(7,1fr);border-bottom:2px solid var(--border);background:var(--surface2);">
+      <div style="font-size:9px;font-family:'DM Mono',monospace;color:var(--ink-light);padding:6px 4px 0;text-align:right;line-height:1.2;">TODO<br>DIA</div>`;
+    days.forEach(d => {
+      const iso = toISODate(d);
+      const dayTodosDia = todosDia.filter(e => e.fecha === iso);
+      const tdHTML = dayTodosDia.map(e => {
+        const agente = e.user_auth_id ? (_calAgentes.find(a=>a.auth_id===e.user_auth_id)?.nombre || '') : '';
+        return `<div style="background:${getColor(e)};border-radius:4px;padding:2px 6px;margin:3px 2px;font-size:11px;font-weight:600;color:white;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"
+          onclick="calAdminEditEvento('${e.id}')" title="${e.titulo}${agente?' - '+agente:''}">
+          ${e.titulo}${agente?` <span style="opacity:.8;font-weight:400;">(${agente})</span>`:''}
+        </div>`;
+      }).join('');
+      html += `<div style="border-left:1px solid var(--surface2);padding:2px;min-height:32px;">${tdHTML}</div>`;
+    });
+    html += '</div>';
+  }
+
+  // Body rows
+  html += `<div style="overflow-y:auto;max-height:520px;">`;
+  HORAS.forEach(h => {
+    html += `<div style="display:grid;grid-template-columns:48px repeat(7,1fr);border-bottom:1px solid var(--surface2);min-height:52px;">
+      <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--ink-light);padding:4px 6px 0;text-align:right;line-height:1;">${h}:00</div>`;
+    days.forEach(d => {
+      const iso = toISODate(d);
+      const dayEvs = conHora.filter(e => e.fecha === iso && parseInt(e.hora_inicio) === h);
+      const evHTML = dayEvs.map(e => {
+        const agente = e.user_auth_id ? (_calAgentes.find(a=>a.auth_id===e.user_auth_id)?.nombre || 'Agente') : '';
+        const horaStr = e.todo_dia ? 'Todo el dia' : (e.hora_inicio ? e.hora_inicio.substring(0,5) : '');
+        return `<div class="cal-event-block" style="background:${getColor(e)};position:relative;top:0;left:2px;right:2px;margin-bottom:2px;" 
+          onclick="calAdminEditEvento('${e.id}')" title="${e.titulo}${agente?' - '+agente:''}">
+          ${horaStr ? `<span style="opacity:.8;font-size:10px;font-weight:400;">${horaStr}</span> ` : ''}${e.titulo}${agente?`<br><span style="font-weight:400;opacity:.85;">${agente}</span>`:''}
+        </div>`;
+      }).join('');
+      html += `<div style="border-left:1px solid var(--surface2);padding:2px;position:relative;cursor:pointer;transition:background .1s;" 
+        onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background=''"
+        onclick="calAdminClickCell('${iso}','${h}:00')">${evHTML}</div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  grid.innerHTML = html;
+}
+
+// ── Nuevo calendario ──
+function calAdminShowNuevoCalendario() {
+  $('new-cal-nombre').value = '';
+  $('new-cal-desc').value = '';
+  calSelectColor('#1B6EF3', document.querySelector('.cal-color-opt'));
+  $('modal-nuevo-cal').style.display = 'flex';
+}
+
+function calSelectColor(color, el) {
+  _calSelColor = color;
+  $('new-cal-color').value = color;
+  document.querySelectorAll('.cal-color-opt').forEach(o => o.classList.remove('selected'));
+  el?.classList.add('selected');
+}
+
+async function calAdminCrearCalendario() {
+  const nombre = $('new-cal-nombre').value.trim();
+  if (!nombre) { toast('El nombre es requerido', 'error'); return; }
+  const color = $('new-cal-color').value || '#1B6EF3';
+  const desc  = $('new-cal-desc').value.trim();
+  const { error } = await sb.from('calendarios').insert({ nombre, color, descripcion: desc || null });
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('✓ Calendario creado', 'success');
+  calAdminCloseModal('modal-nuevo-cal');
+  await calAdminLoadCalendarios();
+}
+
+async function calAdminEliminarCalendario(id) {
+  if (!confirm('¿Eliminar este calendario y todos sus eventos?')) return;
+  await sb.from('eventos_calendario').delete().eq('calendario_id', id);
+  await sb.from('calendarios').delete().eq('id', id);
+  if (_calSelId === id) { _calSelId = null; $('btn-nuevo-evento-admin').disabled = true; }
+  toast('Calendario eliminado');
+  await calAdminLoadCalendarios();
+  $('cal-admin-week-grid').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-light);font-size:13px;">Seleccioná un calendario para ver los eventos.</div>';
+}
+
+// ── Nuevo evento ──
+function calAdminToggleTodoDia() {
+  const input = $('ev-admin-todo-dia');
+  const btn   = $('ev-admin-todo-dia-btn');
+  const isOn  = input.value === '1';
+  input.value = isOn ? '0' : '1';
+  $('ev-admin-horas-row').style.display = isOn ? 'grid' : 'none';
+  if (btn) {
+    btn.style.background = isOn ? 'var(--surface2)' : 'var(--blue)';
+    btn.style.color      = isOn ? 'var(--ink-mid)'  : 'white';
+    btn.style.borderColor= isOn ? 'var(--border)'   : 'var(--blue)';
+  }
+}
+
+function calAdminAbrirModalEvento(opts) {
+  if (!_calSelId) return;
+  const o = opts || {};
+  $('ev-admin-edit-id').value = o.editId || '';
+  $('modal-admin-ev-label').textContent = o.editId ? 'Editar evento' : 'Nuevo evento';
+  $('btn-admin-guardar-evento').textContent = o.editId ? 'Guardar cambios' : 'Crear evento';
+  $('ev-admin-titulo').value = o.titulo  || '';
+  $('ev-admin-fecha').value  = o.fecha   || toISODate(new Date());
+  $('ev-admin-desc').value   = o.desc    || '';
+  $('ev-admin-agente').value = o.agente  || '';
+  const td = o.todo_dia || false;
+  $('ev-admin-todo-dia').value = td ? '1' : '0';
+  $('ev-admin-horas-row').style.display = td ? 'none' : 'grid';
+  const _btn = $('ev-admin-todo-dia-btn');
+  if (_btn) {
+    _btn.style.background  = td ? 'var(--blue)'    : 'var(--surface2)';
+    _btn.style.color       = td ? 'white'           : 'var(--ink-mid)';
+    _btn.style.borderColor = td ? 'var(--blue)'     : 'var(--border)';
+  }
+  $('ev-admin-hora-ini').value = td ? '09:00' : (o.hora_ini ? o.hora_ini.substring(0,5) : '09:00');
+  $('ev-admin-hora-fin').value = (!td && o.hora_fin) ? o.hora_fin.substring(0,5) : '10:00';
+  let del = $('btn-admin-delete-ev');
+  if (o.editId) {
+    if (!del) {
+      del = document.createElement('button');
+      del.id = 'btn-admin-delete-ev';
+      del.className = 'btn btn-danger btn-sm';
+      del.textContent = 'Eliminar';
+      del.style.cssText = 'flex:0;white-space:nowrap;';
+      $('modal-admin-ev-actions').insertBefore(del, $('modal-admin-ev-actions').firstChild);
+    }
+    del.onclick = () => calAdminEliminarEvento(o.editId);
+    del.style.display = '';
+  } else if (del) {
+    del.style.display = 'none';
+  }
+  $('modal-nuevo-evento-admin').style.display = 'flex';
+}
+
+function calAdminShowNuevoEvento() {
+  calAdminAbrirModalEvento({});
+}
+
+function calAdminClickCell(fecha, hora) {
+  if (!_calSelId) return;
+  const h = hora.split(':')[0].padStart(2,'0');
+  calAdminAbrirModalEvento({
+    fecha,
+    hora_ini: h + ':00',
+    hora_fin: (parseInt(h)+1).toString().padStart(2,'0') + ':00',
+  });
+}
+
+async function calAdminGuardarEvento() {
+  const editId  = $('ev-admin-edit-id').value;
+  const titulo  = $('ev-admin-titulo').value.trim();
+  const fecha   = $('ev-admin-fecha').value;
+  const todoDia = $('ev-admin-todo-dia').value === '1';
+  const horaIni = todoDia ? '00:00' : $('ev-admin-hora-ini').value;
+  const horaFin = todoDia ? null    : ($('ev-admin-hora-fin').value || null);
+  const desc    = $('ev-admin-desc').value.trim();
+  const agente  = $('ev-admin-agente').value;
+
+  if (!titulo || !fecha) { toast('Completá título y fecha', 'error'); return; }
+
+  let error;
+  if (editId) {
+    ({ error } = await sb.from('eventos_calendario')
+      .update({ titulo, fecha, hora_inicio: horaIni, hora_fin: horaFin,
+                descripcion: desc || null, todo_dia: todoDia,
+                user_auth_id: agente || null })
+      .eq('id', editId));
+  } else {
+    ({ error } = await sb.from('eventos_calendario').insert({
+      calendario_id: _calSelId,
+      titulo, fecha,
+      hora_inicio: horaIni,
+      hora_fin:    horaFin,
+      descripcion: desc || null,
+      todo_dia:    todoDia,
+      user_auth_id: agente || null,
+      creado_por:   currentUser.id,
+    }));
+  }
+
+  if (error) {
+    console.error('guardarEvento error:', error);
+    toast('Error: ' + error.message, 'error');
+    return;
+  }
+  toast(editId ? 'Evento actualizado' : 'Evento creado', 'success');
+  calAdminCloseModal('modal-nuevo-evento-admin');
+  calAdminLoadCalendar();
+}
+
+async function calAdminEliminarEvento(id) {
+  if (!confirm('Eliminar este evento?')) return;
+  await sb.from('eventos_calendario').delete().eq('id', id);
+  toast('Evento eliminado');
+  calAdminCloseModal('modal-nuevo-evento-admin');
+  calAdminLoadCalendar();
+}
+
+
+async function calAdminEditEvento(id) {
+  const { data: ev } = await sb.from('eventos_calendario').select('*').eq('id', id).single();
+  if (!ev) { toast('No se encontro el evento', 'error'); return; }
+  calAdminAbrirModalEvento({
+    editId:   ev.id,
+    titulo:   ev.titulo,
+    fecha:    ev.fecha,
+    hora_ini: ev.hora_inicio,
+    hora_fin: ev.hora_fin,
+    todo_dia: ev.todo_dia,
+    desc:     ev.descripcion,
+    agente:   ev.user_auth_id || '',
+  });
+}
+
+function calAdminCloseModal(id) {
+  $(id).style.display = 'none';
+  if (id === 'modal-nuevo-evento-admin') {
+    const d = $('btn-admin-delete-ev');
+    if (d) d.style.display = 'none';
+  }
+}
+
+function toISODate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ── ADMIN TABS ──────────────────────────────────────────────
+function switchAdminTab(tab) {
+  ['agentes','equipos','calendario','materiales'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'equipos' && window._eqLoaded !== true) {
+    eqLoad();
+    window._eqLoaded = true;
+  }
+  if (tab === 'calendario' && window._calLoaded !== true) {
+    calAdminInit();
+    window._calLoaded = true;
+  }
+  if (tab === 'materiales' && window._matLoaded !== true) {
+    loadMateriales();
+  }
+}
+
+// ── EQUIPOS ─────────────────────────────────────────────────
+let _equipos = [];
+
+async function eqLoad() {
+  $('eq-loading').style.display = 'block';
+  $('eq-table').style.display   = 'none';
+  $('eq-empty').style.display   = 'none';
+
+  const { data, error } = await sb.from('equipos').select('*').order('tipo').order('nombre');
+  $('eq-loading').style.display = 'none';
+
+  if (error) { toast('Error cargando equipos: ' + error.message, 'error'); return; }
+  _equipos = data || [];
+  eqUpdateStats();
+  eqRenderTable();
+}
+
+function eqUpdateStats() {
+  $('eq-stat-total').textContent       = _equipos.length;
+  $('eq-stat-disponibles').textContent = _equipos.filter(e => e.estado === 'disponible').length;
+  $('eq-stat-reservados').textContent  = _equipos.filter(e => e.estado === 'reservado').length;
+}
+
+function eqTipoLabel(t) {
+  return { camara:'Cámara', dron:'Dron', laptop:'Laptop', proyector:'Proyector', audio:'Audio', otro:'Otro' }[t] || t || 'Otro';
+}
+
+function eqRenderTable() {
+  const q = ($('eq-search').value || '').toLowerCase();
+  const rows = _equipos.filter(e =>
+    [e.nombre, e.marca, e.modelo, e.tipo].some(v => (v||'').toLowerCase().includes(q))
+  );
+
+  if (!rows.length) {
+    $('eq-table').style.display = 'none';
+    $('eq-empty').style.display = 'block';
+    return;
+  }
+
+  $('eq-empty').style.display = 'none';
+  $('eq-table').style.display = 'table';
+
+  $('eq-tbody').innerHTML = rows.map(e => `
+    <tr>
+      <td>
+        <div style="font-weight:500">${e.nombre || '—'}</div>
+        ${e.descripcion ? `<div style="font-size:12px;color:var(--ink-mid);margin-top:2px;">${e.descripcion}</div>` : ''}
+      </td>
+      <td><span class="tipo-pill tipo-${e.tipo || 'otro'}">${eqTipoLabel(e.tipo)}</span></td>
+      <td>
+        <div style="font-weight:500">${e.marca || '—'}</div>
+        <div style="font-size:11px;color:var(--ink-mid);font-family:'DM Mono',monospace;margin-top:2px;">${e.modelo || '—'}</div>
+      </td>
+      <td>
+        <select class="estado-select estado-${e.estado||'disponible'}"
+                onchange="eqCambiarEstado('${e.id}', this.value, this)">
+          <option value="disponible"     ${e.estado==='disponible'?'selected':''}>● Disponible</option>
+          <option value="reservado"      ${e.estado==='reservado'?'selected':''}>● Reservado</option>
+          <option value="mantenimiento"  ${e.estado==='mantenimiento'?'selected':''}>● Mantenimiento</option>
+        </select>
+      </td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="eqEliminar('${e.id}')">Eliminar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function eqAgregar() {
+  const tipo        = $('eq-tipo').value;
+  const marca       = $('eq-marca').value.trim();
+  const modelo      = $('eq-modelo').value.trim();
+  const nombre      = $('eq-nombre').value.trim();
+  const descripcion = $('eq-descripcion').value.trim();
+
+  if (!tipo || !marca || !modelo || !nombre) {
+    toast('Completá tipo, marca, modelo y nombre.', 'error'); return;
+  }
+
+  const { error } = await sb.from('equipos').insert({
+    tipo, marca, modelo, nombre,
+    descripcion: descripcion || null,
+    estado: 'disponible'
+  });
+
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+
+  ['eq-tipo','eq-marca','eq-modelo','eq-nombre','eq-descripcion'].forEach(id => {
+    const el = $(id); if (el.tagName === 'SELECT') el.value = ''; else el.value = '';
+  });
+
+  toast('✓ Equipo agregado', 'success');
+  await eqLoad();
+}
+
+async function eqCambiarEstado(id, nuevoEstado, sel) {
+  const { error } = await sb.from('equipos').update({ estado: nuevoEstado }).eq('id', id);
+  if (error) { toast('Error actualizando estado', 'error'); return; }
+
+  sel.className = `estado-select estado-${nuevoEstado}`;
+  _equipos = _equipos.map(e => e.id === id ? {...e, estado: nuevoEstado} : e);
+  eqUpdateStats();
+  toast('✓ Estado actualizado', 'success');
+}
+
+async function eqEliminar(id) {
+  if (!confirm('¿Eliminar este equipo del inventario?')) return;
+  const { error } = await sb.from('equipos').delete().eq('id', id);
+  if (error) { toast('Error eliminando: ' + error.message, 'error'); return; }
+  toast('Equipo eliminado');
+  await eqLoad();
+}
+
+async function boot() {
+  // initComponents verifica sesión, carga perfil+apps, renderiza header+sidebar
+  const result = await initComponents({ active: 'admin' });
+  if (!result) return; // sin sesión → ya redirigió
+
+  const { profile } = result;
+  currentUser = (await sb.auth.getSession()).data.session.user;
+  currentProfile = profile;
+
+  // Guard: solo admins
+  if (profile.role !== 'admin') {
+    $('gate').innerHTML = `
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="color:var(--red)">
+        <circle cx="20" cy="20" r="18.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M13 13l14 14M27 13L13 27" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div style="font-size:16px;font-weight:600;margin-top:8px;">Acceso denegado</div>
+      <div style="font-size:13px;color:var(--ink-mid);margin-bottom:16px;">Esta sección es solo para administradores.</div>
+      <a href="/tools/perfil/" class="btn btn-ghost">Ir a mi perfil</a>
+    `;
+    return;
+  }
+
+  // Hide gate, load data
+  $('gate').style.display = 'none';
+  $('btn-refresh').addEventListener('click', loadInvites);
+  await Promise.all([loadUsers(), loadInvites()]);
+}
+
+boot();
+
+
+  // ─── MATERIALES ────────────────────────────────────────────────────────────
+
+  async function loadMateriales() {
+    if (window._matLoaded) return;
+    window._matLoaded = true;
+
+    const loading = document.getElementById('mat-loading');
+    const empty   = document.getElementById('mat-empty');
+    const content = document.getElementById('mat-content');
+
+    const { data: tenantUsers } = await sb
+      .from('users')
+      .select('id, auth_id, name, photo_url, job_title')
+      .eq('tenant_id', currentProfile.tenant_id);
+
+    if (!tenantUsers || tenantUsers.length === 0) {
+      loading.style.display = 'none';
+      empty.style.display = '';
+      document.getElementById('mat-count-tarjetas').textContent = 0;
+      document.getElementById('mat-count-rotulos').textContent  = 0;
+      document.getElementById('mat-count-total').textContent    = 0;
+      return;
+    }
+
+    const authIds    = tenantUsers.map(u => u.auth_id);
+    const profileIds = tenantUsers.map(u => u.id).filter(Boolean);
+    const allIds     = [...new Set([...authIds, ...profileIds])];
+    const userMap    = {
+      ...Object.fromEntries(tenantUsers.map(u => [u.auth_id, u])),
+      ...Object.fromEntries(tenantUsers.filter(u => u.id).map(u => [u.id, u])),
+    };
+
+    const [{ data: tarjetas }, { data: rotulos }] = await Promise.all([
+      sb.from('tarjetas').select('*').in('user_id', allIds).order('created_at', { ascending: false }),
+      sb.from('rotulos').select('*').in('user_id', allIds).order('created_at', { ascending: false }),
+    ]);
+
+    const nT = tarjetas?.length ?? 0;
+    const nR = rotulos?.length  ?? 0;
+    document.getElementById('mat-count-tarjetas').textContent = nT;
+    document.getElementById('mat-count-rotulos').textContent  = nR;
+    document.getElementById('mat-count-total').textContent    = nT + nR;
+
+    loading.style.display = 'none';
+
+    if (nT + nR === 0) { empty.style.display = ''; return; }
+
+    // Group all materials by user_id
+    const byUser = {};
+    (tarjetas || []).forEach(t => { (byUser[t.user_id] = byUser[t.user_id] || []).push({ ...t, _tipo: 'tarjeta' }); });
+    (rotulos  || []).forEach(r => { (byUser[r.user_id] = byUser[r.user_id] || []).push({ ...r, _tipo: 'rotulo'  }); });
+
+    // Sort users: those with materials first, alphabetically
+    const usersWithMat = [...new Set([
+      ...Object.keys(byUser).map(uid => userMap[uid]).filter(Boolean)
+    ])].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+
+    content.innerHTML = usersWithMat.map(u => {
+      const uid  = u.auth_id;
+      const uid2 = u.id;
+      const items = [...(byUser[uid] || []), ...(byUser[uid2] || [])];
+      // dedupe by item id
+      const seen = new Set();
+      const uniq = items.filter(it => { if (seen.has(it.id)) return false; seen.add(it.id); return true; });
+      if (!uniq.length) return '';
+      return renderAgentGroup(u, uniq);
+    }).join('');
+
+    content.style.display = '';
+  }
+
+  function renderAgentGroup(u, items) {
+    const initials = (u.name ?? 'A').split(' ').map(p => p[0]).join('').substring(0,2).toUpperCase();
+    const avatar   = u.photo_url
+      ? `<img src="${esc(u.photo_url)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      : `<div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--ink-mid);flex-shrink:0;">${esc(initials)}</div>`;
+
+    const rows = items.map(item => {
+      const modulo     = item._tipo === 'tarjeta' ? 'tarjetas' : 'rotulos';
+      const urlPDF     = `/${modulo}/?id=${item.id}&download=pdf`;
+      const label = item.save_name || (item._tipo === 'tarjeta' ? 'Tarjeta sin nombre' : 'Rótulo sin nombre');
+      const sub   = item._tipo === 'rotulo' && item.texto_rojo ? item.texto_rojo : '';
+      const fecha = new Date(item.created_at).toLocaleDateString('es-CR', { day:'2-digit', month:'short', year:'numeric' });
+
+      // Pills: Tipo · Template · Orientación
+      const pill = (text, bg, color) =>
+        `<span style="background:${bg};color:${color};font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;">${text}</span>`;
+
+      const pillTipo = item._tipo === 'tarjeta'
+        ? pill('Tarjeta', '#EFF6FF', 'var(--blue)')
+        : pill('Rótulo',  '#FFF1F0', '#E03131');
+
+      const tplRaw = (item.template ?? '').toLowerCase();
+      const tplLabel = tplRaw.includes('sunrise') ? 'Sunrise'
+                     : tplRaw.includes('remax')   ? 'RE/MAX'
+                     : tplRaw ? tplRaw : null;
+      const pillTpl = tplLabel ? pill(tplLabel, 'var(--surface2)', 'var(--ink-mid)') : '';
+
+      const oriLabel = item._tipo === 'rotulo' ? (item.orientacion ?? '') : '';
+      const pillOri  = oriLabel ? pill(oriLabel, '#F0FDF4', '#16A34A') : '';
+
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(label)}</div>
+          ${sub ? `<div style="font-size:11px;color:var(--ink-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(sub)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">${pillTipo}${pillTpl}${pillOri}</div>
+        <span style="font-size:11px;color:var(--ink-mid);font-family:'DM Mono',monospace;flex-shrink:0;">${fecha}</span>
+        <a href="${urlPDF}" target="_blank" style="flex-shrink:0;display:flex;align-items:center;gap:5px;padding:6px 12px;background:var(--blue);color:white;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          PDF
+        </a>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;">
+        ${avatar}
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--ink);">${esc(u.name ?? 'Agente')}</div>
+          ${u.job_title ? `<div style="font-size:12px;color:var(--ink-mid);">${esc(u.job_title)}</div>` : ''}
+        </div>
+        <div style="margin-left:auto;font-size:12px;color:var(--ink-mid);font-family:'DM Mono',monospace;">${items.length} material${items.length !== 1 ? 'es' : ''}</div>
+      </div>
+      ${rows}
+    </div>`;
+  }
+
+</script>
+  <footer id="pt-footer"></footer>
+</body>
+</html>

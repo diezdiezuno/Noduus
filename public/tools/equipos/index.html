@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reservar Equipos — PropTools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="../components.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:       #1B6EF3;
+    --blue-light: #EBF2FF;
+    --blue-dark:  #1258CC;
+    --ink:        #0D0F12;
+    --ink-mid:    #5A6070;
+    --ink-light:  #8C95A6;
+    --surface:    #fff;
+    --surface2:   #F4F5F7;
+    --border:     #E2E5EA;
+    --green:      #16A34A;
+    --green-light:#F0FDF4;
+    --red:        #DC2626;
+    --red-light:  #FEF2F2;
+    --amber:      #D97706;
+    --amber-light:#FFFBEB;
+    --radius:     10px;
+    --shadow-sm:  0 1px 3px rgba(13,15,18,.06), 0 1px 2px rgba(13,15,18,.04);
+    --grad-start: #FF3A5C;
+    --grad-mid:   #C044E8;
+    --grad-end:   #5B4FE8;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--surface2);
+    padding-bottom: 64px;
+  }
+
+  /* ── PAGE ──────────────────────────────────────────── */
+  .page-header { margin-bottom: 24px; display: flex; align-items: flex-end; justify-content: space-between; }
+  .page-title  { font-size: 22px; font-weight: 600; letter-spacing: -.4px; margin-bottom: 4px; }
+  .page-subtitle { color: var(--ink-mid); font-size: 14px; }
+
+  /* ── 3-COLUMN LAYOUT ───────────────────────────────── */
+  .three-col {
+    display: grid;
+    grid-template-columns: 260px 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 1100px) { .three-col { grid-template-columns: 240px 1fr; } .col-panel { display: none; } }
+  @media (max-width: 820px)  { .three-col { grid-template-columns: 1fr; } }
+
+  /* ── CARD ──────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title { font-size: 13px; font-weight: 600; letter-spacing: -.1px; }
+  .card-subtitle { font-size: 12px; color: var(--ink-mid); margin-top: 1px; }
+
+  /* ── COLUMNA IZQUIERDA: Próximas reservas ──────────── */
+  .reserva-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  .reserva-item:last-child { border-bottom: none; }
+  .reserva-item:hover { background: var(--surface2); }
+
+  .reserva-item-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .reserva-fecha-badge {
+    flex-shrink: 0;
+    width: 38px;
+    text-align: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px 2px;
+  }
+  .rfd-day { font-size: 16px; font-weight: 700; line-height: 1; color: var(--ink); }
+  .rfd-mon { font-size: 9px; font-family: 'DM Mono', monospace; letter-spacing: .5px; color: var(--ink-mid); text-transform: uppercase; }
+
+  .reserva-info { flex: 1; min-width: 0; }
+  .reserva-agente { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reserva-motivo { font-size: 11px; color: var(--ink-mid); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .reserva-equipos-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .eq-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    background: var(--surface2);
+    color: var(--ink-mid);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  /* ── CALENDARIO ─────────────────────────────────────── */
+  /* Mini calendar */
+  .cal-nav {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cal-month { font-size: 13px; font-weight: 600; }
+  .cal-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--ink); transition: background .12s;
+  }
+  .cal-btn:hover { background: var(--surface2); }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 12px;
+    gap: 3px;
+  }
+
+  .cal-dow {
+    text-align: center;
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: .5px;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    padding: 2px 0 8px;
+  }
+
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all .1s;
+    position: relative;
+    user-select: none;
+  }
+
+  .cal-day:hover:not(.cal-empty):not(.cal-past) { background: var(--blue-light); color: var(--blue); }
+  .cal-day.cal-empty  { cursor: default; }
+  .cal-day.cal-past   { color: #D1D5DB; cursor: not-allowed; }
+  .cal-day.cal-today  { background: var(--surface2); font-weight: 700; }
+  .cal-day.cal-selected   { background: var(--blue); color: white; font-weight: 600; }
+  .cal-day.cal-range-start { background: var(--blue); color: white; border-radius: 7px 0 0 7px; }
+  .cal-day.cal-range-end   { background: var(--blue); color: white; border-radius: 0 7px 7px 0; }
+  .cal-day.cal-in-range    { background: var(--blue-light); color: var(--blue); border-radius: 0; }
+
+  /* Tooltip de reservas en días del calendario */
+  .cal-day.has-reserva { position: relative; }
+  .cal-day.has-reserva::after {
+    content: '';
+    position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--amber);
+  }
+  .cal-day.cal-selected.has-reserva::after,
+  .cal-day.cal-range-start.has-reserva::after,
+  .cal-day.cal-range-end.has-reserva::after { background: rgba(255,255,255,.7); }
+
+  /* Tooltip on hover for reserved days */
+  .cal-day-wrapper { position: relative; }
+
+  .cal-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%; transform: translateX(-50%);
+    background: var(--ink);
+    color: white;
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    padding: 6px 10px;
+    border-radius: 7px;
+    white-space: nowrap;
+    z-index: 50;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(13,15,18,.2);
+    line-height: 1.5;
+    max-width: 200px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .cal-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--ink);
+  }
+
+  .cal-day-wrapper:hover .cal-tooltip { display: block; }
+
+  /* Range hint */
+  .range-hint {
+    padding: 10px 16px;
+    background: var(--blue-light);
+    border-top: 1px solid #BFDBFE;
+    font-size: 12px; color: var(--blue); font-weight: 500;
+    display: flex; align-items: center; gap: 8px;
+    min-height: 40px;
+  }
+
+  /* ── PANEL RESERVA (tabs) ───────────────────────────── */
+  .panel-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .panel-tab {
+    padding: 11px 16px;
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-mid); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: all .15s;
+  }
+  .panel-tab:hover { color: var(--ink); }
+  .panel-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .panel-section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .panel-section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink-light); font-weight: 600; margin-bottom: 10px;
+  }
+
+  /* Equipo items */
+  .equipo-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px;
+    border: 1px solid var(--border); margin-bottom: 6px;
+    cursor: pointer; transition: all .12s;
+    user-select: none; background: var(--surface);
+  }
+  .equipo-item:last-child { margin-bottom: 0; }
+  .equipo-item:hover { border-color: #93C5FD; background: var(--blue-light); }
+  .equipo-item.selected { border-color: var(--blue); background: var(--blue-light); }
+  .equipo-item.unavailable { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+  .eq-check {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 2px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .12s;
+  }
+  .equipo-item.selected .eq-check { background: var(--blue); border-color: var(--blue); }
+  .eq-check svg { display: none; }
+  .equipo-item.selected .eq-check svg { display: block; }
+
+  .eq-info { flex: 1; min-width: 0; }
+  .eq-nombre { font-size: 12px; font-weight: 500; }
+  .eq-sub { font-size: 11px; color: var(--ink-mid); font-family: 'DM Mono', monospace; }
+
+  .tipo-pill {
+    font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 20px;
+    font-family: 'DM Mono', monospace; flex-shrink: 0;
+  }
+  .tipo-laptop    { background: #EDE9FE; color: #5B21B6; }
+  .tipo-proyector { background: #DBEAFE; color: #1D4ED8; }
+  .tipo-camara    { background: #EFF6FF; color: #1B6EF3; }
+  .tipo-audio     { background: #D1FAE5; color: #065F46; }
+  .tipo-otro      { background: var(--surface2); color: var(--ink-mid); }
+  .tipo-dron      { background: var(--amber-light); color: var(--amber); }
+
+  /* Resumen */
+  .resumen-row {
+    display: flex; justify-content: space-between;
+    align-items: center; font-size: 12px; padding: 3px 0;
+  }
+  .resumen-label { color: var(--ink-mid); }
+  .resumen-value { font-weight: 600; }
+
+  /* ── COLUMNA DERECHA: Mis reservas ─────────────────── */
+  .mis-reserva-row {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  .mis-reserva-row:last-child { border-bottom: none; }
+  .mis-reserva-row:hover { background: var(--surface2); }
+
+  .mr-fecha {
+    width: 36px; flex-shrink: 0; text-align: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 4px 2px;
+  }
+  .mr-day { font-size: 15px; font-weight: 700; line-height: 1; }
+  .mr-mon { font-size: 9px; font-family: 'DM Mono', monospace; letter-spacing: .5px; color: var(--ink-mid); text-transform: uppercase; }
+
+  .mr-content { flex: 1; min-width: 0; }
+  .mr-title { font-size: 12px; font-weight: 500; }
+  .mr-sub   { font-size: 11px; color: var(--ink-mid); margin-top: 1px; }
+  .mr-tags  { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+
+  .btn-cancel-sm {
+    flex-shrink: 0; background: transparent;
+    border: 1px solid #FECACA; color: var(--red);
+    font-size: 11px; font-weight: 600; padding: 3px 8px;
+    border-radius: 5px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: background .12s; margin-top: 2px;
+  }
+  .btn-cancel-sm:hover { background: var(--red-light); }
+
+  /* ── FORM ELEMENTS ─────────────────────────────────── */
+  label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; }
+  label .optional { font-weight: 400; color: var(--ink-light); font-size: 11px; }
+
+  textarea {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    color: var(--ink); background: var(--surface);
+    outline: none; resize: vertical; min-height: 60px;
+    transition: border-color .15s;
+  }
+  textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(27,110,243,.12); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 7px; height: 38px; padding: 0 16px;
+    border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer; border: none;
+    transition: background .15s, transform .1s; white-space: nowrap;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: var(--blue); color: #fff;
+    box-shadow: 0 1px 3px rgba(27,110,243,.3); width: 100%;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--blue-dark); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  /* ── GATE / TOAST ──────────────────────────────────── */
+  #gate {
+    position: fixed; inset: 0; background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; flex-direction: column; gap: 12px;
+  }
+  .gate-spinner {
+    width: 32px; height: 32px;
+    border: 2.5px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  .gate-label { font-size: 13px; color: var(--ink-mid); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #toast-container {
+    position: fixed; bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 500;
+  }
+  .toast {
+    background: var(--ink); color: #fff;
+    padding: 11px 16px; border-radius: 10px; font-size: 13px;
+    box-shadow: 0 4px 16px rgba(13,15,18,.1);
+    animation: slideUp .25s ease;
+  }
+  .toast.success { background: var(--green); }
+  .toast.error   { background: var(--red); }
+  @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .empty-small { text-align: center; padding: 20px 16px; color: var(--ink-light); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-spinner"></div>
+  <span class="gate-label">Cargando…</span>
+</div>
+<div id="toast-container"></div>
+<header id="pt-header"></header>
+
+<main id="pt-main">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Reservar Equipos</div>
+      <div class="page-subtitle">Seleccioná fechas y equipos. Ponés el cursor sobre un día para ver quién tiene reservas.</div>
+    </div>
+  </div>
+
+  <div class="three-col">
+
+    <!-- ══ COL 1: Próximas reservas (toda la oficina) ══ -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Próximas reservas</div>
+          <div class="card-subtitle">Toda la oficina</div>
+        </div>
+      </div>
+      <div id="proximas-list">
+        <div class="empty-small">Cargando…</div>
+      </div>
+    </div>
+
+    <!-- ══ COL 2: Calendario ══ -->
+    <div class="card">
+      <div class="cal-nav">
+        <button class="cal-btn" onclick="prevMonth()">‹</button>
+        <span class="cal-month" id="cal-title"></span>
+        <button class="cal-btn" onclick="nextMonth()">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="range-hint">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="12" height="11" rx="1.5"/><path d="M1 6h12M5 2V.5M9 2V.5"/></svg>
+        <span id="range-hint-text">Seleccioná la fecha de inicio de la reserva.</span>
+      </div>
+    </div>
+
+    <!-- ══ COL 3: Nueva reserva / Mis reservas ══ -->
+    <div class="col-panel card">
+      <div class="panel-tabs">
+        <div class="panel-tab active" id="ptab-nueva" onclick="switchTab('nueva')">Nueva reserva</div>
+        <div class="panel-tab" id="ptab-mis" onclick="switchTab('mis')">Mis reservas</div>
+      </div>
+
+      <!-- TAB: Nueva reserva -->
+      <div class="tab-panel active" id="ppanel-nueva">
+        <div class="panel-section">
+          <div class="section-label">Equipos disponibles</div>
+          <div id="eq-list"><div class="empty-small">Cargando…</div></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-label">Resumen</div>
+          <div class="resumen-row"><span class="resumen-label">Inicio</span><span class="resumen-value" id="res-inicio">—</span></div>
+          <div class="resumen-row"><span class="resumen-label">Fin</span><span class="resumen-value" id="res-fin">—</span></div>
+          <div class="resumen-row"><span class="resumen-label">Días</span><span class="resumen-value" id="res-dias">—</span></div>
+          <div class="resumen-row"><span class="resumen-label">Equipos</span><span class="resumen-value" id="res-count">0 equipos</span></div>
+        </div>
+        <div class="panel-section">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="f-motivo">Motivo <span class="optional">(opcional)</span></label>
+            <textarea id="f-motivo" placeholder="ej. Grabación video Escazú…"></textarea>
+          </div>
+          <button class="btn btn-primary" id="btn-reservar" onclick="crearReserva()" disabled>
+            Confirmar reserva
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB: Mis reservas -->
+      <div class="tab-panel" id="ppanel-mis">
+        <div id="mis-res-list" style="padding:4px 0;">
+          <div class="empty-small">Cargando…</div>
+        </div>
+      </div>
+
+    </div><!-- end col-panel -->
+
+  </div><!-- end three-col -->
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL  = 'https://neuzltjlezogxmhbceco.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ldXpsdGpsZXpvZ3htaGJjZWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NTMxOTksImV4cCI6MjA5NTMyOTE5OX0.p4NZzk_O2aU-KOYQPdSIkiD9TSoNgaDrC1yBKXcgfWg';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const $ = id => document.getElementById(id);
+
+let currentUser = null;
+let equipos     = [];
+let reservasAll = [];   // todas las reservas activas (para calendario + tooltips)
+let usersMap    = {};   // auth_id → name
+let selectedEqs = new Set();
+let rangeStart  = null;
+let rangeEnd    = null;
+let viewYear    = new Date().getFullYear();
+let viewMonth   = new Date().getMonth();
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS  = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+
+// ── BOOT ────────────────────────────────────────────────
+async function boot() {
+  const result = await initComponents({ active: 'equipos' });
+  if (!result) return;
+  currentUser = (await sb.auth.getSession()).data.session.user;
+  $('gate').style.display = 'none';
+  await Promise.all([loadUsersMap(), loadEquipos(), loadReservasAll()]);
+  renderCalendar();
+  renderProximasReservas();
+}
+
+// ── USERS MAP ────────────────────────────────────────────
+async function loadUsersMap() {
+  const { data } = await sb.from('users').select('auth_id, name, photo_url');
+  usersMap = {};
+  (data || []).forEach(u => {
+    usersMap[u.auth_id] = { name: u.name || 'Agente', photo: u.photo_url || null };
+  });
+}
+
+function userName(id) { return usersMap[id]?.name || 'Agente'; }
+function userPhoto(id) { return usersMap[id]?.photo || null; }
+
+// ── EQUIPOS ──────────────────────────────────────────────
+async function loadEquipos() {
+  const { data } = await sb.from('equipos').select('*').neq('estado','mantenimiento').order('tipo').order('nombre');
+  equipos = data || [];
+  renderEqList();
+}
+
+// ── RESERVAS ─────────────────────────────────────────────
+async function loadReservasAll() {
+  const today = toISO(new Date());
+  const { data } = await sb
+    .from('reservas')
+    .select('*, reserva_equipos(equipo_id, equipos(nombre, tipo))')
+    .eq('estado', 'activa')
+    .gte('fecha_fin', today)
+    .order('fecha_inicio');
+  reservasAll = data || [];
+}
+
+// Mapa: fecha ISO → [{agente, equipos[]}]
+function buildReservasPorFecha() {
+  const map = {};
+  reservasAll.forEach(r => {
+    let d   = new Date(r.fecha_inicio + 'T00:00:00');
+    const e = new Date(r.fecha_fin    + 'T00:00:00');
+    const agente = userName(r.user_auth_id);
+    const eqNames = (r.reserva_equipos || []).map(re => re.equipos?.nombre).filter(Boolean);
+    while (d <= e) {
+      const iso = toISO(d);
+      if (!map[iso]) map[iso] = [];
+      map[iso].push({ agente, eqNames, reservaId: r.id, userId: r.user_auth_id });
+      d.setDate(d.getDate() + 1);
+    }
+  });
+  return map;
+}
+
+// ── PRÓXIMAS RESERVAS (col izquierda) ────────────────────
+function renderProximasReservas() {
+  const list = $('proximas-list');
+  const proximas = reservasAll.slice(0, 10);
+  if (!proximas.length) {
+    list.innerHTML = '<div class="empty-small">Sin reservas proximas.</div>';
+    return;
+  }
+  list.innerHTML = proximas.map(r => {
+    const ini   = new Date(r.fecha_inicio + 'T00:00:00');
+    const fin   = new Date(r.fecha_fin    + 'T00:00:00');
+    const multi = r.fecha_fin !== r.fecha_inicio;
+    const agente = userName(r.user_auth_id);
+    const photo  = userPhoto(r.user_auth_id);
+    const eqs = r.reserva_equipos || [];
+
+    // Badge: si es multidía mostramos "7 — 10 ABR", si es un día "7 ABR"
+    const iniDay = ini.getDate();
+    const iniMon = MESES[ini.getMonth()].substring(0,3).toUpperCase();
+    const finDay = fin.getDate();
+    const finMon = MESES[fin.getMonth()].substring(0,3).toUpperCase();
+
+    const badgeHTML = multi ? `
+      <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+        <div>
+          <div class="rfd-day">${iniDay}</div>
+          <div class="rfd-mon">${iniMon}</div>
+        </div>
+        <div style="font-size:10px;color:var(--ink-light);line-height:1;padding-bottom:2px;">→</div>
+        <div>
+          <div class="rfd-day">${finDay}</div>
+          <div class="rfd-mon">${finMon}</div>
+        </div>
+      </div>` : `
+      <div class="rfd-day">${iniDay}</div>
+      <div class="rfd-mon">${iniMon}</div>`;
+
+    const avatarHTML = photo
+      ? `<img src="${photo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border);">`
+      : `<div style="width:28px;height:28px;border-radius:50%;background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${agente.charAt(0).toUpperCase()}</div>`;
+
+    return `
+    <div class="reserva-item">
+      <div class="reserva-item-header">
+        <div class="reserva-fecha-badge" style="width:auto;min-width:38px;padding:4px 6px;">
+          ${badgeHTML}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+          ${avatarHTML}
+          <div class="reserva-info">
+            <div class="reserva-agente">${agente}</div>
+            <div class="reserva-motivo">${r.motivo || 'Sin descripcion'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="reserva-equipos-tags">
+        ${eqs.map(e => `<span class="eq-tag">${e.equipos?.nombre||'—'}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── MIS RESERVAS (tab panel central) ─────────────────────
+function renderMisReservasPanel() {
+  const mis = reservasAll.filter(r => r.user_auth_id === currentUser.id);
+  const el  = $('mis-res-list');
+  if (!mis.length) {
+    el.innerHTML = '<div class="empty-small">No tenés reservas activas.</div>';
+    return;
+  }
+  el.innerHTML = mis.map(r => {
+    const d   = new Date(r.fecha_inicio + 'T00:00:00');
+    const eqs = r.reserva_equipos || [];
+    const finStr = r.fecha_fin !== r.fecha_inicio ? ` → ${fmtShort(new Date(r.fecha_fin+'T00:00:00'))}` : '';
+    return `
+    <div class="mis-reserva-row">
+      <div class="mr-fecha">
+        <div class="mr-day">${d.getDate()}</div>
+        <div class="mr-mon">${MESES[d.getMonth()].substring(0,3).toUpperCase()}</div>
+      </div>
+      <div class="mr-content">
+        <div class="mr-title">${r.motivo || 'Sin descripción'}${finStr}</div>
+        <div class="mr-tags">
+          ${eqs.map(e=>`<span class="eq-tag">${e.equipos?.nombre||'—'}</span>`).join('')}
+        </div>
+      </div>
+      <button class="btn-cancel-sm" onclick="cancelarReserva('${r.id}')">Cancelar</button>
+    </div>`;
+  }).join('');
+}
+
+// ── EQUIPO LIST ──────────────────────────────────────────
+function renderEqList() {
+  const container = $('eq-list');
+  if (!equipos.length) { container.innerHTML = '<div class="empty-small">No hay equipos disponibles.</div>'; return; }
+
+  const ini = rangeStart ? toISO(rangeStart) : null;
+  const fin = rangeEnd   ? toISO(rangeEnd)   : ini;
+
+  container.innerHTML = equipos.map(e => {
+    const ocupado = ini ? isOcupado(e.id, ini, fin) : false;
+    const ocupadoPor = ocupado ? getOcupadoPor(e.id, ini, fin) : null;
+    const sel = selectedEqs.has(e.id);
+    return `
+    <div class="equipo-item ${sel?'selected':''} ${ocupado?'unavailable':''}" onclick="toggleEq('${e.id}')">
+      <div class="eq-check">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>
+      </div>
+      <div class="eq-info">
+        <div class="eq-nombre">${e.nombre}</div>
+        <div class="eq-sub">${e.marca} · ${e.modelo}${ocupado&&ocupadoPor?` · <span style="color:var(--amber);font-weight:600">${ocupadoPor}</span>`:''}</div>
+      </div>
+      <span class="tipo-pill tipo-${e.tipo||'otro'}">${tipoLabel(e.tipo)}</span>
+    </div>`;
+  }).join('');
+}
+
+function isOcupado(eqId, ini, fin) {
+  return reservasAll.some(r => {
+    if (!r.reserva_equipos?.some(re => re.equipo_id === eqId)) return false;
+    return r.fecha_inicio <= fin && r.fecha_fin >= ini;
+  });
+}
+
+function getOcupadoPor(eqId, ini, fin) {
+  const r = reservasAll.find(r =>
+    r.reserva_equipos?.some(re => re.equipo_id === eqId) &&
+    r.fecha_inicio <= fin && r.fecha_fin >= ini
+  );
+  return r ? userName(r.user_auth_id) : null;
+}
+
+function toggleEq(id) {
+  if (selectedEqs.has(id)) selectedEqs.delete(id); else selectedEqs.add(id);
+  updateResumen(); renderEqList();
+}
+
+function tipoLabel(t) {
+  return {laptop:'Laptop',proyector:'Proyector',camara:'Cámara',audio:'Audio',dron:'Dron',otro:'Otro'}[t]||t||'Otro';
+}
+
+// ── CALENDAR ─────────────────────────────────────────────
+function renderCalendar() {
+  $('cal-title').textContent = `${MESES[viewMonth]} ${viewYear}`;
+
+  const today    = new Date(); today.setHours(0,0,0,0);
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInM  = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const resPorFecha = buildReservasPorFecha();
+
+  let html = DIAS.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day cal-empty"></div>';
+
+  for (let d = 1; d <= daysInM; d++) {
+    const date = new Date(viewYear, viewMonth, d); date.setHours(0,0,0,0);
+    const isPast  = date < today;
+    const isToday = date.getTime() === today.getTime();
+    const iso     = toISO(date);
+    const resInfo = resPorFecha[iso] || [];
+    const hasRes  = resInfo.length > 0;
+
+    let cls = 'cal-day';
+    if (isPast) {
+      cls += ' cal-past';
+    } else if (rangeStart && rangeEnd) {
+      const ds = new Date(rangeStart); ds.setHours(0,0,0,0);
+      const de = new Date(rangeEnd);   de.setHours(0,0,0,0);
+      if      (date.getTime()===ds.getTime()) cls += ' cal-range-start';
+      else if (date.getTime()===de.getTime()) cls += ' cal-range-end';
+      else if (date>ds && date<de)            cls += ' cal-in-range';
+    } else if (rangeStart && !rangeEnd) {
+      const ds = new Date(rangeStart); ds.setHours(0,0,0,0);
+      if (date.getTime()===ds.getTime()) cls += ' cal-selected';
+    }
+    if (isToday && !cls.includes('range') && !cls.includes('selected')) cls += ' cal-today';
+    if (hasRes) cls += ' has-reserva';
+
+    // Construir tooltip
+    let tooltipHTML = '';
+    if (hasRes) {
+      const lines = resInfo.map(ri => {
+        const photo = userPhoto(ri.userId);
+        const eqStr = ri.eqNames.length ? ri.eqNames.join(', ') : '';
+        const avatar = photo
+          ? `<img src="${photo}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px;">`
+          : '';
+        return `${avatar}<strong>${ri.agente}</strong>${eqStr ? ': ' + eqStr : ''}`;
+      }).join('<br>');
+      tooltipHTML = `<div class="cal-tooltip">${lines}</div>`;
+    }
+
+    const onclick = isPast ? '' : `onclick="selectDay(${viewYear},${viewMonth},${d})"`;
+    // Wrap day + tooltip in relative container for hover
+    html += `<div class="cal-day-wrapper" style="position:relative;">
+      <div class="${cls}" ${onclick}>${d}</div>
+      ${tooltipHTML}
+    </div>`;
+  }
+
+  $('cal-grid').innerHTML = html;
+  updateRangeHint();
+  renderEqList();
+}
+
+function selectDay(y, m, d) {
+  const date = new Date(y, m, d); date.setHours(0,0,0,0);
+  if (!rangeStart || (rangeStart && rangeEnd)) {
+    rangeStart = date; rangeEnd = null;
+  } else {
+    if (date < rangeStart)                             { rangeEnd = rangeStart; rangeStart = date; }
+    else if (date.getTime() === rangeStart.getTime())  { rangeStart = null; rangeEnd = null; }
+    else                                                rangeEnd = date;
+  }
+  selectedEqs.clear();
+  updateResumen(); renderCalendar();
+}
+
+function updateRangeHint() {
+  const el = $('range-hint-text');
+  if (!rangeStart) { el.textContent = 'Seleccioná la fecha de inicio de la reserva.'; return; }
+  if (!rangeEnd)   { el.textContent = `Inicio: ${fmtDate(rangeStart)} — Ahora seleccioná la fecha de fin.`; return; }
+  const dias = diffDays(rangeStart, rangeEnd) + 1;
+  el.textContent = `${fmtDate(rangeStart)} → ${fmtDate(rangeEnd)} · ${dias} día${dias>1?'s':''}.`;
+}
+
+function updateResumen() {
+  $('res-inicio').textContent = rangeStart ? fmtDate(rangeStart) : '—';
+  $('res-fin').textContent    = rangeEnd   ? fmtDate(rangeEnd)   : (rangeStart ? fmtDate(rangeStart) : '—');
+  const dias = rangeStart ? (rangeEnd ? diffDays(rangeStart,rangeEnd)+1 : 1) : 0;
+  $('res-dias').textContent  = dias > 0 ? `${dias} día${dias>1?'s':''}` : '—';
+  const n = selectedEqs.size;
+  $('res-count').textContent = `${n} equipo${n!==1?'s':''}`;
+  $('btn-reservar').disabled = !(rangeStart && n > 0);
+}
+
+function prevMonth() {
+  if (viewMonth===0){viewMonth=11;viewYear--;}else viewMonth--;
+  renderCalendar();
+}
+function nextMonth() {
+  if (viewMonth===11){viewMonth=0;viewYear++;}else viewMonth++;
+  renderCalendar();
+}
+
+// ── CREAR RESERVA ─────────────────────────────────────────
+async function crearReserva() {
+  if (!rangeStart || !selectedEqs.size) return;
+  const ini    = toISO(rangeStart);
+  const fin    = rangeEnd ? toISO(rangeEnd) : ini;
+  const motivo = $('f-motivo').value.trim();
+  const btn    = $('btn-reservar');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  try {
+    const { data: res, error: e1 } = await sb.from('reservas').insert({
+      user_auth_id: currentUser.id, fecha_inicio: ini, fecha_fin: fin,
+      motivo: motivo||null, estado: 'activa'
+    }).select().single();
+    if (e1) throw e1;
+
+    const items = Array.from(selectedEqs).map(id => ({ reserva_id: res.id, equipo_id: id }));
+    const { error: e2 } = await sb.from('reserva_equipos').insert(items);
+    if (e2) { await sb.from('reservas').delete().eq('id', res.id); throw e2; }
+
+    toast('✓ Reserva confirmada', 'success');
+    rangeStart = null; rangeEnd = null;
+    selectedEqs.clear();
+    $('f-motivo').value = '';
+    updateResumen();
+    await Promise.all([loadEquipos(), loadReservasAll()]);
+    renderCalendar();
+    renderProximasReservas();
+    } catch (err) {
+    toast('✗ Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirmar reserva';
+  }
+}
+
+// ── CANCELAR RESERVA ──────────────────────────────────────
+async function cancelarReserva(id) {
+  if (!confirm('Cancelar esta reserva?')) return;
+  const { error } = await sb.from('reservas')
+    .update({ estado: 'cancelada' })
+    .eq('id', id)
+    .eq('user_auth_id', currentUser.id);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Reserva cancelada');
+  await Promise.all([loadEquipos(), loadReservasAll()]);
+  renderCalendar();
+  renderProximasReservas();
+  renderMisReservasPanel();
+}
+
+// ── TABS ──────────────────────────────────────────────────
+function switchTab(t) {
+  ['nueva','mis'].forEach(id => {
+    $('ptab-'+id).classList.toggle('active', id===t);
+    $('ppanel-'+id).classList.toggle('active', id===t);
+  });
+  if (t === 'mis') renderMisReservasPanel();
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function toISO(d) {
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(d) { return `${d.getDate()} ${MESES[d.getMonth()].substring(0,3)} ${d.getFullYear()}`; }
+function fmtShort(d){ return `${d.getDate()} ${MESES[d.getMonth()].substring(0,3)}`; }
+function diffDays(a,b){ return Math.round((b-a)/86400000); }
+
+function toast(msg, type='default') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`; el.textContent = msg;
+  $('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+boot();
+</script>
+  <footer id="pt-footer"></footer>
+</body>
+</html>

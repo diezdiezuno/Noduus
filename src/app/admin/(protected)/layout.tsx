@@ -35,13 +35,25 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
     .eq('user_id', user.id)
     .single()
 
-  if (!adminRecord) redirect('/admin/login?error=no_tenant')
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tenant = (adminRecord as any).tenants
+  let tenant = (adminRecord as any)?.tenants
+  let role: 'admin' | 'agent' = 'admin'
+
+  // No es admin → ¿es agente (usuario PropTools)?
+  if (!adminRecord) {
+    const { data: agentRecord } = await supabase
+      .from('users')
+      .select('tenant_id, role, tenants(id, name, slug, logo_url, theme, proptools_apps)')
+      .eq('auth_id', user.id)
+      .single()
+    if (!agentRecord) redirect('/admin/login?error=no_tenant')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tenant = (agentRecord as any).tenants
+    role = 'agent'
+  }
 
   return (
-    <AdminShell tenant={tenant} userEmail={user.email ?? ''}>
+    <AdminShell tenant={tenant} userEmail={user.email ?? ''} role={role}>
       {children}
     </AdminShell>
   )

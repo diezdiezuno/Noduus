@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { getMembership } from '@/lib/membership'
 
 // ── Types ─────────────────────────────────────────────────────
 interface Company {
@@ -203,17 +204,13 @@ export default function EmpresasClient() {
 
   // ── Init ──────────────────────────────────────────────────
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: adminRec } = await supabase
-        .from('tenant_admins').select('tenant_id').eq('user_id', user.id).single()
-      if (!adminRec) return
-      setTenantId(adminRec.tenant_id)
-      setUserId(user.id)
+    getMembership().then(async m => {
+      if (!m) return
+      setTenantId(m.tenantId)
+      setUserId(m.userId)
       await Promise.all([
-        loadCompanies(adminRec.tenant_id, ''),
-        loadContactCounts(adminRec.tenant_id),
+        loadCompanies(m.tenantId, ''),
+        loadContactCounts(m.tenantId),
       ])
       setPageLoading(false)
     })

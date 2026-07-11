@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
+import { getMembership } from '@/lib/membership'
 
 interface Lead {
   id: string
@@ -29,11 +30,9 @@ export default function AdminLeadsPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: adminRec } = await supabase
-        .from('tenant_admins').select('tenant_id').eq('user_id', user.id).single()
-      if (!adminRec) return
+    getMembership().then(async m => {
+      if (!m) return
+      const adminRec = { tenant_id: m.tenantId }
 
       const { data } = await supabase
         .from('leads')
