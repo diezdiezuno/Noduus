@@ -31,7 +31,7 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
   // "Public read tenants" policy lets the join work without service role
   const { data: adminRecord } = await supabase
     .from('tenant_admins')
-    .select('tenant_id, role, tenants(id, name, slug, logo_url, theme)')
+    .select('tenant_id, role, tenants(id, name, slug, logo_url, theme, proptools_apps)')
     .eq('user_id', user.id)
     .single()
 

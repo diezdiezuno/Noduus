@@ -39,6 +39,16 @@ const NAV_STANDALONE = [
   { href: '/admin/reclutamiento', icon: '🤝', label: 'Reclutamiento' },
 ]
 
+// Catálogo PropTools — el tenant solo ve las que tiene en tenants.proptools_apps
+const PROPTOOLS_CATALOG: Record<string, { icon: string; label: string; href: string }> = {
+  firmas:       { icon: '✍️', label: 'Firmas',       href: 'https://proptools.app/firmas/' },
+  tarjetas:     { icon: '💳', label: 'Tarjetas',     href: 'https://proptools.app/tarjetas/' },
+  rotulos:      { icon: '🪧', label: 'Rótulos',      href: 'https://proptools.app/rotulos/' },
+  valoraciones: { icon: '📈', label: 'Valoraciones', href: 'https://proptools.app/valoraciones/' },
+  calendario:   { icon: '📅', label: 'Calendario',   href: 'https://proptools.app/calendario/' },
+  equipos:      { icon: '📷', label: 'Equipos',      href: 'https://proptools.app/equipos/' },
+}
+
 // Rutas de listado que usan el ancho completo de la pantalla
 const WIDE_ROUTES = ['/admin/clientes', '/admin/empresas', '/admin/leads', '/admin/propiedades']
 
@@ -56,7 +66,7 @@ interface SearchResult {
 }
 
 // ── Types ─────────────────────────────────────────────────────
-interface Tenant { id: string; name: string; slug: string; logo_url: string | null; theme: Record<string, string> }
+interface Tenant { id: string; name: string; slug: string; logo_url: string | null; theme: Record<string, string>; proptools_apps?: string[] | null }
 interface Props   { tenant: Tenant; userEmail: string; children: React.ReactNode }
 
 // ── Component ─────────────────────────────────────────────────
@@ -78,9 +88,18 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
     })
   }
 
+  // Grupo PropTools según las apps activas del tenant
+  const ptApps = (tenant.proptools_apps ?? []).filter(s => PROPTOOLS_CATALOG[s])
+  const navGroups = ptApps.length > 0
+    ? [...NAV_GROUPS, {
+        key: 'proptools', label: 'PropTools', icon: '🧰',
+        items: ptApps.map(s => ({ ...PROPTOOLS_CATALOG[s], external: true })),
+      }]
+    : NAV_GROUPS
+
   // ── Nav group collapse — all closed by default ────────────
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(NAV_GROUPS.map(g => [g.key, true]))
+    () => ({ ...Object.fromEntries(NAV_GROUPS.map(g => [g.key, true])), proptools: true })
   )
   useEffect(() => {
     for (const group of NAV_GROUPS) {
@@ -263,7 +282,7 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '8px 0 12px', overflowY: 'auto', overflowX: 'hidden' }}>
 
-          {NAV_GROUPS.map(group => {
+          {navGroups.map(group => {
             const isOpen    = !collapsed[group.key]
             const hasActive = group.items.some(item => pathname.startsWith(item.href))
             return (
@@ -293,16 +312,21 @@ export default function AdminShell({ tenant, userEmail, children }: Props) {
 
                 {isOpen && (
                   <div>
-                    {group.items.map(({ href, icon, label }) => {
-                      const active = pathname.startsWith(href)
+                    {group.items.map(item => {
+                      const { href, icon, label } = item
+                      const external = 'external' in item && item.external
+                      const active = !external && pathname.startsWith(href)
                       return (
-                        <a key={href} href={href} style={{ display: 'flex', flexDirection: open ? 'row' : 'column', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center', gap: open ? 9 : 2, padding: open ? '8px 20px 8px 28px' : '6px 0', textDecoration: 'none', fontSize: 13, color: active ? '#111' : '#666', background: active ? '#f5f5f7' : 'transparent', fontWeight: active ? 600 : 400, borderLeft: `3px solid ${active ? '#111' : 'transparent'}`, transition: 'background .1s', whiteSpace: 'nowrap' }}
+                        <a key={href} href={href}
+                          target={external ? '_blank' : undefined}
+                          rel={external ? 'noopener noreferrer' : undefined}
+                          style={{ display: 'flex', flexDirection: open ? 'row' : 'column', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center', gap: open ? 9 : 2, padding: open ? '8px 20px 8px 28px' : '6px 0', textDecoration: 'none', fontSize: 13, color: active ? '#111' : '#666', background: active ? '#f5f5f7' : 'transparent', fontWeight: active ? 600 : 400, borderLeft: `3px solid ${active ? '#111' : 'transparent'}`, transition: 'background .1s', whiteSpace: 'nowrap' }}
                           onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#fafafa' }}
                           onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent' }}
                         >
                           <span style={{ fontSize: open ? 14 : 16 }}>{icon}</span>
                           {open
-                            ? label
+                            ? <>{label}{external && <span style={{ fontSize: 10, color: '#bbb', marginLeft: 4 }}>↗</span>}</>
                             : <span style={{ fontSize: 9, color: active ? '#111' : '#888', fontWeight: active ? 700 : 400, letterSpacing: '.01em', maxWidth: 62, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
                           }
                         </a>
