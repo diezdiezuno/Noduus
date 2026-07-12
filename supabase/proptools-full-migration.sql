@@ -47,7 +47,11 @@ language sql stable security definer set search_path = public as $$
       or exists (select 1 from users where auth_id = auth.uid() and tenant_id = tid)
 $$;
 
--- Tenant del usuario actual (para defaults en tablas sin tenant_id explícito)
+-- Tenant del usuario actual (para defaults en tablas sin tenant_id explícito).
+-- NOTA (revisión de seguridad, hallazgo #2 — deferido): si algún día un
+-- usuario pertenece a varios tenants, este `limit 1` elige uno arbitrario.
+-- Hoy no aplica (1 usuario = 1 tenant). Para soportar multi-tenant habría que
+-- pasar el tenant activo explícito (selector en la UI) en vez de este default.
 create or replace function my_tenant_id() returns uuid
 language sql stable security definer set search_path = public as $$
   select coalesce(

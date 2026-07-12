@@ -9,11 +9,45 @@ const supabase = createClient(
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
+// ponytail: rate-limit en memoria por IP — 5 envíos / 10 min. Suficiente
+// contra spam de un solo origen; si escala a varias instancias en Vercel
+// cada una tiene su mapa, pasar a Upstash/Redis.
+const RATE = new Map<string, number[]>()
+const RATE_MAX = 5, RATE_WINDOW = 10 * 60_000
+function rateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hits = (RATE.get(ip) ?? []).filter(t => now - t < RATE_WINDOW)
+  hits.push(now)
+  RATE.set(ip, hits)
+  if (RATE.size > 5000) for (const [k, v] of RATE) if (v.every(t => now - t >= RATE_WINDOW)) RATE.delete(k)
+  return hits.length > RATE_MAX
+}
+
+const clip = (v: unknown, max: number): string | null => {
+  if (typeof v !== 'string') return null
+  const s = v.trim()
+  return s ? s.slice(0, max) : null
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+    if (rateLimited(ip)) {
+      return NextResponse.json({ error: 'Demasiados envíos. Esperá unos minutos.' }, { status: 429 })
+    }
+
     const domain = request.headers.get('x-tenant-domain') ?? 'localhost'
     const body = await request.json()
-    const { name, email, phone, message, source, property_id, property_title, property_url, listar_metadata } = body
+    // Validar/acortar entradas (formulario público — no confiar en el cliente)
+    const name    = clip(body.name, 120)
+    const email   = clip(body.email, 200)
+    const phone   = clip(body.phone, 40)
+    const message = clip(body.message, 4000)
+    const source  = clip(body.source, 40)
+    const { property_id, property_title, property_url, listar_metadata } = body
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return NextResponse.json({ error: 'Email inválido.' }, { status: 400 })
+    }
 
     // Resolve tenant (with logo)
     let { data: tenant } = await supabase
