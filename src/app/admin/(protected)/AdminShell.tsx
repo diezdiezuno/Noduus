@@ -5,21 +5,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 
 // ── Nav structure ─────────────────────────────────────────────
+// El sidebar solo muestra la operación diaria. Todo lo administrativo
+// (Sitio web, Configuración CRM, Métricas, Reclutamiento, gestión de oficina)
+// vive en el hub /admin/administracion.
 const NAV_GROUPS = [
-  {
-    key:   'sitio',
-    label: 'Sitio web',
-    icon:  '🌐',
-    items: [
-      { href: '/admin/general',     icon: '⚙️', label: 'General'     },
-      { href: '/admin/mapa',        icon: '🗺️', label: 'Mapa'        },
-      { href: '/admin/visualizacion', icon: '🏠', label: 'Visualización' },
-      { href: '/admin/paginas',     icon: '📄', label: 'Páginas'      },
-      { href: '/admin/fuentes',     icon: '🔗', label: 'Fuentes'      },
-      { href: '/admin/agentes',     icon: '👥', label: 'Agentes'      },
-      { href: '/admin/seo',         icon: '🔍', label: 'SEO'          },
-    ],
-  },
   {
     key:   'crm',
     label: 'CRM',
@@ -29,14 +18,15 @@ const NAV_GROUPS = [
       { href: '/admin/clientes',   icon: '👤', label: 'Clientes'   },
       { href: '/admin/empresas',   icon: '🏢', label: 'Empresas'   },
       { href: '/admin/leads',      icon: '📬', label: 'Leads'      },
-      { href: '/admin/crm-config', icon: '⚙️', label: 'Configuración' },
     ],
   },
 ]
 
-const NAV_STANDALONE = [
-  { href: '/admin/metricas',      icon: '📊', label: 'Métricas'      },
-  { href: '/admin/reclutamiento', icon: '🤝', label: 'Reclutamiento' },
+// Rutas que pertenecen al hub de Administración (para resaltar el link)
+const ADMIN_HUB_ROUTES = [
+  '/admin/general', '/admin/mapa', '/admin/visualizacion', '/admin/paginas',
+  '/admin/fuentes', '/admin/agentes', '/admin/seo', '/admin/crm-config',
+  '/admin/metricas', '/admin/reclutamiento', '/admin/tools/admin',
 ]
 
 // Catálogo PropTools — el tenant solo ve las que tiene en tenants.proptools_apps
@@ -96,30 +86,14 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
   }
 
   // Grupo PropTools según las apps activas del tenant.
-  // Admins además ven la administración de PropTools (usuarios, plantillas).
   const ptApps = (tenant.proptools_apps ?? []).filter(s => PROPTOOLS_CATALOG[s])
   const ptItems = ptApps.map(s => ({ ...PROPTOOLS_CATALOG[s] }))
   const ptGroup = ptItems.length > 0
     ? [{ key: 'proptools', label: 'PropTools', icon: '🧰', items: ptItems }]
     : []
-  // Administración de PropTools: cada tab interno como link (solo admin).
-  const adminGroup = role === 'admin'
-    ? [{ key: 'ptadmin', label: 'Administración', icon: '🛠️', items: [
-        { icon: '👥', label: 'Agentes',            href: '/admin/tools/admin?tab=agentes' },
-        { icon: '📦', label: 'Equipos de oficina', href: '/admin/tools/admin?tab=equipos' },
-        { icon: '📅', label: 'Calendario',         href: '/admin/tools/admin?tab=calendario' },
-        { icon: '🗂️', label: 'Materiales',         href: '/admin/tools/admin?tab=materiales' },
-      ] }]
-    : []
-  // Agentes: solo CRM (sin Configuración) + PropTools. Admins: todo.
-  const baseGroups = role === 'agent'
-    ? NAV_GROUPS.filter(g => g.key === 'crm').map(g => ({
-        ...g,
-        items: g.items.filter(i => i.href !== '/admin/crm-config'),
-      }))
-    : NAV_GROUPS
-  const navGroups = [...baseGroups, ...ptGroup, ...adminGroup]
-  const standalone = role === 'agent' ? [] : NAV_STANDALONE
+  const navGroups = [...NAV_GROUPS, ...ptGroup]
+  // Administración: link único al hub (solo admin).
+  const standalone = role === 'agent' ? [] : [{ href: '/admin/administracion', icon: '🛠️', label: 'Administración' }]
 
   // Guard: si un agente escribe una URL admin-only, redirigir al CRM.
   // (Los datos igual están protegidos por RLS; esto es solo UI.)
@@ -139,9 +113,11 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
       const hasActive = group.items.some(item => pathname.startsWith(item.href))
       if (hasActive) setCollapsed(prev => ({ ...prev, [group.key]: false }))
     }
-    // Grupos armados por tenant/rol (no están en NAV_GROUPS)
-    if (pathname === '/admin/tools/admin') setCollapsed(prev => ({ ...prev, ptadmin: false }))
-    else if (pathname.startsWith('/admin/tools/')) setCollapsed(prev => ({ ...prev, proptools: false }))
+    // PropTools no está en NAV_GROUPS (se arma por tenant); /admin/tools/admin
+    // se accede desde el hub, no resalta grupo del sidebar.
+    if (pathname.startsWith('/admin/tools/') && pathname !== '/admin/tools/admin') {
+      setCollapsed(prev => ({ ...prev, proptools: false }))
+    }
   }, [pathname])
   function toggle(key: string) {
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
@@ -395,7 +371,8 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
           })}
 
           {standalone.map(({ href, icon, label }) => {
-            const active = pathname.startsWith(href)
+            // Administración resalta también dentro de sus subpáginas del hub
+            const active = pathname.startsWith(href) || (href === '/admin/administracion' && ADMIN_HUB_ROUTES.some(r => pathname.startsWith(r)))
             return (
               <div key={href}>
                 <a href={href} style={{ display: 'flex', flexDirection: open ? 'row' : 'column', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center', gap: open ? 9 : 2, padding: open ? '8px 20px' : '6px 0', textDecoration: 'none', fontSize: 13, color: active ? '#111' : '#666', background: active ? '#f5f5f7' : 'transparent', fontWeight: active ? 600 : 400, borderLeft: `3px solid ${active ? '#111' : 'transparent'}`, transition: 'background .1s', whiteSpace: 'nowrap' }}
