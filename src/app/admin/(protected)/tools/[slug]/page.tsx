@@ -61,7 +61,7 @@ function ToolFrame() {
   return (
     <>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>{heading.title}</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 4px' }}>{heading.title}</h1>
         <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>{heading.subtitle}</p>
       </div>
       <iframe

@@ -31,7 +31,7 @@ export default function AdministracionPage() {
   return (
     <>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Administración</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 4px' }}>Administración</h1>
         <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>Configuración del sitio, CRM y gestión de la oficina.</p>
       </div>
 

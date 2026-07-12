@@ -177,7 +177,7 @@ export default function AgentesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Agentes</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 4px' }}>Agentes</h1>
           <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>
             {agents.length === 0 ? 'Sin agentes aún.' : `${agents.length} agente${agents.length !== 1 ? 's' : ''} registrado${agents.length !== 1 ? 's' : ''}.`}
           </p>

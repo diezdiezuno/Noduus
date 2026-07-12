@@ -102,7 +102,7 @@ export default function AdminReclutamientoPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Reclutamiento</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 4px' }}>Reclutamiento</h1>
         <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>
           {apps.length === 0
             ? 'Aún no hay aplicaciones.'

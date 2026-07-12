@@ -202,7 +202,7 @@ export default function PropiedadesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Propiedades</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 4px' }}>Propiedades</h1>
           <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>
             {props.length === 0 && !search ? 'Sin propiedades manuales aún.' : `${props.length} propiedad${props.length !== 1 ? 'es' : ''} en inventario`}
           </p>

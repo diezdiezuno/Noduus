@@ -121,7 +121,7 @@ export default function PaginasPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Páginas</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 4px' }}>Páginas</h1>
           <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>Seleccioná una página para ver su vista previa y opciones.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

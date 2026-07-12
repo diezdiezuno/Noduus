@@ -97,7 +97,7 @@ export default function MetricasPage() {
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>Métricas</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', borderLeft: '3px solid #111', paddingLeft: 12, margin: '0 0 6px' }}>Métricas</h1>
         <p style={{ fontSize: 14, color: '#888', margin: 0 }}>Últimos 30 días</p>
       </div>
 
