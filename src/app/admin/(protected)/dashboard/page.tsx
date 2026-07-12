@@ -155,7 +155,7 @@ export default function PerfilPage() {
       </div>
 
       {/* ── Agente — foto flotante sobre degradado, pegada a la caja de abajo ── */}
-      <div style={{ background: 'linear-gradient(115deg, #fdeee7 0%, #f5e9fb 45%, #e9effe 100%)', border: '1px solid #ececf0', borderRadius: 14, padding: '24px 24px 0', display: 'flex', gap: 28, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ background: 'linear-gradient(115deg, #e8eaee 0%, #ffffff 100%)', border: '1px solid #ececf0', borderRadius: 14, padding: '24px 24px 0', display: 'flex', gap: 28, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div onClick={() => fileRef.current?.click()} title="Click para cambiar la foto"
           style={{ width: 230, height: 270, marginBottom: -20, zIndex: 1, background: profile.photo_url ? 'transparent' : 'rgba(255,255,255,.45)', borderRadius: profile.photo_url ? 0 : 16, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', position: 'relative' }}>
           {profile.photo_url
