@@ -88,13 +88,15 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
     })
   }
 
-  // Grupo PropTools según las apps activas del tenant
+  // Grupo PropTools según las apps activas del tenant.
+  // Admins además ven la administración de PropTools (usuarios, plantillas).
   const ptApps = (tenant.proptools_apps ?? []).filter(s => PROPTOOLS_CATALOG[s])
-  const ptGroup = ptApps.length > 0
-    ? [{
-        key: 'proptools', label: 'PropTools', icon: '🧰',
-        items: ptApps.map(s => ({ ...PROPTOOLS_CATALOG[s] })),
-      }]
+  const ptItems = [
+    ...ptApps.map(s => ({ ...PROPTOOLS_CATALOG[s] })),
+    ...(role === 'admin' ? [{ icon: '🛠️', label: 'Administración', href: '/admin/tools/admin' }] : []),
+  ]
+  const ptGroup = ptItems.length > 0
+    ? [{ key: 'proptools', label: 'PropTools', icon: '🧰', items: ptItems }]
     : []
   // Agentes: solo CRM (sin Configuración) + PropTools. Admins: todo.
   const baseGroups = role === 'agent'
@@ -105,6 +107,15 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
     : NAV_GROUPS
   const navGroups = [...baseGroups, ...ptGroup]
   const standalone = role === 'agent' ? [] : NAV_STANDALONE
+
+  // Guard: si un agente escribe una URL admin-only, redirigir al CRM.
+  // (Los datos igual están protegidos por RLS; esto es solo UI.)
+  useEffect(() => {
+    if (role !== 'agent') return
+    const allowed = ['/admin/propiedades', '/admin/clientes', '/admin/empresas', '/admin/leads', '/admin/tools/']
+    const ok = allowed.some(p => pathname.startsWith(p)) && !pathname.startsWith('/admin/tools/admin')
+    if (!ok) router.replace('/admin/clientes')
+  }, [role, pathname, router])
 
   // ── Nav group collapse — all closed by default ────────────
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(

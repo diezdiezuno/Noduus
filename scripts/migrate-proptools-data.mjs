@@ -157,11 +157,30 @@ const main = async () => {
 
   const remapAuth = id => (id && authMap[id]) || id
 
+  // Mapas para validar user_id (FK a users.id): ids migrados y
+  // auth_id viejo → users.id (por si la tabla guardó el auth id).
+  const migratedUserIds = new Set(userRows.map(u => u.id))
+  const oldAuthToUserId = {}
+  for (const u of oldUsers) if (u.auth_id && migratedUserIds.has(u.id)) oldAuthToUserId[u.auth_id] = u.id
+  const fixUserId = id => migratedUserIds.has(id) ? id : (oldAuthToUserId[id] ?? null)
+
   // 2. Tablas de herramientas
   console.log('\n2) Herramientas')
-  const simple = ['tenant_templates', 'signatures', 'tarjetas', 'rotulos', 'calendarios', 'equipos']
-  for (const t of simple) {
+  for (const t of ['tenant_templates', 'calendarios', 'equipos']) {
     const rows = (await fetchAll(t)).map(r => pick(r, t, { tenant_id: TENANT }))
+    await insertRows(t, rows)
+  }
+
+  // signatures/tarjetas/rotulos: user_id referencia users(id) —
+  // remapear si guardó el auth id viejo, omitir huérfanos con aviso.
+  for (const t of ['signatures', 'tarjetas', 'rotulos']) {
+    const all = await fetchAll(t)
+    const rows = []
+    for (const r of all) {
+      const uid = fixUserId(r.user_id)
+      if (!uid) { console.warn(`  ⚠ ${t} ${r.id}: user_id ${r.user_id} sin usuario migrado — omitido`); continue }
+      rows.push(pick(r, t, { tenant_id: TENANT, user_id: uid }))
+    }
     await insertRows(t, rows)
   }
 
