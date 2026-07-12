@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import DateTimeWeather from '@/components/admin/DateTimeWeather'
 
 // ── Nav structure ─────────────────────────────────────────────
 // El sidebar solo muestra la operación diaria. Todo lo administrativo
@@ -524,6 +525,9 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
+
+        {/* ── Fecha · reloj · clima ─────────────────────── */}
+        <div style={{ marginRight: 16 }}><DateTimeWeather /></div>
 
         {/* ── Quick add "+" ────────────────────────────── */}
         <div ref={plusRef} style={{ position: 'relative' }}>
