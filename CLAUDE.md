@@ -1,187 +1,111 @@
-# PropCLOUD — Estado del proyecto
+# PropCLOUD — Documentación del sistema
+
+Plataforma inmobiliaria multi-tenant: sitio web público + panel admin con CRM +
+herramientas para agentes (PropTools), todo sobre una sola base de datos y un
+solo login.
 
 ## Stack
-- **Framework**: Next.js 15 App Router, TypeScript
-- **DB / Auth**: Supabase (postgres + RLS + Storage)
-- **Email**: Resend
-- **Maps**: Mapbox GL JS (`NEXT_PUBLIC_MAPBOX_TOKEN`)
-- **Deploy**: Vercel (repo: diezdiezuno/PropCLOUD, branch: main → auto-deploy)
-- **Tenant activo**: Sunrise | RE/MAX Central — slug `sunrise`, dominio `sunrisecr.com`
+- **Framework**: Next.js 16 App Router (Turbopack), TypeScript, React 19
+- **DB / Auth / Storage**: Supabase (postgres + RLS). Proyecto ref `neuzltjlezogxmhbceco`
+- **Sesión**: `@supabase/ssr` (cookies, prefijo `base64-`, chunking `.0/.1`)
+- **Email**: Resend · **Mapas**: Mapbox GL JS · **Fotos**: Cloudinary (cloud `dlgrhr6lh`, preset `firmas`)
+- **Deploy**: Vercel — repo `diezdiezuno/PropCLOUD`, branch `main` → auto-deploy
+- **Tenant activo**: Sunrise / RE/MAX Central — slug `sunrise`, dominio `sunrisecr.com`
 
-## Arquitectura multi-tenant
-- El middleware (`src/middleware.ts`) lee el `host` header y lo inyecta como `x-tenant-domain`
-- `getTenantByDomain(domain)` y `getTenantConfig(tenantId)` en `src/lib/tenant.ts` resuelven el tenant
-- `getTenantConfig` usa `publicClient()` (anon key, sin cookies) para que funcione en páginas públicas
-- Todas las páginas públicas usan `(public)` route group; admin usa `admin/(protected)`
+## Arquitectura multi-tenant + roles
 
-## Estructura de archivos clave
+- El middleware (`src/middleware.ts`) lee `host` y lo inyecta como header `x-tenant-domain`.
+- `getTenantByDomain(domain)` / `getTenantConfig(tenantId)` en `src/lib/tenant.ts` resuelven el tenant. `getTenantConfig` usa `publicClient()` (anon, sin cookies) para las páginas públicas.
+- **Tres niveles de usuario**:
+  - **Superadmin** (`superadmin/`) — gestiona tenants (crear, dominios, admins). Ver `src/lib/superadmin.ts`, verificación server-side.
+  - **Admin de tenant** (`tenant_admins`) — ve todo el panel: sitio web, CRM completo, PropTools + administración, métricas, reclutamiento.
+  - **Agente** (`users`, modelo PropTools) — ve solo CRM (sin Configuración) + herramientas PropTools. Los agentes de PropTools **son** los agentes de PropCLOUD.
+- El rol se resuelve en `admin/(protected)/layout.tsx` (admin vía `tenant_admins`, si no, agente vía `users`) y se pasa a `AdminShell`. `src/lib/membership.ts` (`getMembership()`) hace lo mismo del lado cliente.
+- **Aislamiento**: toda tabla lleva `tenant_id` y su RLS usa `is_tenant_member(tenant_id)`. El guard de rol en `AdminShell` es solo UI; la seguridad real es RLS.
 
-### Público (`src/app/(public)/`)
-- `layout.tsx` — nav, footer, CSS vars del tenant, Google Fonts
-- `page.tsx` — homepage con mapa de propiedades
-- `listings/` — listado y detalle de propiedades
-- `nosotros/` — página Nosotros (template: default HTML | sunrise)
-- `contacto/` — página Contacto (template: default | sunrise)
-- `listar/` — Listar propiedad (template: default | sunrise con Mapbox)
-- `reclutamiento/` — Reclutamiento (template: default | sunrise landing page)
-- `agentes/` — Equipo (server page + `AgentGrid.tsx` client)
-- `[slug]/` — páginas custom del tenant
+## Estructura
 
-### Admin (`src/app/admin/(protected)/`)
-- `AdminShell.tsx` — sidebar nav + layout principal
-- `general/` — configuración general (WhatsApp, emails, redes, 2 emails de contacto)
-- `paginas/` — tabs con iframe preview de cada página
-- `paginas/[slug]/` — editor de settings por página (template selector, campos, SEO)
-- `agentes/` — CRUD agentes con foto upload, puesto dropdown, redes sociales
-- `leads/` — Leads tabs: Compradores | Vendedores (source=listar)
-- `reclutamiento/` — Aplicaciones de reclutamiento con notas
-- `inventario/` — CRM: listado de propiedades manuales
-- `inventario/nueva/` — CRM: formulario nueva propiedad (Tab 1 activo, tabs 2-6 bloqueados)
-- `propiedades/` — Configuración de display (listado/detalle views)
+### Público — `src/app/(public)/`
+`layout.tsx` (nav, footer, CSS vars del tenant, Google Fonts), `page.tsx` (home con mapa),
+`listings/` (listado + detalle), `nosotros/`, `contacto/`, `listar/`, `reclutamiento/`,
+`agentes/` (server + `AgentGrid.tsx`), `[slug]/` (páginas custom del tenant).
+Templates exclusivos Sunrise: `NosotrosClientSunrise`, `ContactoClientSunrise`, `ListarClientSunrise`, `ReclutamientoClientSunrise`.
 
-### API routes (`src/app/api/`)
-- `contact/route.ts` — recibe leads de formularios (propiedad, contacto, listar), guarda en `leads`, envía email Resend
-- `recruit/route.ts` — recibe aplicaciones de reclutamiento, sube CV a `cv-uploads`
-- `properties/route.ts` — sirve propiedades (fuentes externas; pendiente: agregar manuales)
+### Admin — `src/app/admin/(protected)/`
+- `AdminShell.tsx` — sidebar + topbar + búsqueda global (⌘K). Nav filtrado por rol; ancho completo para rutas de listado (`WIDE_ROUTES`) y tools.
+- `dashboard/` — **página principal post-login** (ver abajo).
+- **Sitio web** (admin): `general/`, `mapa/`, `visualizacion/` (config de display de propiedades), `paginas/` + `paginas/[slug]/`, `fuentes/`, `agentes/`, `seo/`.
+- **CRM**: `propiedades/` (listado + `nueva/` + `[id]/`), `clientes/`, `empresas/`, `leads/`, `crm-config/` (solo admin).
+- **PropTools**: `tools/[slug]/` — iframe que embebe las herramientas estáticas.
+- Standalone (admin): `metricas/`, `reclutamiento/`.
 
-### Componentes
-- `src/components/Nav/Nav.tsx` — Nav público con soporte de páginas configurables
-- `src/components/Map/MapView.tsx` — mapa principal de listings
-- `src/data/cr-divisions.ts` — provincias → cantones → distritos CR (con `getCantons`, `getDistricts`)
-- `src/lib/tenant.ts` — `getTenantByDomain`, `getTenantConfig`, `DEFAULT_THEME`
+### Superadmin — `src/app/superadmin/`
+`(protected)/tenants/` (lista + `[id]/`), login propio. API en `api/superadmin/tenants/…`.
 
-## Supabase — tablas
+### API — `src/app/api/`
+- `contact/route.ts` — leads públicos (service role). **Rate-limit 5/10min por IP + validación de entradas.**
+- `recruit/route.ts` — aplicaciones de reclutamiento, sube CV a `cv-uploads`.
+- `properties/route.ts` — propiedades para el sitio (fuentes externas + manuales).
+- `superadmin/tenants/…` — CRUD de tenants (gated por `verifySuperAdmin`).
 
-| Tabla | Descripción |
-|-------|-------------|
-| `tenants` | Cada oficina/tenant |
-| `tenant_config` | Configuración JSONB por tenant (pages_config, theme, etc.) |
-| `tenant_admins` | Relación user ↔ tenant con rol |
-| `properties` | Propiedades (source: remax_cca \| manual \| custom_api) |
-| `property_sources` | Fuentes externas configuradas por tenant |
-| `property_types` | Tipos de propiedad extensibles por tenant |
-| `property_owners` | Propietarios (físico/jurídico, parent_owner_id para representantes legales) |
-| `agents` | Agentes de la oficina |
-| `leads` | Leads de formularios del sitio |
-| `crm_contacts` | **NUEVO** Clientes del CRM |
-| `crm_companies` | **NUEVO** Empresas del CRM |
-| `contact_types` | **NUEVO** Tipos de contacto por tenant |
-| `contact_sources` | **NUEVO** Fuentes de contacto por tenant |
+## Dashboard del agente — `admin/(protected)/dashboard/`
+Página nativa (no iframe). Es lo primero que se ve tras login (`/admin/login`, callback y `/admin` redirigen ahí).
+- **Saludo** por hora (buenos días/tardes/noches) + fecha y reloj en vivo + **clima** (Open-Meteo, sin API key). Zona horaria y ciudad configurables (⚙) o por geolocalización; se guarda en localStorage.
+- **Info del agente** editable inline (click) — vive en `users`, la misma que consumen firmas/tarjetas/rótulos. Foto flotante (Cloudinary), grid de contacto con íconos.
+- **Material de impresión**: rótulos y tarjetas guardados; click abre el guardado en su herramienta (deep-link `?id=`).
+- **Propiedades asignadas**: cruce agente↔propiedad por email (`users.email` ↔ `agents.email` ↔ `properties.agent_id`).
 
-### Columnas CRM en `properties`
-`crm_status`, `agent_id`, `mandate_type`, `provincia`, `canton`, `distrito`, `parking`, `floors`, `year_built`, `amenities` (text[]), `video_url`, `finca_number`, `plano_number`, `features` (jsonb)
+## PropTools — herramientas embebidas
+Herramientas estáticas (HTML/JS sin framework) en `public/tools/`, servidas vía rewrites de `next.config.ts` y embebidas por iframe en `admin/tools/[slug]`.
+- **Un solo login**: `public/tools/cookie-storage.js` es un adapter que lee/escribe la misma cookie de `@supabase/ssr` que el admin → sesión compartida.
+- **`public/tools/components.js`**: header/sidebar/footer compartidos + `initComponents()`. En modo `EMBEDDED` (iframe o `?embed`) oculta su propio chrome y usa el shell de PropCLOUD; el título estilo CRM lo pone `tools/[slug]/page.tsx`.
+- Catálogo: `firmas, tarjetas, rotulos, valoraciones, calendario, equipos` + `admin` (solo rol admin). El tenant ve solo las de `tenants.proptools_apps` (mecanismo de pago/plan).
+- Valoraciones consulta el tipo de cambio vía Edge Function `tipo-cambio`.
+- Registro por invitación: `public/tools/registro/` valida el token vía RPC `get_invitation` (ver Seguridad).
 
-### CRM status values
-`draft`, `captacion`, `preparacion`, `lista`, `active`, `bajo_oferta`, `sold`, `archived`
+## Base de datos
+
+### Núcleo
+`tenants` (incl. `proptools_apps text[]`), `tenant_config` (JSONB: pages_config, theme…), `tenant_admins`, `users` (agentes), `invitations`.
+
+### Sitio / propiedades
+`properties` (source: `remax_cca|manual|custom_api`; cols CRM: `crm_status`, `agent_id`, `mandate_type`, `provincia/canton/distrito`, `parking`, `floors`, `year_built`, `amenities`, `video_url`, `finca_number`, `plano_number`, `features`), `property_sources`, `property_types`, `property_owners` (físico/jurídico, `parent_owner_id`), `agents`, `leads`.
+`crm_status` ∈ `draft, captacion, preparacion, lista, active, bajo_oferta, sold, archived`.
+
+### CRM
+`crm_contacts` (clientes), `crm_companies` (empresas), `contact_types`, `contact_sources` (con `position` para orden drag&drop).
+Junctions: `crm_contact_types` (un contacto → varios tipos), `crm_contact_companies` (contacto ↔ empresas).
+
+### PropTools
+`signatures`, `tenant_templates`, `tarjetas`, `rotulos` (todas con `user_id → users(id)`), `avaluos` (`user_id` = auth uid), `calendarios`, `eventos_calendario`, `equipos`, `reservas`, `reserva_equipos`.
+
+### Helpers RLS (security definer, `search_path=public`)
+- `is_tenant_member(tid)` — admin en `tenant_admins` **o** agente en `users`.
+- `my_tenant_id()` — tenant del usuario actual (default en tablas de tools). *Nota: `limit 1`, no soporta multi-tenant por usuario — deuda documentada.*
+
+## Migraciones SQL (`supabase/`)
+Orden base: `schema.sql` → `admin-migration` → `admin-features-migration` → `analytics-migration` → `seo-migration` → `recruit-migration` → `translations-migration` → `zones-pages-migration` → `superadmin-migration` → `crm-contact-types-migration` → `detail-layout-migration` → `proptools-migration` → `proptools-full-migration`.
+Parches: `patch-tarjetas-rotulos-cols` (columnas planas de tarjetas/rótulos), `security-patch-invitations` (ver Seguridad), `link-admin-user` (vincular admin ↔ usuario migrado).
+Migración de datos PropTools→PropCLOUD: `scripts/migrate-proptools-data.mjs` (recrea usuarios en auth nuevo, remapea tenant/auth ids, omite huérfanos).
+
+## Seguridad (revisión aplicada)
+- **Invitaciones**: la lectura anónima abierta se reemplazó por RPC `get_invitation(token)` (security definer) que devuelve solo la fila del token exacto. Borrado restringido a `is_tenant_member`. → correr `security-patch-invitations.sql`.
+- **`/api/debug` eliminado** (filtraba tenants y prefijos de keys).
+- **`/api/contact`**: rate-limit por IP + validación/recorte de entradas.
+- Ningún `service_role` en el código (todo `process.env`); `.env*` en `.gitignore`. Las anon keys embebidas en los HTML de tools son públicas por diseño.
 
 ## Storage buckets
-- `cv-uploads` — CVs reclutamiento (PDF, auth upload)
-- `agent-photos` — Fotos agentes (imágenes, auth upload)
-- `property-docs` — Docs de propiedades (PDF, auth upload)
-- `planos-uploads` — Planos del form listar (PDF, anon upload)
-- `property-photos` — Fotos de propiedades (pendiente crear)
+`cv-uploads` (CVs), `agent-photos`, `property-docs` (PDF), `planos-uploads` (anon upload del form listar), `property-photos`.
 
-## Templates Sunrise (solo tenant slug='sunrise')
-Componentes exclusivos: `NosotrosClientSunrise`, `ContactoClientSunrise`, `ListarClientSunrise`, `ReclutamientoClientSunrise`
-
-Activar con SQL:
-```sql
-UPDATE tenant_config SET pages_config = (
-  SELECT jsonb_agg(CASE
-    WHEN p->>'slug' = 'nosotros'      THEN jsonb_set(p, '{settings,nosotros_template}',      '"sunrise"')
-    WHEN p->>'slug' = 'contacto'      THEN jsonb_set(p, '{settings,contacto_template}',      '"sunrise"')
-    WHEN p->>'slug' = 'listar'        THEN jsonb_set(p, '{settings,listar_template}',        '"sunrise"')
-    WHEN p->>'slug' = 'reclutamiento' THEN jsonb_set(p, '{settings,reclutamiento_template}', '"sunrise"')
-    ELSE p END)
-  FROM jsonb_array_elements(pages_config) AS p)
-WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'sunrise');
-```
-
-## Agentes
-Puestos: Broker | Team Leader | Asesor Inmobiliario | Administrativo | Asistente
-
-Badge colors: Broker=negro, Team Leader=morado, Asesor=azul, Administrativo=ámbar, Asistente=verde
-
-Sort orden público: Broker → Team Leader → Asesor → Administrativo → Asistente
-
-Página `/agentes`: server page + `AgentGrid.tsx` client. Diseño: foto 3:4, badge coloreado, WhatsApp/email, iconos sociales con hover.
-
-## CRM — Inventario (`/admin/inventario`)
-
-### Estado actual: Tab 1 funcional en `/admin/inventario/nueva`
-6 tabs: 📋 Captación | 📐 Características | ✨ Amenidades | 💰 Precio | 📝 Descripción | 📸 Fotos y videos
-
-**Tab 1 — Captación** tiene:
-- N° finca + N° plano catastrado
-- Adjuntar informe registral + plano catastrado (PDF → `property-docs` bucket)
-- Link Google Maps → parser de coords → fly map → reverse geocoding
-- Mapa Mapbox (click/drag para marcar, "Mi ubicación")
-  - **CRÍTICO**: `useEffect` del mapa debe depender de `[loading]` (el div no existe hasta loading=false)
-  - Guard: `if (mapRef.current) return` para no re-inicializar
-- Cascading dropdowns CR: provincia → cantón → distrito
-- Dirección exacta
-- Tipo de propiedad (pills desde `property_types`)
-- Transacción, Mandato, Estado CRM, Agente asignado
-
-**Al guardar**: crea propiedad con `source='manual'`, redirige a `/admin/inventario/[id]` (pendiente)
-
-### Tabs pendientes (en `/admin/inventario/[id]`)
-- Tab 2: Características — botones numéricos (habitaciones, baños, parqueos, áreas)
-- Tab 3: Amenidades — pills seleccionables
-- Tab 4: Precio — monto, moneda, negociable
-- Tab 5: Descripción y título — con generación IA futura
-- Tab 6: Fotos y videos — upload a `property-photos`
-
-## CRM — Clientes (`/admin/clientes`) — PRÓXIMO A CONSTRUIR
-
-### Flujo
-1. Agregar cliente → 2. Crear propiedad y vincularla al cliente
-
-### Referencia
-Archivo `~/Desktop/index.html` — CRM HTML completo con todos los campos y comportamientos. Usar como modelo exacto.
-
-### Campos `crm_contacts`
-`cedula`, `cedula_tipo` (fisica|juridica|dimex|pasaporte), `name`, `last_name`, `birth_date`, `type_id` → contact_types, `source_id` → contact_sources, `email`, `phone`, `phone_alt`, `company_id` → crm_companies, `instagram`, `linkedin`, `facebook`, `tiktok`, `notes`, `active`
-
-### Hacienda API lookup
-`https://api.hacienda.go.cr/fe/ae?identificacion={cedula}`
-- Devuelve `nombre` y `situacion.moroso`
-- Física: separar apellidos (2 primeras palabras) del nombre (resto)
-- Jurídica: llenar razón social
-
-### UI pattern para clientes
-- Lista con search (nombre, cédula, email), filtros por tipo y fuente, contador
-- **Drawer deslizante** desde la derecha (560px, altura completa)
-- Secciones: Identificación → Datos personales → Contacto → Empresa → Redes sociales → Comentarios
-- Botón "Consultar →" → Hacienda API → autocompleta nombre
-- Autocomplete de empresas existentes al escribir
-- Social search: abre Google con `nombre site:red.com`
-- Soft delete: `active = false`
-- **Botón global "+" en AdminShell** para agregar cliente desde cualquier sección
-
-### Propietarios de propiedades (`property_owners`)
-- `parent_owner_id` para enlazar representantes a la entidad jurídica
-- Físico: nombre, cedula, email, telefono
-- Jurídico: razon_social, cedula_juridica, personeria_url (PDF), + representantes como hijos
-- En Tab 1: buscar cliente existente de `crm_contacts` ó crear nuevo propietario inline
-- Lookup Hacienda en campo cédula del propietario
+## Agentes (sitio público)
+Puestos: Broker | Team Leader | Asesor Inmobiliario | Administrativo | Asistente (badge negro/morado/azul/ámbar/verde; ese es el orden de sort). Página `/agentes`: server + `AgentGrid.tsx`, foto 3:4.
 
 ## Patrones importantes
-
-### Mapbox
-- CSS: `@import "mapbox-gl/dist/mapbox-gl.css"` en `globals.css` únicamente
-- NO importar CSS en el componente
-- `useEffect` del mapa depende de `[loading]`
-
-### Server vs Client
-- Páginas públicas con datos: Server Components (async)
-- Hover/eventos/state: Client Components ('use client')
-- Patrón: `page.tsx` (server) → `ComponentClient.tsx` (client)
-
-### Formularios admin
-- `createClient()` de `@/lib/supabase-browser`
-- Siempre mostrar errores en UI, no solo console.log
-- Storage: verificar política INSERT authenticated en el bucket
+- **Mapbox**: `@import "mapbox-gl/dist/mapbox-gl.css"` solo en `globals.css` (no en componentes); el `useEffect` del mapa depende de `[loading]` (el div no existe hasta `loading=false`); guard `if (mapRef.current) return`.
+- **Server vs Client**: páginas públicas con datos = Server Components; hover/estado = Client (`'use client'`). Patrón `page.tsx` (server) → `ComponentClient.tsx` (client).
+- **Listados grandes (1000+)**: paginación/orden/resize client-side sobre el array cargado; hover con CSS (no estado React); resize/reorder con HTML5 `draggable` (sin librería); anchos en localStorage.
+- **CRM**: formulario de contacto único y compartido (`src/components/crm/ContactForm.tsx`) — se usa en todos lados. Cédula → lookup Hacienda `https://api.hacienda.go.cr/fe/ae?identificacion={cedula}`.
+- **Antes de pushear cambios de JSX/TSX**: correr `npx next build` completo (el typecheck solo no atrapa errores de parseo en strings de estilo).
 
 ## Variables de entorno
 ```
@@ -191,12 +115,13 @@ SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_MAPBOX_TOKEN
 RESEND_API_KEY
 RESEND_FROM_EMAIL
+VERCEL_API_TOKEN
+VERCEL_PROJECT_ID
 APP_DOMAIN=propcloud.app
 ```
 
-## Próximos pasos (en orden)
-1. **`/admin/clientes`**: lista + drawer con campos del index.html, Hacienda lookup, autocomplete empresas, social search, botón "+" global en AdminShell
-2. **`/admin/inventario/[id]`**: tabs 2-6 (características con botones, amenidades pills, precio, descripción, fotos)
-3. **Vincular cliente ↔ propiedad**: en Tab 1 buscar/seleccionar cliente como propietario
-4. **`/api/properties`**: agregar propiedades manuales `status='active'` al endpoint público
-5. **Pipeline vendedor**: kanban/lista del funnel de captación, conectar form `/listar` → lead → pipeline
+## Deuda / pendientes
+- `my_tenant_id()` no soporta multi-tenant por usuario (documentado en la migración).
+- `/api/contact`: rate-limit en memoria — pasar a Upstash/Redis si escala a varias instancias.
+- Edge Functions `delete-user`, `reset-user-password`, `tipo-cambio` deben estar desplegadas en el proyecto PropCLOUD.
+- Decommission/redirect de `proptools.app`.
