@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 
 // Herramientas PropTools embebidas dentro del shell de PropCLOUD.
@@ -43,6 +43,21 @@ function ToolFrame() {
   if (id) qs.set('id', id)
   if (tab) qs.set('tab', tab)
 
+  // La herramienta reporta su altura de contenido (postMessage) → el iframe
+  // crece y scrollea la página, sin caja/scroll interno.
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [height, setHeight] = useState<number | null>(null)
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      if (e.source === iframeRef.current?.contentWindow && typeof e.data?.ptHeight === 'number') {
+        setHeight(e.data.ptHeight)
+      }
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
+  useEffect(() => { setHeight(null) }, [tab, slug])
+
   return (
     <>
       <div style={{ marginBottom: 20 }}>
@@ -50,14 +65,17 @@ function ToolFrame() {
         <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>{heading.subtitle}</p>
       </div>
       <iframe
+        ref={iframeRef}
         key={tab ?? 'default'}
         src={`/tools/${slug}/?${qs.toString()}`}
+        scrolling="no"
         style={{
           width: '100%',
-          height: 'calc(100vh - 190px)',
+          height: height ? `${height}px` : 'calc(100vh - 160px)',
           border: 'none',
           background: 'transparent',
           display: 'block',
+          overflow: 'hidden',
         }}
         title={`PropTools — ${heading.title}`}
       />

@@ -440,15 +440,31 @@ async function initComponents({ active = '', version = '' } = {}) {
     const st = document.createElement('style');
     st.textContent = `
       #pt-header, #pt-sidebar, #pt-footer, .page-header { display: none !important; }
-      body { background: transparent !important; }
-      /* sin la fila del header, main pierde su celda (no tiene grid-area) —
-         se redefine el grid a una sola fila y se le asigna el área */
-      .app-screen { grid-template-rows: 100vh !important; grid-template-areas: "aside main" !important; }
+      html, body { background: transparent !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+      /* Sin chrome propio, la app fluye por contenido (sin 100vh ni scroll
+         interno): así el iframe crece y scrollea la página del admin, no una
+         caja anidada. */
+      .app-screen { grid-template-rows: auto !important; grid-template-areas: "aside main" !important; min-height: 0 !important; }
       .app-screen > main { grid-area: main !important; }
-      #pt-main { padding-top: 0 !important; }
+      .app-screen > aside, .app-screen > main { overflow: visible !important; height: auto !important; max-height: none !important; }
+      #pt-main { padding-top: 0 !important; min-height: 0 !important; }
       .results-bar { top: 0 !important; }
     `;
     document.head.appendChild(st);
+
+    // Reportar la altura del contenido al shell para que el iframe se ajuste
+    // (sin scroll interno = sin "frame" anidado).
+    var lastH = 0;
+    function reportHeight() {
+      var h = Math.ceil(document.documentElement.scrollHeight);
+      if (h && h !== lastH) { lastH = h; parent.postMessage({ ptHeight: h }, '*'); }
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+    new MutationObserver(reportHeight).observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 100);
+    setTimeout(reportHeight, 600);
   }
 
   return { profile, apps: resolvedApps };
