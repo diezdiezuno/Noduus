@@ -186,6 +186,7 @@ export default function ClientesClient() {
   const isNew        = searchParams.get('new')
 
   const [tenantId,  setTenantId]  = useState('')
+  const [tenantCountry, setTenantCountry] = useState('CR')
   const [userId,    setUserId]    = useState('')
   const [isAdmin,   setIsAdmin]   = useState(false)
   const [contacts,  setContacts]  = useState<Contact[]>([])
@@ -312,6 +313,7 @@ export default function ClientesClient() {
       if (!m) return
 
       setTenantId(m.tenantId)
+      setTenantCountry(m.country)
       setUserId(m.userId)
       setIsAdmin(m.isAdmin)
 
@@ -1003,6 +1005,7 @@ export default function ClientesClient() {
             <ContactForm
               key={editingId ?? 'new'}
               tenantId={tenantId}
+              country={tenantCountry}
               userId={userId}
               isAdmin={isAdmin}
               editId={editingId}

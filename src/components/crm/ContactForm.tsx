@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
+import { countryHas } from '@/lib/country'
 import PhoneInput from '@/components/PhoneInput'
 import TaxonomyManager from '@/components/crm/TaxonomyManager'
 
@@ -29,6 +30,7 @@ export interface ContactSavedResult {
 
 interface Props {
   tenantId:     string
+  country?:     string        // país del tenant → habilita Hacienda, etc.
   userId?:      string        // created_by al insertar
   isAdmin?:     boolean       // muestra el botón "+" para tipo/fuente
   editId?:      string | null // null/undefined = crear; id = editar
@@ -158,7 +160,7 @@ const XIcon  = () => (<svg width="15" height="15" viewBox="0 0 24 24"><rect widt
 
 /* ══════════════════════════════════════════════════════════════ */
 export default function ContactForm({
-  tenantId, userId, isAdmin, editId, initialName, submitLabel, onSaved, onCancel,
+  tenantId, country, userId, isAdmin, editId, initialName, submitLabel, onSaved, onCancel,
 }: Props) {
   const [types,   setTypes]   = useState<ContactType[]>([])
   const [sources, setSources] = useState<ContactSource[]>([])
@@ -557,7 +559,7 @@ export default function ContactForm({
               onKeyDown={e => { if (e.key === 'Enter' && cedulaTipo !== 'pasaporte') lookupCedula() }}
               style={{ ...inputSt, borderColor: cedulaDupe ? '#FDE68A' : '#e2e5ea', background: cedulaDupe ? '#FFFBEB' : '#fff' }} />
           </div>
-          {cedulaTipo !== 'pasaporte' && (
+          {cedulaTipo !== 'pasaporte' && countryHas(country, 'hacienda') && (
             <div style={{ paddingTop: 22 }}>
               <button onClick={lookupCedula} disabled={lookingUp} style={{ ...lookupBtnSt, opacity: lookingUp ? .6 : 1 }}>
                 {lookingUp ? '…' : 'Consultar →'}

@@ -1087,6 +1087,8 @@ function MercadoComparables({ comps, metodo }: { comps: Comparable[]; metodo?: s
    OWNER SECTION — Información del dueño
 ══════════════════════════════════════════════════════════════ */
 function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: PropertyFull) => void }) {
+  const [country, setCountry] = useState('CR')
+  useEffect(() => { getMembership().then(m => { if (m) setCountry(m.country) }) }, [])
   const [owners,       setOwners]       = useState<OwnerResult[]>([])
   const [inlineView,   setInlineView]   = useState<VCardViewType | null>(null)
   const [newOwnerType, setNewOwnerType] = useState<'contact' | 'company' | null>(null)
@@ -1333,6 +1335,7 @@ function OwnerSection({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prop
       <NewOwnerModal
         type={newOwnerType}
         tenantId={prop.tenant_id}
+        country={country}
         initial={lastQuery}
         onCreated={handleNewOwnerCreated}
         onClose={() => setNewOwnerType(null)}

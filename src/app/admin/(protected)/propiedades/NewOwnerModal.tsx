@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
+import { countryHas } from '@/lib/country'
 import ContactForm from '@/components/crm/ContactForm'
 
 /* ── Types ───────────────────────────────────────────────────── */
@@ -16,6 +17,7 @@ export interface NewOwnerResult {
 interface Props {
   type:      'contact' | 'company'
   tenantId:  string
+  country?:  string
   initial?:  string
   onCreated: (owner: NewOwnerResult) => void
   onClose:   () => void
@@ -59,7 +61,7 @@ const lookupBtnSt: React.CSSProperties = {
 /* ══════════════════════════════════════════════════════════════
    COMPANY FORM — idéntico al formulario de Empresas
 ══════════════════════════════════════════════════════════════ */
-function CompanyForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'type'>) {
+function CompanyForm({ tenantId, country, initial, onCreated, onClose }: Omit<Props, 'type'>) {
   const [cedJur,     setCedJur]     = useState('')
   const [name,       setName]       = useState(initial ?? '')
   const [tradeName,  setTradeName]  = useState('')
@@ -158,12 +160,14 @@ function CompanyForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'typ
             onKeyDown={e => { if (e.key === 'Enter') lookupCedJur(cedJur) }}
             style={{ ...inputSt, borderColor: cedJurDupe ? '#FDE68A' : '#e2e5ea', background: cedJurDupe ? '#FFFBEB' : '#fff' }} />
         </div>
-        <div style={{ paddingTop: 22 }}>
-          <button onClick={() => lookupCedJur(cedJur)} disabled={looking}
-            style={{ ...lookupBtnSt, opacity: looking ? .6 : 1 }}>
-            {looking ? '…' : 'Consultar →'}
-          </button>
-        </div>
+        {countryHas(country, 'hacienda') && (
+          <div style={{ paddingTop: 22 }}>
+            <button onClick={() => lookupCedJur(cedJur)} disabled={looking}
+              style={{ ...lookupBtnSt, opacity: looking ? .6 : 1 }}>
+              {looking ? '…' : 'Consultar →'}
+            </button>
+          </div>
+        )}
       </div>
       {lookResult && (
         <div style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, marginBottom: 8, ...(lookResult.type === 'ok' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' } : { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }) }}>
@@ -175,9 +179,11 @@ function CompanyForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'typ
           ⚠ Ya existe: <strong>{cedJurDupe.name}</strong>
         </div>
       )}
-      <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 4px' }}>
-        Consulta Hacienda CR — autocompleta razón social. Enter o &ldquo;Consultar →&rdquo; para buscar.
-      </p>
+      {countryHas(country, 'hacienda') && (
+        <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 4px' }}>
+          Consulta Hacienda CR — autocompleta razón social. Enter o &ldquo;Consultar →&rdquo; para buscar.
+        </p>
+      )}
 
       {/* ── DATOS DE LA EMPRESA ──────────────────────────── */}
       <SectionTitle>Datos de la empresa</SectionTitle>
@@ -223,7 +229,7 @@ function CompanyForm({ tenantId, initial, onCreated, onClose }: Omit<Props, 'typ
 /* ══════════════════════════════════════════════════════════════
    MODAL WRAPPER
 ══════════════════════════════════════════════════════════════ */
-export default function NewOwnerModal({ type, tenantId, initial, onCreated, onClose }: Props) {
+export default function NewOwnerModal({ type, tenantId, country, initial, onCreated, onClose }: Props) {
   useEffect(() => {
     function handle(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handle)
@@ -254,6 +260,7 @@ export default function NewOwnerModal({ type, tenantId, initial, onCreated, onCl
         {type === 'contact'
           ? <ContactForm
               tenantId={tenantId}
+              country={country}
               initialName={initial}
               submitLabel="Registrar cliente"
               onSaved={r => onCreated({
@@ -264,7 +271,7 @@ export default function NewOwnerModal({ type, tenantId, initial, onCreated, onCl
               })}
               onCancel={onClose}
             />
-          : <CompanyForm tenantId={tenantId} initial={initial} onCreated={onCreated} onClose={onClose} />
+          : <CompanyForm tenantId={tenantId} country={country} initial={initial} onCreated={onCreated} onClose={onClose} />
         }
       </div>
     </div>

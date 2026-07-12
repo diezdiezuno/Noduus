@@ -64,6 +64,7 @@ export default function NuevaPropiedadPage() {
 
   /* Auth */
   const [tenantId, setTenantId] = useState('')
+  const [tenantCountry, setTenantCountry] = useState('CR')
   const [loading,  setLoading]  = useState(true)
   const [saving,   setSaving]   = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -143,6 +144,7 @@ export default function NuevaPropiedadPage() {
       if (!m) return
       const adminRec = { tenant_id: m.tenantId }
       setTenantId(adminRec.tenant_id)
+      setTenantCountry(m.country)
 
       const [{ data: types }, { data: agentList }] = await Promise.all([
         supabase.from('property_types').select('id,label,value,icon').eq('tenant_id', adminRec.tenant_id).order('sort_order'),
@@ -825,6 +827,7 @@ export default function NuevaPropiedadPage() {
         <NewOwnerModal
           type={newOwnerType}
           tenantId={tenantId}
+          country={tenantCountry}
           initial={ownerQuery}
           onCreated={async (result: NewOwnerResult) => {
             setNewOwnerType(null)

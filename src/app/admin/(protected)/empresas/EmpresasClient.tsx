@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { getMembership } from '@/lib/membership'
+import { countryHas } from '@/lib/country'
 import PageHeader from '@/components/admin/PageHeader'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ export default function EmpresasClient() {
   const idParam      = searchParams.get('id')
 
   const [tenantId,    setTenantId]    = useState('')
+  const [tenantCountry, setTenantCountry] = useState('CR')
   const [userId,      setUserId]      = useState('')
   const [companies,   setCompanies]   = useState<Company[]>([])
   const [contactMap,  setContactMap]  = useState<Record<string, number>>({})
@@ -208,6 +210,7 @@ export default function EmpresasClient() {
     getMembership().then(async m => {
       if (!m) return
       setTenantId(m.tenantId)
+      setTenantCountry(m.country)
       setUserId(m.userId)
       await Promise.all([
         loadCompanies(m.tenantId, ''),
@@ -684,12 +687,14 @@ export default function EmpresasClient() {
                     onKeyDown={e => { if (e.key === 'Enter') lookupCedula() }}
                     style={{ ...sInput, borderColor: cedJurDupe ? '#FDE68A' : '#e2e5ea', background: cedJurDupe ? '#FFFBEB' : '#fff' }} />
                 </div>
-                <div style={{ ...sField, paddingTop: 22 }}>
-                  <button onClick={lookupCedula} disabled={lookingUp}
-                    style={{ height: 38, padding: '0 14px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', background: '#f4f5f7', color: '#0d0f12', cursor: lookingUp ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, opacity: lookingUp ? .6 : 1 }}>
-                    {lookingUp ? '…' : 'Consultar →'}
-                  </button>
-                </div>
+                {countryHas(tenantCountry, 'hacienda') && (
+                  <div style={{ ...sField, paddingTop: 22 }}>
+                    <button onClick={lookupCedula} disabled={lookingUp}
+                      style={{ height: 38, padding: '0 14px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', background: '#f4f5f7', color: '#0d0f12', cursor: lookingUp ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, opacity: lookingUp ? .6 : 1 }}>
+                      {lookingUp ? '…' : 'Consultar →'}
+                    </button>
+                  </div>
+                )}
               </div>
               {lookupResult && (
                 <div style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, marginTop: 8, ...(lookupResult.type === 'ok' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' } : { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c' }) }}>
@@ -703,7 +708,7 @@ export default function EmpresasClient() {
                 </div>
               )}
               <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6, display: 'block' }}>
-                Consulta Hacienda CR — autocompleta razón social. Enter para consultar.
+                {countryHas(tenantCountry, 'hacienda') ? 'Consulta Hacienda CR — autocompleta razón social. Enter para consultar.' : 'Ingresá la identificación fiscal de la empresa.'}
               </span>
             </div>
 
