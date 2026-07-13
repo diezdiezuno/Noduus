@@ -41,7 +41,7 @@ if (!OLD_KEY || !NEW_KEY || !TENANT) {
 // columnas extra de la base vieja se descartan con aviso).
 const COLS = {
   users: ['id','auth_id','tenant_id','name','email','role','job_title','phone','whatsapp','instagram','facebook','linkedin','tiktok','photo_url','created_at'],
-  tenant_templates: ['id','tenant_id','name','html','config','active','sort_order','created_at'],
+  tenant_templates: ['id','tenant_id','name','html','config','active','sort_order','created_at','template_id','logo_url','extra_website'],
   signatures: ['id','tenant_id','user_id','save_name','template','photo_url','name','role','email','phone','whatsapp','facebook','instagram','linkedin','tiktok','created_at','updated_at'],
   tarjetas: ['id','tenant_id','user_id','save_name','template','photo_url','name','whatsapp','email','instagram','created_at','updated_at'],
   rotulos: ['id','tenant_id','user_id','save_name','orientacion','template','texto_rojo','name','whatsapp','email','created_at','updated_at'],
