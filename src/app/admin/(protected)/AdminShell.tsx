@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import DateTimeWeather from '@/components/admin/DateTimeWeather'
+import GlobalSearch from '@/components/admin/GlobalSearch'
 import { themeCssVars } from '@/lib/theme'
 
 // ── Nav structure ─────────────────────────────────────────────
@@ -47,15 +48,6 @@ const WIDE_ROUTES = ['/admin/dashboard', '/admin/clientes', '/admin/empresas', '
 const SIDEBAR_W_OPEN   = 216
 const SIDEBAR_W_CLOSED = 72
 const TOPBAR_H         = 54
-
-// ── Search result type ────────────────────────────────────────
-interface SearchResult {
-  type:     'contact' | 'company' | 'property'
-  id:       string
-  title:    string
-  subtitle: string
-  href:     string
-}
 
 // ── Types ─────────────────────────────────────────────────────
 interface Tenant { id: string; name: string; slug: string; logo_url: string | null; theme: Record<string, string>; proptools_apps?: string[] | null }
@@ -131,111 +123,6 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
     router.push('/admin/login')
   }
 
-  // ── Global search ──────────────────────────────────────────
-  const [query,        setQuery]        = useState('')
-  const [results,      setResults]      = useState<SearchResult[]>([])
-  const [searching,    setSearching]    = useState(false)
-  const [searchOpen,   setSearchOpen]   = useState(false)
-  const searchRef      = useRef<HTMLDivElement>(null)
-  const searchTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-
-  // Close search on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  // Cmd+K / Ctrl+K shortcut
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-        setSearchOpen(true)
-      }
-      if (e.key === 'Escape') setSearchOpen(false)
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [])
-
-  const runSearch = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setResults([]); setSearching(false); return }
-    setSearching(true)
-    const sb  = createClient()
-    const tid = tenant.id
-    const term = `%${q.trim()}%`
-
-    const [{ data: contacts }, { data: companies }, { data: props }] = await Promise.all([
-      sb.from('crm_contacts')
-        .select('id, name, last_name, email, cedula')
-        .eq('tenant_id', tid)
-        .or(`name.ilike.${term},last_name.ilike.${term},email.ilike.${term},cedula.ilike.${term}`)
-        .limit(4),
-      sb.from('crm_companies')
-        .select('id, name, trade_name, cedula_juridica')
-        .eq('tenant_id', tid)
-        .or(`name.ilike.${term},trade_name.ilike.${term},cedula_juridica.ilike.${term}`)
-        .limit(4),
-      sb.from('properties')
-        .select('id, title, address, canton, provincia')
-        .eq('tenant_id', tid)
-        .or(`title.ilike.${term},address.ilike.${term}`)
-        .limit(4),
-    ])
-
-    const out: SearchResult[] = []
-    for (const c of contacts ?? []) {
-      out.push({
-        type:     'contact',
-        id:       c.id,
-        title:    [c.name, c.last_name].filter(Boolean).join(' '),
-        subtitle: c.email ?? c.cedula ?? 'Cliente',
-        href:     `/admin/clientes?id=${c.id}`,
-      })
-    }
-    for (const co of companies ?? []) {
-      out.push({
-        type:     'company',
-        id:       co.id,
-        title:    co.trade_name || co.name,
-        subtitle: co.trade_name ? co.name : (co.cedula_juridica ?? 'Empresa'),
-        href:     `/admin/empresas?id=${co.id}`,
-      })
-    }
-    for (const p of props ?? []) {
-      out.push({
-        type:     'property',
-        id:       p.id,
-        title:    p.title || 'Sin título',
-        subtitle: [p.canton, p.provincia].filter(Boolean).join(', ') || p.address || 'Propiedad',
-        href:     `/admin/propiedades/${p.id}`,
-      })
-    }
-    setResults(out)
-    setSearching(false)
-  }, [tenant.id])
-
-  function handleSearchChange(q: string) {
-    setQuery(q)
-    setSearchOpen(true)
-    if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => runSearch(q), 300)
-  }
-
-  function goToResult(href: string) {
-    setSearchOpen(false)
-    setQuery('')
-    setResults([])
-    router.push(href)
-  }
-
   // ── Quick add "+" dropdown ─────────────────────────────────
   const [plusOpen,  setPlusOpen]  = useState(false)
   const plusRef = useRef<HTMLDivElement>(null)
@@ -252,8 +139,6 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
     { icon: '🏢', label: 'Nueva empresa',    href: '/admin/empresas?new=1'   },
     { icon: '🏘️', label: 'Nueva propiedad',  href: '/admin/propiedades?new=1' },
   ]
-
-  const RESULT_ICONS: Record<string, string> = { contact: '👤', company: '🏢', property: '🏘️' }
 
   const sidebarW = open ? SIDEBAR_W_OPEN : SIDEBAR_W_CLOSED
 
@@ -464,65 +349,7 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
       }}>
 
         {/* ── Search ──────────────────────────────────── */}
-        <div ref={searchRef} style={{ position: 'relative', flex: 1, maxWidth: 480 }}>
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#aaa', pointerEvents: 'none' }}>🔍</span>
-            <input
-              ref={searchInputRef}
-              value={query}
-              onChange={e => handleSearchChange(e.target.value)}
-              onFocus={() => query.length >= 2 && setSearchOpen(true)}
-              placeholder="Buscar clientes, empresas, propiedades…"
-              style={{
-                width: '100%', height: 36,
-                paddingLeft: 36, paddingRight: 60,
-                border: '1px solid #e2e5ea',
-                borderRadius: 10,
-                fontSize: 13, color: '#111',
-                background: '#f9fafb',
-                outline: 'none',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-                transition: 'border-color .15s, background .15s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#c5cad3' }}
-              onMouseLeave={e => { if (document.activeElement !== e.currentTarget) (e.currentTarget as HTMLInputElement).style.borderColor = '#e2e5ea' }}
-              onFocusCapture={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#111'; (e.currentTarget as HTMLInputElement).style.background = '#fff' }}
-              onBlurCapture={e => { (e.currentTarget as HTMLInputElement).style.borderColor = '#e2e5ea'; (e.currentTarget as HTMLInputElement).style.background = '#f9fafb' }}
-            />
-            <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#bbb', background: '#f0f0f0', borderRadius: 5, padding: '2px 5px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>⌘K</span>
-          </div>
-
-          {/* Results dropdown */}
-          {searchOpen && query.length >= 2 && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.12)', zIndex: 400, overflow: 'hidden' }}>
-              {searching ? (
-                <div style={{ padding: '14px 16px', fontSize: 13, color: '#aaa' }}>Buscando…</div>
-              ) : results.length === 0 ? (
-                <div style={{ padding: '14px 16px', fontSize: 13, color: '#aaa' }}>Sin resultados para &ldquo;{query}&rdquo;</div>
-              ) : (
-                <>
-                  {results.map((r, i) => (
-                    <div
-                      key={r.id}
-                      onClick={() => goToResult(r.href)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i > 0 ? '1px solid #f4f5f7' : 'none', transition: 'background .1s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
-                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                    >
-                      <span style={{ fontSize: 16, flexShrink: 0 }}>{RESULT_ICONS[r.type]}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
-                        <div style={{ fontSize: 11, color: '#9ca3af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.subtitle}</div>
-                      </div>
-                      <span style={{ fontSize: 11, color: '#c5cad3', flexShrink: 0 }}>→</span>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <GlobalSearch tenantId={tenant.id} />
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
