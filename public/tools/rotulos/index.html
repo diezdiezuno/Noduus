@@ -1051,7 +1051,7 @@ async function saveRotulo(){
   if(!saveName){ toast('Escribe un nombre para el rótulo'); return; }
   const btn=el('btn-save-rotulo'); btn.disabled=true; btn.textContent='Guardando…';
   const record={
-    user_id:    currentUser.id,
+    user_id:    currentProfile.id,
     save_name:  saveName,
     orientacion: currentOri,
     template:   currentTpl.id,
@@ -1061,7 +1061,7 @@ async function saveRotulo(){
     email:      v('f-email'),
   };
   try{
-    const {data:ex}=await sb.from(COLECCION).select('id').eq('user_id',currentUser.id).eq('save_name',saveName).maybeSingle();
+    const {data:ex}=await sb.from(COLECCION).select('id').eq('user_id',currentProfile.id).eq('save_name',saveName).maybeSingle();
     if(ex){ await sb.from(COLECCION).update(record).eq('id',ex.id); toast('Rótulo actualizado: '+saveName); }
     else  { await sb.from(COLECCION).insert(record);                toast('Rótulo guardado: '+saveName); }
     el('f-savename').value='';
@@ -1073,7 +1073,7 @@ async function saveRotulo(){
 async function loadSaved(){
   if(!currentProfile) return;
   try{
-    const {data}=await sb.from(COLECCION).select('*').eq('user_id',currentUser.id).order('updated_at',{ascending:false});
+    const {data}=await sb.from(COLECCION).select('*').eq('user_id',currentProfile.id).order('updated_at',{ascending:false});
     renderSaved(data||[]);
   }catch(e){ console.error('[loadSaved]',e); el('saved-list').innerHTML='<p class="saved-empty">Error al cargar</p>'; }
 }
