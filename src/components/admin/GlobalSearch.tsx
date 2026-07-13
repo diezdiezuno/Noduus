@@ -188,9 +188,9 @@ export default function GlobalSearch({ tenantId }: { tenantId: string }) {
         )}
       </div>
 
-      {/* Panel de resumen a la derecha */}
+      {/* Panel de resumen — tarjeta flotante a la derecha del buscador */}
       {preview && (
-        <div style={{ position: 'fixed', top: 54, right: 0, bottom: 0, width: 380, maxWidth: '92vw', background: '#fff', borderLeft: '1px solid #e6e8ec', boxShadow: '-8px 0 32px rgba(0,0,0,.10)', zIndex: 402, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 'calc(100% + 8px)', width: 380, maxHeight: '78vh', background: '#fff', border: '1px solid #e2e5ea', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.14)', zIndex: 402, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <PreviewPanel preview={preview} loading={previewLoading} onClose={() => setPreview(null)} onOpen={() => goFull(preview.r.href)} />
         </div>
       )}
