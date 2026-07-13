@@ -77,6 +77,7 @@ export default function EmpresasClient() {
   const searchParams = useSearchParams()
   const router       = useRouter()
   const idParam      = searchParams.get('id')
+  const newParam     = searchParams.get('new')
 
   const [tenantId,    setTenantId]    = useState('')
   const [tenantCountry, setTenantCountry] = useState('CR')
@@ -246,6 +247,14 @@ export default function EmpresasClient() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idParam, tenantId, pageLoading])
+
+  // Auto-open drawer en modo crear desde ?new=1 (quick-add del topbar)
+  useEffect(() => {
+    if (!newParam || !tenantId || pageLoading) return
+    openDrawer(null)
+    router.replace('/admin/empresas')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newParam, tenantId, pageLoading])
 
   // Close contact results on outside click
   useEffect(() => {

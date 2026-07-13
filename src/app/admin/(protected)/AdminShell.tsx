@@ -164,7 +164,7 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
   const QUICK_ADD = [
     { icon: ICON.user,     label: 'Nuevo cliente',    href: '/admin/clientes?new=1'   },
     { icon: ICON.building, label: 'Nueva empresa',    href: '/admin/empresas?new=1'   },
-    { icon: ICON.home,     label: 'Nueva propiedad',  href: '/admin/propiedades?new=1' },
+    { icon: ICON.home,     label: 'Nueva propiedad',  href: '/admin/propiedades/nueva' },
   ]
 
   const sidebarW = open ? SIDEBAR_W_OPEN : SIDEBAR_W_CLOSED
@@ -395,7 +395,6 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
               background: plusOpen ? '#222' : '#111',
               color: '#fff',
               border: 'none',
-              fontSize: 24, lineHeight: 1, fontWeight: 300,
               cursor: 'pointer', fontFamily: 'inherit',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,.18)',
@@ -405,7 +404,9 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#222'; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.08)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 14px rgba(0,0,0,.28)' }}
             onMouseLeave={e => { if (!plusOpen) (e.currentTarget as HTMLButtonElement).style.background = '#111'; (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px rgba(0,0,0,.18)' }}
           >
-            +
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ display: 'block' }}>
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </button>
 
           {plusOpen && (
