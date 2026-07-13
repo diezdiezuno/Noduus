@@ -17,6 +17,8 @@ interface ContactType   { id: string; name: string; color: string }
 interface ContactSource { id: string; name: string }
 interface DupeContact   { id: string; name: string; last_name: string | null }
 interface Company       { id: string; name: string; trade_name: string | null; cedula_juridica: string | null }
+interface AgentUser     { id: string; name: string }
+interface OwnedProperty { id: string; title: string | null; crm_status: string | null; status: string | null }
 interface DocUrl        { path: string; name: string; size: number; uploaded_at: string }
 type LookupState        = { type: 'ok' | 'err'; msg: string } | null
 
@@ -208,6 +210,16 @@ export default function ContactForm({
   const [coSearching,     setCoSearching]     = useState(false)
   const coSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  /* Agent linking — un cliente puede tener 2+ agentes asignados */
+  const [linkedAgents, setLinkedAgents] = useState<AgentUser[]>([])
+  const [agSearch,     setAgSearch]     = useState('')
+  const [agResults,    setAgResults]    = useState<AgentUser[]>([])
+  const [showAgResults, setShowAgResults] = useState(false)
+  const agSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /* Propiedades relacionadas (donde este contacto figura como dueño) — solo lectura */
+  const [ownedProperties, setOwnedProperties] = useState<OwnedProperty[]>([])
+
   /* Social */
   const [instagram, setInstagram] = useState('')
   const [facebook,  setFacebook]  = useState('')
@@ -251,6 +263,16 @@ export default function ContactForm({
     })
   }, [isAdmin, tenantId])
 
+  /* ── Auto-asignar el agente actual al crear (si no es admin) ─ */
+  useEffect(() => {
+    if (editId || isAdmin || !userId) return
+    let cancelled = false
+    createClient().from('users').select('id,name').eq('id', userId).single().then(({ data }) => {
+      if (!cancelled && data) setLinkedAgents(prev => prev.some(a => a.id === data.id) ? prev : [...prev, data as AgentUser])
+    })
+    return () => { cancelled = true }
+  }, [editId, isAdmin, userId])
+
   /* ── Load contact for edit ───────────────────────────────── */
   useEffect(() => {
     if (!editId) { setLoading(false); return }
@@ -258,10 +280,11 @@ export default function ContactForm({
     ;(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sb = createClient() as any
-      const [{ data: c }, { data: ccos }, { data: ctypes }] = await Promise.all([
+      const [{ data: c }, { data: ccos }, { data: ctypes }, { data: cags }] = await Promise.all([
         sb.from('crm_contacts').select('*').eq('id', editId).single(),
         sb.from('crm_contact_companies').select('crm_companies(id,name,trade_name,cedula_juridica)').eq('contact_id', editId),
         sb.from('crm_contact_types').select('type_id').eq('contact_id', editId),
+        sb.from('crm_contact_agents').select('users(id,name)').eq('contact_id', editId),
       ])
       if (cancelled) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -282,7 +305,18 @@ export default function ContactForm({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cos = ((ccos ?? []) as any[]).map(r => r.crm_companies).filter(Boolean) as Company[]
       setLinkedCompanies(cos)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ags = ((cags ?? []) as any[]).map(r => r.users).filter(Boolean) as AgentUser[]
+      setLinkedAgents(ags)
       setLoading(false)
+
+      // Propiedades donde este contacto figura como dueño (features.owners es
+      // un JSON string con [{type,id,name,subtitle}], mismo formato que
+      // escribe el tab de captación de propiedades).
+      const { data: props } = await sb.from('properties')
+        .select('id,title,crm_status,status,features').eq('tenant_id', tenantId)
+        .ilike('features->>owners', `%"type":"contact","id":"${editId}"%`)
+      setOwnedProperties(((props ?? []) as OwnedProperty[]))
     })()
     return () => { cancelled = true }
   }, [editId])
@@ -400,6 +434,19 @@ export default function ContactForm({
     }, 250)
   }
 
+  /* ── Agent search ─────────────────────────────────────────── */
+  function handleAgSearch(val: string) {
+    setAgSearch(val); setShowAgResults(true)
+    if (agSearchTimer.current) clearTimeout(agSearchTimer.current)
+    if (!val.trim()) { setAgResults([]); setShowAgResults(false); return }
+    agSearchTimer.current = setTimeout(async () => {
+      const { data } = await createClient().from('users').select('id,name')
+        .eq('tenant_id', tenantId).ilike('name', `%${val}%`).order('name').limit(8)
+      const addedIds = new Set(linkedAgents.map(a => a.id))
+      setAgResults(((data ?? []) as AgentUser[]).filter(a => !addedIds.has(a.id)))
+    }, 250)
+  }
+
   function searchSocial(network: string) {
     const q = `${name} ${lastName}`.trim()
     window.open(`https://www.google.com/search?q=${encodeURIComponent(q + ' site:' + network + '.com')}`, '_blank')
@@ -501,6 +548,14 @@ export default function ContactForm({
     if (linkedCompanies.length > 0) {
       await sb.from('crm_contact_companies').insert(
         linkedCompanies.map(co => ({ tenant_id: tenantId, contact_id: contactId, company_id: co.id }))
+      )
+    }
+
+    // Agent links — replace all
+    await sb.from('crm_contact_agents').delete().eq('contact_id', contactId)
+    if (linkedAgents.length > 0) {
+      await sb.from('crm_contact_agents').insert(
+        linkedAgents.map(a => ({ tenant_id: tenantId, contact_id: contactId, user_id: a.id }))
       )
     }
 
@@ -686,6 +741,75 @@ export default function ContactForm({
         </div>
 
         {/* ── EMPRESA/S ─────────────────────────────────────── */}
+        {/* ── AGENTE/S ──────────────────────────────────────── */}
+        <SectionTitle>Agente{linkedAgents.length !== 1 ? 's' : ''} asignado{linkedAgents.length !== 1 ? 's' : ''}</SectionTitle>
+        {showAdmin && (
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+              <input type="text" placeholder="Buscar agente por nombre…" value={agSearch}
+                onChange={e => handleAgSearch(e.target.value)}
+                onFocus={() => { if (agResults.length > 0) setShowAgResults(true) }}
+                style={{ ...inputSt, paddingLeft: 36, paddingRight: agSearch ? 36 : 12 }} />
+              {agSearch && (
+                <button onClick={() => { setAgSearch(''); setAgResults([]); setShowAgResults(false) }}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 16, padding: 0 }}>✕</button>
+              )}
+            </div>
+            {showAgResults && agResults.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e5ea', borderRadius: 10, boxShadow: '0 8px 20px rgba(0,0,0,.1)', zIndex: 60, overflow: 'hidden', marginTop: 4 }}>
+                {agResults.map(a => (
+                  <div key={a.id} onMouseDown={() => { setLinkedAgents(prev => [...prev, a]); setAgSearch(''); setAgResults([]); setShowAgResults(false) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f4f5f7' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}>
+                    <span style={{ fontSize: 16 }}>👤</span>
+                    <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0d0f12' }}>{a.name}</div>
+                    <span style={{ fontSize: 13, color: '#1B6EF3' }}>＋</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {linkedAgents.length === 0
+          ? <div style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 10, border: '1px dashed #e2e5ea', textAlign: 'center', fontSize: 13, color: '#9ca3af', marginBottom: 4 }}>Sin agente asignado</div>
+          : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+              {linkedAgents.map(a => (
+                <span key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#F9FAFB', borderRadius: 20, border: '1px solid #e2e5ea', fontSize: 12, fontWeight: 600, color: '#0d0f12' }}>
+                  👤 {a.name}
+                  {showAdmin && (
+                    <button onClick={() => setLinkedAgents(prev => prev.filter(x => x.id !== a.id))}
+                      style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 13, padding: 0, lineHeight: 1 }}>✕</button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+        {!showAdmin && <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 4px' }}>Solo un administrador puede cambiar los agentes asignados.</p>}
+
+        {/* ── PROPIEDADES RELACIONADAS ─────────────────────── */}
+        {editId && (
+          <>
+            <SectionTitle>Propiedades{ownedProperties.length > 0 ? ` (${ownedProperties.length})` : ''}</SectionTitle>
+            {ownedProperties.length === 0
+              ? <div style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 10, border: '1px dashed #e2e5ea', textAlign: 'center', fontSize: 13, color: '#9ca3af', marginBottom: 4 }}>Sin propiedades asociadas</div>
+              : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+                  {ownedProperties.map(p => (
+                    <a key={p.id} href={`/admin/propiedades/${p.id}`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea', textDecoration: 'none' }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>🏘️</span>
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#0d0f12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || 'Sin título'}</div>
+                      <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{p.crm_status || p.status}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+          </>
+        )}
+
         <SectionTitle>Empresa{linkedCompanies.length !== 1 ? 's' : ''}</SectionTitle>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <div style={{ position: 'relative' }}>
