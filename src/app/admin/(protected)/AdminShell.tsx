@@ -160,9 +160,9 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
   }, [])
 
   const QUICK_ADD = [
-    { icon: '👤', label: 'Nuevo cliente',    href: '/admin/clientes?new=1'   },
-    { icon: '🏢', label: 'Nueva empresa',    href: '/admin/empresas?new=1'   },
-    { icon: '🏘️', label: 'Nueva propiedad',  href: '/admin/propiedades?new=1' },
+    { icon: ICON.user,     label: 'Nuevo cliente',    href: '/admin/clientes?new=1'   },
+    { icon: ICON.building, label: 'Nueva empresa',    href: '/admin/empresas?new=1'   },
+    { icon: ICON.home,     label: 'Nueva propiedad',  href: '/admin/propiedades?new=1' },
   ]
 
   const sidebarW = open ? SIDEBAR_W_OPEN : SIDEBAR_W_CLOSED
