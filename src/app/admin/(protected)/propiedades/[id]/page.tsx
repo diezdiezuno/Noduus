@@ -135,6 +135,13 @@ export default function PropiedadPage() {
     if (data) setProp(data as PropertyFull)
   }
 
+  async function saveTitle(newTitle: string) {
+    if (!prop) return
+    const { data } = await createClient().from('properties')
+      .update({ title: newTitle }).eq('id', prop.id).select('*').single()
+    if (data) setProp(data as PropertyFull)
+  }
+
   if (loading) return <div style={{ padding: 40, color: '#aaa', fontSize: 14 }}>Cargando…</div>
   if (!prop)   return <div style={{ padding: 40, color: '#e53e3e', fontSize: 14 }}>Propiedad no encontrada.</div>
 
@@ -148,9 +155,7 @@ export default function PropiedadPage() {
         </button>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           <div style={{ borderLeft: '3px solid #111', paddingLeft: 14 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#111', margin: '0 0 6px', lineHeight: 1.2 }}>
-              {prop.title || <span style={{ color: '#bbb', fontWeight: 400 }}>Sin título</span>}
-            </h1>
+            <EditableTitle value={prop.title} onSave={saveTitle} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {prop.provincia && <span style={{ fontSize: 13, color: '#888' }}>📍 {[prop.canton, prop.provincia].filter(Boolean).join(', ')}</span>}
               <StatusPill status={prop.crm_status} />
@@ -199,6 +204,36 @@ export default function PropiedadPage() {
       {activeTab === 6 && <Tab6Fotos        prop={prop} onSaved={setProp} />}
       {activeTab === 7 && <Tab7Estudios     prop={prop} />}
     </div>
+  )
+}
+
+/* ── Título editable inline (click para editar, como el nombre del agente) ── */
+function EditableTitle({ value, onSave }: { value: string | null; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value ?? '')
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (editing) { ref.current?.focus(); ref.current?.select() } }, [editing])
+
+  function commit() {
+    setEditing(false)
+    const v = draft.trim()
+    if (v !== (value ?? '')) onSave(v)
+  }
+
+  if (editing) return (
+    <input ref={ref} value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value ?? ''); setEditing(false) } }}
+      placeholder="Título de la propiedad"
+      style={{ fontSize: 26, fontWeight: 700, color: '#111', lineHeight: 1.2, margin: '0 0 6px', border: 'none', borderBottom: '2px solid #111', outline: 'none', padding: 0, fontFamily: 'inherit', width: '100%', minWidth: 320, background: 'transparent' }} />
+  )
+  return (
+    <h1 onClick={() => { setDraft(value ?? ''); setEditing(true) }}
+      title="Click para editar"
+      style={{ fontSize: 26, fontWeight: 700, color: '#111', margin: '0 0 6px', lineHeight: 1.2, cursor: 'text' }}>
+      {value || <span style={{ color: '#bbb', fontWeight: 400 }}>Sin título</span>}
+    </h1>
   )
 }
 
@@ -735,7 +770,6 @@ function Tab4Precio({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Proper
    TAB 5 — Descripción
 ══════════════════════════════════════════════════════════════ */
 function Tab5Descripcion({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: PropertyFull) => void }) {
-  const [title,   setTitle]   = useState(prop.title ?? '')
   const [descEs,  setDescEs]  = useState(prop.description_es ?? '')
   const [descEn,  setDescEn]  = useState(prop.description_en ?? '')
   const [videoUrl, setVideoUrl] = useState(prop.video_url ?? '')
@@ -746,7 +780,6 @@ function Tab5Descripcion({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: P
   async function save(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setSaveError(null); setSaved(false)
     const { data, error } = await createClient().from('properties').update({
-      title:          title || '',
       description_es: descEs || null,
       description_en: descEn || null,
       video_url:      videoUrl || null,
@@ -758,13 +791,7 @@ function Tab5Descripcion({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: P
 
   return (
     <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <FormSection title="Título y descripción">
-        <div style={{ marginBottom: 20 }}>
-          <FieldLabel>Título de la propiedad *</FieldLabel>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ej: Casa en condominio con piscina en Escazú"
-            style={{ ...inputSt, fontSize: 16, fontWeight: 600, padding: '12px 14px' }} />
-          <p style={{ fontSize: 11, color: '#aaa', margin: '6px 0 0' }}>Aparecerá como título en el sitio web.</p>
-        </div>
+      <FormSection title="Descripción">
         <div style={{ marginBottom: 20 }}>
           <FieldLabel>Descripción en español</FieldLabel>
           <textarea value={descEs} onChange={e => setDescEs(e.target.value)} rows={8}
