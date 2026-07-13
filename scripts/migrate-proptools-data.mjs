@@ -168,7 +168,12 @@ const main = async () => {
   // 2. Tablas de herramientas
   console.log('\n2) Herramientas')
   for (const t of ['tenant_templates', 'calendarios', 'equipos']) {
-    const rows = (await fetchAll(t)).map(r => pick(r, t, { tenant_id: TENANT }))
+    const rows = (await fetchAll(t)).map(r => {
+      // tenant_templates: la base vieja usaba `label`, la nueva usa `name`
+      const extra = { tenant_id: TENANT }
+      if (t === 'tenant_templates' && !r.name && r.label) extra.name = r.label
+      return pick(r, t, extra)
+    })
     await insertRows(t, rows)
   }
 
