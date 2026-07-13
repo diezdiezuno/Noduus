@@ -12,15 +12,19 @@ import NewOwnerModal, { type NewOwnerResult } from '../NewOwnerModal'
 /* ── Constants ───────────────────────────────────────────────── */
 const PROVINCIAS   = ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Guanacaste', 'Puntarenas', 'Limón']
 const TRANSACTIONS = [{ value: 'sale', label: 'Venta' }, { value: 'rent', label: 'Alquiler' }, { value: 'sale_rent', label: 'Venta y alquiler' }]
-const CRM_STATUSES = [
-  { value: 'draft',       label: 'Borrador' },
-  { value: 'captacion',   label: 'En captación' },
-  { value: 'preparacion', label: 'En preparación' },
-  { value: 'lista',       label: 'Lista para publicar' },
-  { value: 'active',      label: 'Publicada' },
-  { value: 'bajo_oferta', label: 'Bajo oferta' },
-  { value: 'sold',        label: 'Vendida / Alquilada' },
-  { value: 'archived',    label: 'Archivada' },
+// Fallback si el tenant no tiene estados en la tabla property_statuses todavía
+// (antes de correr la migración property-taxonomies.sql). web_status = mapeo
+// histórico: active→active, sold→sold, resto→inactive.
+interface CrmStatus { value: string; label: string; web_status: string }
+const CRM_STATUSES_FALLBACK: CrmStatus[] = [
+  { value: 'draft',       label: 'Borrador',              web_status: 'inactive' },
+  { value: 'captacion',   label: 'En captación',          web_status: 'inactive' },
+  { value: 'preparacion', label: 'En preparación',        web_status: 'inactive' },
+  { value: 'lista',       label: 'Lista para publicar',   web_status: 'inactive' },
+  { value: 'active',      label: 'Publicada',             web_status: 'active'   },
+  { value: 'bajo_oferta', label: 'Bajo oferta',           web_status: 'inactive' },
+  { value: 'sold',        label: 'Vendida / Alquilada',   web_status: 'sold'     },
+  { value: 'archived',    label: 'Archivada',             web_status: 'inactive' },
 ]
 const CURRENCIES = [{ value: 'USD', label: 'USD $' }, { value: 'CRC', label: 'CRC ₡' }]
 const AMENITIES_LIST = [
@@ -105,6 +109,8 @@ export default function PropiedadPage() {
 
   const [prop,      setProp]      = useState<PropertyFull | null>(null)
   const [propTypes, setPropTypes] = useState<PropertyType[]>([])
+  const [statuses,  setStatuses]  = useState<CrmStatus[]>(CRM_STATUSES_FALLBACK)
+  const [amenities, setAmenities] = useState<string[]>(AMENITIES_LIST)
   const [agents,    setAgents]    = useState<Agent[]>([])
   const [agentId,   setAgentId]   = useState('')
   const [loading,   setLoading]   = useState(true)
@@ -115,13 +121,17 @@ export default function PropiedadPage() {
     getMembership().then(async m => {
       if (!m) return
       const adminRec = { tenant_id: m.tenantId }
-      const [{ data: p }, { data: types }, { data: agentList }] = await Promise.all([
+      const [{ data: p }, { data: types }, { data: sts }, { data: ams }, { data: agentList }] = await Promise.all([
         sb.from('properties').select('*').eq('id', id).eq('tenant_id', adminRec.tenant_id).single(),
         sb.from('property_types').select('id,label,value,icon').eq('tenant_id', adminRec.tenant_id).order('sort_order'),
+        sb.from('property_statuses').select('value,label,web_status').eq('tenant_id', adminRec.tenant_id).order('position'),
+        sb.from('property_amenities').select('name').eq('tenant_id', adminRec.tenant_id).order('position'),
         sb.from('users').select('id,name').eq('tenant_id', adminRec.tenant_id).order('name'),
       ])
       if (p) { setProp(p as PropertyFull); setAgentId((p as PropertyFull).agent_id ?? '') }
       setPropTypes((types ?? []) as PropertyType[])
+      if (sts && sts.length) setStatuses(sts as CrmStatus[])
+      if (ams && ams.length) setAmenities((ams as { name: string }[]).map(a => a.name))
       setAgents((agentList ?? []) as Agent[])
       setLoading(false)
     })
@@ -158,7 +168,7 @@ export default function PropiedadPage() {
             <EditableTitle value={prop.title} onSave={saveTitle} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {prop.provincia && <span style={{ fontSize: 13, color: '#888' }}>📍 {[prop.canton, prop.provincia].filter(Boolean).join(', ')}</span>}
-              <StatusPill status={prop.crm_status} />
+              <StatusPill status={prop.crm_status} statuses={statuses} />
             </div>
           </div>
           {agents.length > 0 && (
@@ -196,9 +206,9 @@ export default function PropiedadPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 1 && <Tab1Captacion    prop={prop} propTypes={propTypes} onSaved={setProp} />}
+      {activeTab === 1 && <Tab1Captacion    prop={prop} propTypes={propTypes} statuses={statuses} onSaved={setProp} />}
       {activeTab === 2 && <Tab2Caracteristicas prop={prop} onSaved={setProp} />}
-      {activeTab === 3 && <Tab3Amenidades   prop={prop} onSaved={setProp} />}
+      {activeTab === 3 && <Tab3Amenidades   prop={prop} amenities={amenities} onSaved={setProp} />}
       {activeTab === 4 && <Tab4Precio       prop={prop} onSaved={setProp} />}
       {activeTab === 5 && <Tab5Descripcion  prop={prop} onSaved={setProp} />}
       {activeTab === 6 && <Tab6Fotos        prop={prop} onSaved={setProp} />}
@@ -240,8 +250,8 @@ function EditableTitle({ value, onSave }: { value: string | null; onSave: (v: st
 /* ══════════════════════════════════════════════════════════════
    TAB 1 — Captación
 ══════════════════════════════════════════════════════════════ */
-function Tab1Captacion({ prop, propTypes, onSaved }: {
-  prop: PropertyFull; propTypes: PropertyType[]
+function Tab1Captacion({ prop, propTypes, statuses, onSaved }: {
+  prop: PropertyFull; propTypes: PropertyType[]; statuses: CrmStatus[]
   onSaved: (p: PropertyFull) => void
 }) {
   const [propType,    setPropType]    = useState(prop.type ?? '')
@@ -442,7 +452,7 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
       type:       propType,
       transaction: transaction,
       crm_status: crmStatus,
-      status: crmStatus === 'active' ? 'active' : (crmStatus === 'sold' ? 'sold' : 'inactive'),
+      status: (statuses.find(s => s.value === crmStatus)?.web_status) ?? 'inactive',
       provincia: provincia   || null,
       canton:    canton      || null,
       distrito:  distrito    || null,
@@ -463,7 +473,7 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
       {/* ── 1. Estado CRM ─────────────────────────────────── */}
       <FormSection title="Estado CRM">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {CRM_STATUSES.map(s => (
+          {statuses.map(s => (
             <PillBtn key={s.value} active={crmStatus === s.value} onClick={() => setCrmStatus(s.value)}>
               {s.label}
             </PillBtn>
@@ -625,7 +635,7 @@ function Tab2Caracteristicas({ prop, onSaved }: { prop: PropertyFull; onSaved: (
 /* ══════════════════════════════════════════════════════════════
    TAB 3 — Amenidades
 ══════════════════════════════════════════════════════════════ */
-function Tab3Amenidades({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: PropertyFull) => void }) {
+function Tab3Amenidades({ prop, amenities, onSaved }: { prop: PropertyFull; amenities: string[]; onSaved: (p: PropertyFull) => void }) {
   const [selected, setSelected] = useState<string[]>(prop.amenities ?? [])
   const [custom,   setCustom]   = useState('')
   const [saving,   setSaving]   = useState(false)
@@ -654,7 +664,7 @@ function Tab3Amenidades({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Pr
       <FormSection title={`Amenidades seleccionadas (${selected.length})`}>
         {/* Preset checkboxes */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
-          {AMENITIES_LIST.map(a => {
+          {amenities.map(a => {
             const on = selected.includes(a)
             return (
               <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: `2px solid ${on ? '#111' : '#e0e0e0'}`, background: on ? '#111' : '#fff', cursor: 'pointer', transition: 'all .12s', userSelect: 'none' }}>
@@ -680,9 +690,9 @@ function Tab3Amenidades({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Pr
           </div>
         </div>
         {/* Custom chips */}
-        {selected.filter(a => !AMENITIES_LIST.includes(a)).length > 0 && (
+        {selected.filter(a => !amenities.includes(a)).length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-            {selected.filter(a => !AMENITIES_LIST.includes(a)).map(a => (
+            {selected.filter(a => !amenities.includes(a)).map(a => (
               <span key={a} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-primary, #111)', color: '#fff', borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 500 }}>
                 {a}
                 <button type="button" onClick={() => setSelected(prev => prev.filter(x => x !== a))}
@@ -1442,17 +1452,20 @@ function SaveBar({ saving, saved, error }: { saving: boolean; saved: boolean; er
     </div>
   )
 }
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    draft:       { label: 'Borrador',            bg: '#f3f4f6', color: '#6b7280' },
-    captacion:   { label: 'En captación',        bg: '#fef3c7', color: '#d97706' },
-    preparacion: { label: 'En preparación',      bg: '#dbeafe', color: '#2563eb' },
-    lista:       { label: 'Lista para publicar', bg: '#d1fae5', color: '#059669' },
-    active:      { label: 'Publicada',           bg: '#d1fae5', color: '#059669' },
-    bajo_oferta: { label: 'Bajo oferta',         bg: '#ede9fe', color: '#7c3aed' },
-    sold:        { label: 'Vendida',             bg: '#fce7f3', color: '#db2777' },
-    archived:    { label: 'Archivada',           bg: '#f3f4f6', color: '#9ca3af' },
+function StatusPill({ status, statuses }: { status: string; statuses?: CrmStatus[] }) {
+  const map: Record<string, { bg: string; color: string }> = {
+    draft:       { bg: '#f3f4f6', color: '#6b7280' },
+    captacion:   { bg: '#fef3c7', color: '#d97706' },
+    preparacion: { bg: '#dbeafe', color: '#2563eb' },
+    lista:       { bg: '#d1fae5', color: '#059669' },
+    active:      { bg: '#d1fae5', color: '#059669' },
+    bajo_oferta: { bg: '#ede9fe', color: '#7c3aed' },
+    sold:        { bg: '#fce7f3', color: '#db2777' },
+    archived:    { bg: '#f3f4f6', color: '#9ca3af' },
   }
-  const s = map[status] ?? { label: status, bg: '#f3f4f6', color: '#6b7280' }
-  return <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
+  // Label desde la taxonomía del tenant (soporta estados custom); color por
+  // value conocido o neutro para los nuevos.
+  const label = statuses?.find(s => s.value === status)?.label ?? status
+  const c = map[status] ?? { bg: '#f3f4f6', color: '#6b7280' }
+  return <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: c.bg, color: c.color }}>{label}</span>
 }
