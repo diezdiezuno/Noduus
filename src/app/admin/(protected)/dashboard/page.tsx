@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { getClimaTz } from '@/components/admin/DateTimeWeather'
+import ContactVCardModal, { type VCardViewType } from '../propiedades/ContactVCardModal'
 
 // Dashboard "Mi perfil": info del agente (editable inline), material de
 // impresión guardado (rótulos/tarjetas) y propiedades asignadas en el CRM.
@@ -83,6 +84,7 @@ export default function PerfilPage() {
   const [material, setMaterial] = useState<Saved[]>([])
   const [props, setProps] = useState<Prop[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [clientView, setClientView] = useState<VCardViewType | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -255,8 +257,8 @@ export default function PerfilPage() {
           : (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {clients.map(c => (
-                <a key={c.id} href={`/admin/clientes?id=${c.id}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f7f8fa', borderRadius: 10, padding: '10px 16px', textDecoration: 'none', color: '#111', border: '1px solid transparent' }}
+                <div key={c.id} onClick={() => setClientView({ type: 'contact', id: c.id })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f7f8fa', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', color: '#111', border: '1px solid transparent' }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = '#d5d9e0')}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}>
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e8eaee', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#6b7280' }}>
@@ -269,7 +271,7 @@ export default function PerfilPage() {
                     <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{c.name}{c.last_name ? ` ${c.last_name}` : ''}</span>
                     <span style={{ display: 'block', fontSize: 11, color: '#9aa1ad' }}>{c.email || c.phone || ''}</span>
                   </span>
-                </a>
+                </div>
               ))}
             </div>
           )}
@@ -303,6 +305,8 @@ export default function PerfilPage() {
             </div>
           )}
       </div>
+
+      {clientView && <ContactVCardModal view={clientView} onClose={() => setClientView(null)} />}
     </div>
   )
 }
