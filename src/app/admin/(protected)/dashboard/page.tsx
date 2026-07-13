@@ -33,7 +33,7 @@ interface Profile {
   tiktok: string | null; photo_url: string | null
 }
 interface Saved { id: string; save_name: string | null; updated_at: string | null; created_at: string | null; kind: 'rotulos' | 'tarjetas' }
-interface Prop { id: string; title: string | null; price: number | null; currency: string | null; crm_status: string | null; status: string | null; images: string[] | null; address: string | null }
+interface Prop { id: string; title: string | null; price: number | null; currency: string | null; crm_status: string | null; status: string | null; images: string[] | null; address: string | null; lat: number | null; lng: number | null }
 
 // ── Saludo (la fecha/reloj/clima viven en la barra superior) ───
 function Greeting({ name }: { name: string | null }) {
@@ -84,6 +84,7 @@ export default function PerfilPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
 
   const load = useCallback(async () => {
     const sb = createClient()
@@ -116,7 +117,7 @@ export default function PerfilPage() {
 
     // Propiedades asignadas: agent_id ahora referencia users.id directo.
     const { data: pr } = await sb.from('properties')
-      .select('id,title,price,currency,crm_status,status,images,address')
+      .select('id,title,price,currency,crm_status,status,images,address,lat,lng')
       .eq('agent_id', p.id)
       .order('created_at', { ascending: false })
     setProps(pr ?? [])
@@ -239,10 +240,14 @@ export default function PerfilPage() {
                   onMouseEnter={e => (e.currentTarget.style.borderColor = '#d5d9e0')}
                   onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}>
                   <div style={{ height: 130, background: '#e8eaee' }}>
-                    {p.images?.[0] && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {p.images?.[0]
+                      ? <img src={p.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      : (p.lat != null && p.lng != null && mapboxToken) && (
+                        // Sin foto: usar la vista de mapa estático de la ubicación guardada
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-l+6b2fa0(${p.lng},${p.lat})/${p.lng},${p.lat},13/440x260@2x?access_token=${mapboxToken}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      )}
                   </div>
                   <div style={{ padding: '10px 13px' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>{p.crm_status || p.status || ''}</div>
