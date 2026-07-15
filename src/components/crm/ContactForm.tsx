@@ -152,14 +152,22 @@ function QuickAddOption({ onAdd }: { onAdd: (name: string) => Promise<void> }) {
    agrupa los resultados por sección, y permite crear un contacto
    nuevo si no existe. Se usa para "Referido por" y "Referido a".
 ─────────────────────────────────────────────────────────────── */
-function ReferrerPicker({ tenantId, value, onChange, placeholder }: {
-  tenantId: string; value: Referral | null; onChange: (r: Referral | null) => void; placeholder: string
+function ReferrerPicker({ tenantId, defaultCountry, value, onChange, placeholder }: {
+  tenantId: string; defaultCountry?: string; value: Referral | null; onChange: (r: Referral | null) => void; placeholder: string
 }) {
   const [q, setQ]             = useState('')
   const [groups, setGroups]   = useState<{ header: string; items: Referral[] }[]>([])
   const [open, setOpen]       = useState(false)
   const [busy, setBusy]       = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /* Mini-form de creación (nombre + email/teléfono con código de país) */
+  const [creating, setCreating] = useState(false)
+  const [cName,    setCName]    = useState('')
+  const [cEmail,   setCEmail]   = useState('')
+  const [cPhone,   setCPhone]   = useState('')
+  const [cCountry, setCCountry] = useState(defaultCountry || 'CR')
+  const [cSaving,  setCSaving]  = useState(false)
 
   function handle(val: string) {
     setQ(val); setOpen(true)
@@ -194,13 +202,27 @@ function ReferrerPicker({ tenantId, value, onChange, placeholder }: {
     }, 250)
   }
 
+  function startCreate() {
+    setCName(q.trim()); setCEmail(''); setCPhone(''); setCCountry(defaultCountry || 'CR')
+    setCreating(true); setOpen(false)
+  }
   async function createContact() {
-    const nm = q.trim()
-    if (!nm) return
+    const nm = cName.trim()
+    if (!nm || cSaving) return
+    setCSaving(true)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (createClient() as any).from('crm_contacts')
-      .insert({ tenant_id: tenantId, name: nm, active: true }).select('id,name').single()
-    if (data) { onChange({ kind: 'contact', id: data.id, name: data.name }); setQ(''); setGroups([]); setOpen(false) }
+      .insert({
+        tenant_id: tenantId, name: nm, active: true,
+        email: cEmail.trim() || null,
+        phone: cPhone.trim() || null,
+        phone_country: cCountry,
+      }).select('id,name').single()
+    setCSaving(false)
+    if (data) {
+      onChange({ kind: 'contact', id: data.id, name: data.name, subtitle: cPhone.trim() || cEmail.trim() || undefined })
+      setQ(''); setGroups([]); setOpen(false); setCreating(false)
+    }
   }
 
   if (value) {
@@ -253,7 +275,7 @@ function ReferrerPicker({ tenantId, value, onChange, placeholder }: {
             </div>
           ))}
           {noResults && (
-            <div onMouseDown={createContact}
+            <div onMouseDown={startCreate}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer' }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f9fafb'}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = ''}>
@@ -261,6 +283,36 @@ function ReferrerPicker({ tenantId, value, onChange, placeholder }: {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#1B6EF3' }}>Crear contacto «{q.trim()}»</div>
             </div>
           )}
+        </div>
+      )}
+      {creating && (
+        <div style={{ marginTop: 8, padding: 12, background: '#F9FAFB', borderRadius: 10, border: '1px solid #e2e5ea' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div>
+              <FieldLabel>Nombre</FieldLabel>
+              <input type="text" value={cName} onChange={e => setCName(e.target.value)} autoFocus
+                style={inputSt} />
+            </div>
+            <div>
+              <FieldLabel>Email</FieldLabel>
+              <input type="email" placeholder="correo@ejemplo.com" value={cEmail} onChange={e => setCEmail(e.target.value)}
+                style={inputSt} />
+            </div>
+            <div>
+              <FieldLabel>Teléfono / WhatsApp</FieldLabel>
+              <PhoneInput phoneValue={cPhone} countryIso={cCountry} onPhoneChange={setCPhone} onCountryChange={setCCountry} placeholder="8888-1234" />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+              <button type="button" onClick={createContact} disabled={cSaving || !cName.trim()}
+                style={{ flex: 1, height: 34, background: 'var(--color-primary, #111)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: cSaving || !cName.trim() ? 'default' : 'pointer', fontFamily: 'inherit', opacity: cSaving || !cName.trim() ? 0.6 : 1 }}>
+                {cSaving ? 'Creando…' : 'Crear contacto'}
+              </button>
+              <button type="button" onClick={() => setCreating(false)}
+                style={{ height: 34, padding: '0 14px', background: '#fff', color: '#5a6070', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -872,14 +924,14 @@ export default function ContactForm({
               {selRoles.has('referral_in') && (
                 <>
                   <SectionTitle>Referido por</SectionTitle>
-                  <ReferrerPicker tenantId={tenantId} value={referredBy} onChange={setReferredBy}
+                  <ReferrerPicker tenantId={tenantId} defaultCountry={phoneCountry} value={referredBy} onChange={setReferredBy}
                     placeholder="Buscar asesor o contacto que refirió…" />
                 </>
               )}
               {selRoles.has('referral_out') && (
                 <>
                   <SectionTitle>Referido a</SectionTitle>
-                  <ReferrerPicker tenantId={tenantId} value={referredTo} onChange={setReferredTo}
+                  <ReferrerPicker tenantId={tenantId} defaultCountry={phoneCountry} value={referredTo} onChange={setReferredTo}
                     placeholder="Buscar asesor o contacto a quien se refirió…" />
                 </>
               )}
