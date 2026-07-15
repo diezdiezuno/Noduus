@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
-import { glassScrim } from '@/lib/theme'
+import { glass, glassScrim } from '@/lib/theme'
 import { Icon, type IconName } from '@/lib/icons'
 
 /* ── Types ───────────────────────────────────────────────────── */
@@ -142,7 +142,7 @@ export default function ContactVCardModal({ view, onClose }: { view: VCardViewTy
     >
       <div style={{
         width: 780, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 48px)',
-        background: '#fff', border: '1px solid #ECECF0', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        ...glass(0.8), borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column',
         boxShadow: '0 20px 60px rgba(0,0,0,.18)',
         fontFamily: 'system-ui, sans-serif',
       }}>

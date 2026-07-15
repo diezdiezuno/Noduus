@@ -743,7 +743,7 @@ export default function ClientesClient() {
         style={{ position: 'fixed', inset: 0, ...glassScrim, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: vcardOpen ? 1 : 0, pointerEvents: vcardOpen ? 'all' : 'none', transition: 'opacity .2s' }}>
         <div style={{
           width: 780, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 48px)',
-          background: '#fff', border: '1px solid #ECECF0', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+          ...glass(0.8), borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0,0,0,.18)',
           transform: vcardOpen ? 'scale(1) translateY(0)' : 'scale(.96) translateY(8px)',
           transition: 'transform .2s',
