@@ -213,6 +213,7 @@ export default function ContactosClient() {
   const [search,       setSearch]       = useState('')
   const [typeFilter,   setTypeFilter]   = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -293,7 +294,7 @@ export default function ContactosClient() {
 
   // ── Load contacts ──────────────────────────────────────────
   const loadContacts = useCallback(async (
-    tid: string, q: string, type: string, source: string
+    tid: string, q: string, type: string, source: string, archived = false
   ) => {
     const supabase = createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -312,7 +313,7 @@ export default function ContactosClient() {
       .from('crm_contacts')
       .select('id,cedula,cedula_tipo,name,last_name,email,phone,phone_country,phone_alt,phone_alt_country,type_id,source_id,photo_url,doc_urls,instagram,linkedin,facebook,tiktok,youtube,x,notes,active,birth_date,crm_contact_types(contact_types(id,name,color)),contact_sources(name),crm_contact_companies(crm_companies(id,name))')
       .eq('tenant_id', tid)
-      .eq('active', true)
+      .eq('active', !archived)
       .order('name')
 
     if (idsWithType) query = query.in('id', idsWithType)
@@ -438,15 +439,24 @@ export default function ContactosClient() {
     setEditingId(null)
   }
 
-  // ── Delete ────────────────────────────────────────────────
+  // ── Archivar / Restaurar (soft delete) ────────────────────
   async function deleteContact(id: string) {
     setDeleting(id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (createClient() as any).from('crm_contacts').update({ active: false }).eq('id', id)
     setDeleting(null); setConfirmDelete(null)
-    if (error) { showToast('Error al eliminar', 'error'); return }
-    showToast('Contacto eliminado', 'success')
-    await loadContacts(tenantId, search, typeFilter, sourceFilter)
+    if (error) { showToast('Error al archivar', 'error'); return }
+    showToast('Contacto archivado', 'success')
+    await loadContacts(tenantId, search, typeFilter, sourceFilter, showArchived)
+  }
+  async function restoreContact(id: string) {
+    setDeleting(id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (createClient() as any).from('crm_contacts').update({ active: true }).eq('id', id)
+    setDeleting(null)
+    if (error) { showToast('Error al restaurar', 'error'); return }
+    showToast('Contacto restaurado', 'success')
+    await loadContacts(tenantId, search, typeFilter, sourceFilter, showArchived)
   }
 
 
@@ -454,10 +464,15 @@ export default function ContactosClient() {
   function handleSearch(val: string) {
     setSearch(val); setPage(0)
     if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => loadContacts(tenantId, val, typeFilter, sourceFilter), 300)
+    searchTimer.current = setTimeout(() => loadContacts(tenantId, val, typeFilter, sourceFilter, showArchived), 300)
   }
-  function handleTypeFilter(val: string)   { setTypeFilter(val);   setPage(0); loadContacts(tenantId, search, val, sourceFilter) }
-  function handleSourceFilter(val: string) { setSourceFilter(val); setPage(0); loadContacts(tenantId, search, typeFilter, val) }
+  function handleTypeFilter(val: string)   { setTypeFilter(val);   setPage(0); loadContacts(tenantId, search, val, sourceFilter, showArchived) }
+  function handleSourceFilter(val: string) { setSourceFilter(val); setPage(0); loadContacts(tenantId, search, typeFilter, val, showArchived) }
+  function toggleArchived() {
+    const next = !showArchived
+    setShowArchived(next); setPage(0)
+    loadContacts(tenantId, search, typeFilter, sourceFilter, next)
+  }
 
   // ── Toast ─────────────────────────────────────────────────
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
@@ -517,17 +532,28 @@ export default function ContactosClient() {
   function ContactActions({ c }: { c: Contact }) {
     const isConfirming = confirmDelete === c.id
     const isDeleting   = deleting === c.id
+    if (showArchived) {
+      return (
+        <div className="cl-actions" onClick={e => e.stopPropagation()}
+          style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          <button onClick={() => restoreContact(c.id)} disabled={isDeleting}
+            style={{ fontSize: 12, fontWeight: 600, color: '#0d0f12', background: '#fff', border: '1px solid #e2e5ea', borderRadius: 7, padding: '5px 12px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>
+            {isDeleting ? '…' : 'Restaurar'}
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="cl-actions" onClick={e => e.stopPropagation()}
         style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
         {!isConfirming ? (
           <>
             <button className="cl-btn cl-btn-edit" title="Editar" onClick={() => openDrawer(c.id)}><EditIcon /></button>
-            <button className="cl-btn cl-btn-del" title="Eliminar" onClick={() => setConfirmDelete(c.id)}><TrashIcon /></button>
+            <button className="cl-btn cl-btn-del" title="Archivar" onClick={() => setConfirmDelete(c.id)}><TrashIcon /></button>
           </>
         ) : (
           <>
-            <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Eliminar?</span>
+            <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Archivar?</span>
             <button onClick={() => deleteContact(c.id)} disabled={isDeleting}
               style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#DC2626', border: 'none', borderRadius: 7, padding: '5px 10px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>
               {isDeleting ? '…' : 'Sí'}
@@ -594,6 +620,10 @@ export default function ContactosClient() {
           <option value="">Todas las fuentes</option>
           {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+        <button onClick={toggleArchived} title="Ver contactos archivados"
+          style={{ height: 38, padding: '0 14px', border: `1px solid ${showArchived ? '#0d0f12' : '#e2e5ea'}`, borderRadius: 8, fontSize: 13, fontWeight: 600, background: showArchived ? '#0d0f12' : '#fff', color: showArchived ? '#fff' : '#5a6070', fontFamily: 'inherit', cursor: 'pointer' }}>
+          {showArchived ? 'Ver activos' : 'Archivados'}
+        </button>
         {/* Registros por página */}
         <select value={pageSize} onChange={e => changePageSize(Number(e.target.value))} title="Registros por página"
           style={{ height: 38, padding: '0 10px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, background: '#fff', color: '#0d0f12', fontFamily: 'inherit', cursor: 'pointer', marginLeft: 'auto' }}>
@@ -616,12 +646,12 @@ export default function ContactosClient() {
         <div style={{ background: '#fff', borderRadius: 12, padding: '60px 24px', border: '1px solid #ebebeb', textAlign: 'center' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: '#5a6070', margin: '0 0 8px' }}>
-            {hasFilters ? 'Sin resultados' : 'Sin contactos aún'}
+            {showArchived ? 'Sin contactos archivados' : hasFilters ? 'Sin resultados' : 'Sin contactos aún'}
           </h3>
           <p style={{ fontSize: 14, color: '#9ca3af', margin: '0 0 20px' }}>
-            {hasFilters ? 'Probá otra búsqueda o cambiá los filtros.' : 'Agregá el primer contacto del CRM.'}
+            {showArchived ? 'No hay contactos archivados por ahora.' : hasFilters ? 'Probá otra búsqueda o cambiá los filtros.' : 'Agregá el primer contacto del CRM.'}
           </p>
-          {!hasFilters && (
+          {!hasFilters && !showArchived && (
             <button onClick={() => openDrawer(null)}
               style={{ background: 'var(--color-primary, #111)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               + Nuevo contacto
@@ -1064,7 +1094,7 @@ export default function ContactosClient() {
               onSaved={async () => {
                 showToast(editingId ? 'Contacto actualizado ✓' : 'Contacto creado ✓', 'success')
                 closeDrawer()
-                await loadContacts(tenantId, search, typeFilter, sourceFilter)
+                await loadContacts(tenantId, search, typeFilter, sourceFilter, showArchived)
               }}
               onCancel={closeDrawer}
             />
