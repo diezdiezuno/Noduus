@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { getClimaTz } from '@/components/admin/DateTimeWeather'
 import ContactVCardModal, { type VCardViewType } from '../propiedades/ContactVCardModal'
+import ProximosEventos from './ProximosEventos'
 import { glass } from '@/lib/theme'
 
 // Dashboard "Mi perfil": info del agente (editable inline), material de
@@ -215,6 +216,10 @@ export default function PerfilPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Próximos eventos ─────────────────────────────────── */}
+      <ProximosEventos userId={profile.id} cardStyle={card} titleStyle={sectionTitle}
+        onOpenContact={id => setClientView({ type: 'contact', id })} />
 
       {/* ── Mis Propiedades ──────────────────────────────────── */}
       <div style={{ ...card, marginBottom: 20 }}>
