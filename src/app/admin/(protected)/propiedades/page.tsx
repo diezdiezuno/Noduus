@@ -76,6 +76,7 @@ export default function PropiedadesPage() {
   const [toast,         setToast]         = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState<string | null>(null)
+  const [showArchived,  setShowArchived]  = useState(false)
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type }); setTimeout(() => setToast(null), 3000)
   }
@@ -118,13 +119,14 @@ export default function PropiedadesPage() {
     window.addEventListener('mouseup', onColUp)
   }
 
-  const loadProps = useCallback(async (tid: string, q: string) => {
+  const loadProps = useCallback(async (tid: string, q: string, archived = false) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = (createClient() as any)
       .from('properties')
       .select('id,title,type,transaction,price,currency,crm_status,status,address,provincia,canton,images,agent_id,created_at')
       .eq('tenant_id', tid)
       .eq('source', 'manual')
+      .eq('active', !archived)
       .order('created_at', { ascending: false })
     if (q) query = query.or(`title.ilike.%${q}%,address.ilike.%${q}%,canton.ilike.%${q}%,provincia.ilike.%${q}%`)
     const { data } = await query
@@ -154,16 +156,31 @@ export default function PropiedadesPage() {
   function handleSearch(val: string) {
     setSearch(val); setPage(0)
     if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => loadProps(tenantId, val), 300)
+    searchTimer.current = setTimeout(() => loadProps(tenantId, val, showArchived), 300)
+  }
+  function toggleArchived() {
+    const next = !showArchived
+    setShowArchived(next); setPage(0)
+    loadProps(tenantId, search, next)
   }
 
   async function deleteProperty(id: string) {
     setDeleting(id)
-    const { error } = await createClient().from('properties').delete().eq('id', id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (createClient() as any).from('properties').update({ active: false }).eq('id', id)
     setDeleting(null); setConfirmDelete(null)
-    if (error) { showToast('No se pudo eliminar (puede tener datos vinculados)', 'error'); return }
-    showToast('Propiedad eliminada', 'success')
-    await loadProps(tenantId, search)
+    if (error) { showToast('Error al archivar', 'error'); return }
+    showToast('Propiedad archivada', 'success')
+    await loadProps(tenantId, search, showArchived)
+  }
+  async function restoreProperty(id: string) {
+    setDeleting(id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (createClient() as any).from('properties').update({ active: true }).eq('id', id)
+    setDeleting(null)
+    if (error) { showToast('Error al restaurar', 'error'); return }
+    showToast('Propiedad restaurada', 'success')
+    await loadProps(tenantId, search, showArchived)
   }
 
   // Orden + paginación (cliente)
@@ -217,6 +234,10 @@ export default function PropiedadesPage() {
           <input type="text" placeholder="Buscar por título o ubicación…" value={search}
             onChange={e => handleSearch(e.target.value)} style={{ ...sInput, paddingLeft: 36 }} />
         </div>
+        <button onClick={toggleArchived} title="Ver propiedades archivadas"
+          style={{ height: 38, padding: '0 14px', border: `1px solid ${showArchived ? '#0d0f12' : '#e2e5ea'}`, borderRadius: 8, fontSize: 13, fontWeight: 600, background: showArchived ? '#0d0f12' : '#fff', color: showArchived ? '#fff' : '#5a6070', fontFamily: 'inherit', cursor: 'pointer' }}>
+          {showArchived ? 'Ver activas' : 'Archivadas'}
+        </button>
         <select value={pageSize} onChange={e => changePageSize(Number(e.target.value))} title="Registros por página"
           style={{ height: 38, padding: '0 10px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, background: '#fff', color: '#0d0f12', fontFamily: 'inherit', cursor: 'pointer', marginLeft: 'auto' }}>
           {[25, 50, 100].map(n => <option key={n} value={n}>{n} / pág.</option>)}
@@ -307,14 +328,17 @@ export default function PropiedadesPage() {
                       </td>
                       <td style={{ padding: '8px 12px' }}>
                         <div className="pr-actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          {!isConfirming ? (
+                          {showArchived ? (
+                            <button onClick={() => restoreProperty(p.id)} disabled={isDeleting}
+                              style={{ fontSize: 12, fontWeight: 600, color: '#0d0f12', background: '#fff', border: '1px solid #e2e5ea', borderRadius: 7, padding: '5px 12px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>{isDeleting ? '…' : 'Restaurar'}</button>
+                          ) : !isConfirming ? (
                             <>
                               <button className="pr-btn pr-btn-edit" title="Editar" onClick={() => router.push(`/admin/propiedades/${p.id}`)}><EditIcon /></button>
-                              <button className="pr-btn pr-btn-del" title="Eliminar" onClick={() => setConfirmDelete(p.id)}><TrashIcon /></button>
+                              <button className="pr-btn pr-btn-del" title="Archivar" onClick={() => setConfirmDelete(p.id)}><TrashIcon /></button>
                             </>
                           ) : (
                             <>
-                              <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Eliminar?</span>
+                              <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Archivar?</span>
                               <button onClick={() => deleteProperty(p.id)} disabled={isDeleting}
                                 style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#DC2626', border: 'none', borderRadius: 7, padding: '5px 10px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>{isDeleting ? '…' : 'Sí'}</button>
                               <button onClick={() => setConfirmDelete(null)}

@@ -412,7 +412,7 @@ export default function ContactosClient() {
     // Propiedades donde este contacto figura como dueño (mismo formato jsonb
     // que usa el tab Captación de propiedades para "Dueños").
     const { data: props } = await sb.from('properties')
-      .select('id,title,crm_status,status,features').eq('tenant_id', tenantId)
+      .select('id,title,crm_status,status,features').eq('tenant_id', tenantId).eq('active', true)
       .ilike('features->>owners', `%"type":"contact","id":"${id}"%`)
     setVcardProperties((props ?? []) as VCardProperty[])
   }

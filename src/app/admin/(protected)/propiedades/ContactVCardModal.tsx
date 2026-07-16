@@ -108,6 +108,7 @@ export default function ContactVCardModal({ view, onClose }: { view: VCardViewTy
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(sb as any).from('properties')
         .select('id,title,crm_status,status,features')
+        .eq('active', true)
         .ilike('features->>owners', `%"type":"contact","id":"${view.id}"%`)
         .then(({ data }: { data: OwnedProperty[] | null }) => setProperties(data ?? []))
     } else {

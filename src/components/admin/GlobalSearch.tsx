@@ -68,11 +68,11 @@ export default function GlobalSearch({ tenantId }: { tenantId: string }) {
             .or(`name.ilike.${term},last_name.ilike.${term},email.ilike.${term},cedula.ilike.${term}`).limit(8)
         : Promise.resolve({ data: [] }),
       want('company')
-        ? sb.from('crm_companies').select('id, name, trade_name, cedula_juridica').eq('tenant_id', tenantId)
+        ? sb.from('crm_companies').select('id, name, trade_name, cedula_juridica').eq('tenant_id', tenantId).eq('active', true)
             .or(`name.ilike.${term},trade_name.ilike.${term},cedula_juridica.ilike.${term}`).limit(8)
         : Promise.resolve({ data: [] }),
       want('property')
-        ? sb.from('properties').select('id, title, address, canton, provincia').eq('tenant_id', tenantId)
+        ? sb.from('properties').select('id, title, address, canton, provincia').eq('tenant_id', tenantId).eq('active', true)
             .or(`title.ilike.${term},address.ilike.${term}`).limit(8)
         : Promise.resolve({ data: [] }),
     ])

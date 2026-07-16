@@ -113,6 +113,7 @@ export default function EmpresasClient() {
   const [toast,         setToast]         = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState<string | null>(null)
+  const [showArchived,  setShowArchived]  = useState(false)
 
   // Paginación y orden
   type SortKey = 'name' | 'razon' | 'cedula' | 'count'
@@ -166,13 +167,14 @@ export default function EmpresasClient() {
   }, [])
 
   // ── Load companies ────────────────────────────────────────
-  const loadCompanies = useCallback(async (tid: string, q: string) => {
+  const loadCompanies = useCallback(async (tid: string, q: string, archived = false) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = createClient() as any
     let query = sb
       .from('crm_companies')
       .select('id,name,trade_name,cedula_juridica')
       .eq('tenant_id', tid)
+      .eq('active', !archived)
       .order('name')
     if (q) query = query.ilike('name', `%${q}%`)
     const { data } = await query
@@ -426,7 +428,7 @@ export default function EmpresasClient() {
         co.id === editingId ? { ...co, ...payload } : co
       ))
       setDrawerOpen(false)
-      await loadCompanies(tenantId, search)
+      await loadCompanies(tenantId, search, showArchived)
     } else {
       // Create
       const { data: newCo, error } = await sb
@@ -451,11 +453,20 @@ export default function EmpresasClient() {
   async function deleteCompany(id: string) {
     setDeleting(id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (createClient() as any).from('crm_companies').delete().eq('id', id)
+    const { error } = await (createClient() as any).from('crm_companies').update({ active: false }).eq('id', id)
     setDeleting(null)
     setConfirmDelete(null)
-    if (error) { showToast('Error: ' + error.message, 'error'); return }
-    showToast('Empresa eliminada', 'success')
+    if (error) { showToast('Error al archivar', 'error'); return }
+    showToast('Empresa archivada', 'success')
+    setCompanies(prev => prev.filter(co => co.id !== id))
+  }
+  async function restoreCompany(id: string) {
+    setDeleting(id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (createClient() as any).from('crm_companies').update({ active: true }).eq('id', id)
+    setDeleting(null)
+    if (error) { showToast('Error al restaurar', 'error'); return }
+    showToast('Empresa restaurada', 'success')
     setCompanies(prev => prev.filter(co => co.id !== id))
   }
 
@@ -463,7 +474,12 @@ export default function EmpresasClient() {
   function handleSearch(val: string) {
     setSearch(val); setPage(0)
     if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => loadCompanies(tenantId, val), 300)
+    searchTimer.current = setTimeout(() => loadCompanies(tenantId, val, showArchived), 300)
+  }
+  function toggleArchived() {
+    const next = !showArchived
+    setShowArchived(next); setPage(0)
+    loadCompanies(tenantId, search, next)
   }
 
   // ── Toast ─────────────────────────────────────────────────
@@ -531,6 +547,10 @@ export default function EmpresasClient() {
             onChange={e => handleSearch(e.target.value)}
             style={{ ...sInput, paddingLeft: 36 }} />
         </div>
+        <button onClick={toggleArchived} title="Ver empresas archivadas"
+          style={{ height: 38, padding: '0 14px', border: `1px solid ${showArchived ? '#0d0f12' : '#e2e5ea'}`, borderRadius: 8, fontSize: 13, fontWeight: 600, background: showArchived ? '#0d0f12' : '#fff', color: showArchived ? '#fff' : '#5a6070', fontFamily: 'inherit', cursor: 'pointer' }}>
+          {showArchived ? 'Ver activas' : 'Archivadas'}
+        </button>
         <select value={pageSize} onChange={e => changePageSize(Number(e.target.value))} title="Registros por página"
           style={{ height: 38, padding: '0 10px', border: '1px solid #e2e5ea', borderRadius: 8, fontSize: 13, background: '#fff', color: '#0d0f12', fontFamily: 'inherit', cursor: 'pointer', marginLeft: 'auto' }}>
           {[25, 50, 100].map(n => <option key={n} value={n}>{n} / pág.</option>)}
@@ -591,7 +611,6 @@ export default function EmpresasClient() {
               <tbody>
                 {paged.map(co => {
                   const count = contactMap[co.id] ?? 0
-                  const hasContacts = count > 0
                   const isConfirming = confirmDelete === co.id
                   const isDeleting = deleting === co.id
                   const display = co.trade_name || co.name
@@ -611,16 +630,17 @@ export default function EmpresasClient() {
                       </td>
                       <td style={{ padding: '8px 12px' }}>
                         <div className="em-actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          {!isConfirming ? (
+                          {showArchived ? (
+                            <button onClick={() => restoreCompany(co.id)} disabled={isDeleting}
+                              style={{ fontSize: 12, fontWeight: 600, color: '#0d0f12', background: '#fff', border: '1px solid #e2e5ea', borderRadius: 7, padding: '5px 12px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>{isDeleting ? '…' : 'Restaurar'}</button>
+                          ) : !isConfirming ? (
                             <>
                               <button className="em-btn em-btn-edit" title="Editar" onClick={() => openDrawer(co)}><EditIcon /></button>
-                              <button className="em-btn em-btn-del" title={hasContacts ? `Tiene ${count} contacto${count !== 1 ? 's' : ''} vinculado${count !== 1 ? 's' : ''}` : 'Eliminar'}
-                                onClick={() => hasContacts ? showToast(`No se puede eliminar: tiene ${count} contacto${count !== 1 ? 's' : ''} vinculado${count !== 1 ? 's' : ''}`, 'error') : setConfirmDelete(co.id)}
-                                style={{ opacity: hasContacts ? 0.4 : 1, cursor: hasContacts ? 'not-allowed' : 'pointer' }}><TrashIcon /></button>
+                              <button className="em-btn em-btn-del" title="Archivar" onClick={() => setConfirmDelete(co.id)}><TrashIcon /></button>
                             </>
                           ) : (
                             <>
-                              <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Eliminar?</span>
+                              <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 600 }}>¿Archivar?</span>
                               <button onClick={() => deleteCompany(co.id)} disabled={isDeleting}
                                 style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: '#DC2626', border: 'none', borderRadius: 7, padding: '5px 10px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: isDeleting ? .6 : 1 }}>{isDeleting ? '…' : 'Sí'}</button>
                               <button onClick={() => setConfirmDelete(null)}

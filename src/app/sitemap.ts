@@ -55,6 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .select('id, created_at')
         .eq('tenant_id', tenantId)
         .eq('status', 'active')
+        .eq('active', true)
 
       if (manualProps?.length) {
         propertyRoutes = manualProps.map(p => ({

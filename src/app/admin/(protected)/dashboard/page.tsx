@@ -124,6 +124,7 @@ export default function PerfilPage() {
     const { data: pr } = await sb.from('properties')
       .select('id,title,price,currency,crm_status,status,images,address,lat,lng')
       .eq('agent_id', p.id)
+      .eq('active', true)
       .order('created_at', { ascending: false })
     setProps(pr ?? [])
 

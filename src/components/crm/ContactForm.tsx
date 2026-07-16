@@ -518,7 +518,7 @@ export default function ContactForm({
       // un JSON string con [{type,id,name,subtitle}], mismo formato que
       // escribe el tab de captación de propiedades).
       const { data: props } = await sb.from('properties')
-        .select('id,title,crm_status,status,features').eq('tenant_id', tenantId)
+        .select('id,title,crm_status,status,features').eq('tenant_id', tenantId).eq('active', true)
         .ilike('features->>owners', `%"type":"contact","id":"${editId}"%`)
       setOwnedProperties(((props ?? []) as OwnedProperty[]))
     })()
@@ -631,7 +631,7 @@ export default function ContactForm({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (createClient() as any)
         .from('crm_companies').select('id,name,trade_name,cedula_juridica')
-        .eq('tenant_id', tenantId).ilike('name', `%${val}%`).order('name').limit(8)
+        .eq('tenant_id', tenantId).eq('active', true).ilike('name', `%${val}%`).order('name').limit(8)
       const addedIds = new Set(linkedCompanies.map(c => c.id))
       setCoResults(((data ?? []) as Company[]).filter(c => !addedIds.has(c.id)))
       setCoSearching(false)
