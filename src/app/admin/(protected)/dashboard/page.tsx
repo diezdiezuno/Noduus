@@ -84,6 +84,7 @@ function Editable({ value, onSave, placeholder = '—', style }: {
 export default function PerfilPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [material, setMaterial] = useState<Saved[]>([])
+  const [materialError, setMaterialError] = useState<string | null>(null)
   const [props, setProps] = useState<Prop[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [clientView, setClientView] = useState<VCardViewType | null>(null)
@@ -116,6 +117,10 @@ export default function PerfilPage() {
       sb.from('rotulos').select('id,save_name,updated_at,created_at,thumb_url').eq('user_id', p.id).order('updated_at', { ascending: false }),
       sb.from('tarjetas').select('id,save_name,updated_at,created_at,thumb_url').eq('user_id', p.id).order('updated_at', { ascending: false }),
     ])
+    // Un error acá (p. ej. columna faltante) devolvía data null y se veía
+    // igual que "sin material". Se distingue explícitamente.
+    setMaterialError(rot.error?.message ?? tar.error?.message ?? null)
+    if (rot.error || tar.error) console.error('[dashboard] material:', rot.error ?? tar.error)
     setMaterial([
       ...(rot.data ?? []).map(r => ({ ...r, kind: 'rotulos' as const })),
       ...(tar.data ?? []).map(t => ({ ...t, kind: 'tarjetas' as const })),
@@ -228,7 +233,13 @@ export default function PerfilPage() {
 
         <div style={card}>
           <h2 style={sectionTitle}>Material de impresión</h2>
-          {material.length === 0
+          {materialError
+            ? (
+              <div style={{ fontSize: 12, color: '#92610A', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 10px' }}>
+                No se pudo cargar el material: {materialError}
+              </div>
+            )
+            : material.length === 0
             ? <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>Sin material guardado aún — creá rótulos y tarjetas desde el menú PropTools.</p>
             : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 12 }}>
