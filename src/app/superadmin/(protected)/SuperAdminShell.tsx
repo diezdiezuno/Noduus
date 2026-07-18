@@ -4,7 +4,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 
 const NAV = [
-  { href: '/superadmin/tenants', icon: '🏢', label: 'Tenants' },
+  { href: '/superadmin/tenants',   icon: '🏢', label: 'Tenants'    },
+  { href: '/superadmin/templates', icon: '🎨', label: 'Plantillas' },
 ]
 
 interface Props { userEmail: string; children: React.ReactNode }
