@@ -462,12 +462,14 @@ const CARD_W=591, CARD_H=1063, DISP_W=354, DISP_H=638;
 const SCALE=DISP_W/CARD_W;
 
 /* ── Templates ── */
-const TEMPLATES = [
+/* Templates — vienen de tool_templates (genéricas + las del tenant).
+   FALLBACK si la tabla aún no existe: estas dos, igual que antes. */
+const TEMPLATES_FALLBACK = [
   {
     id:'remax-central', label:'REMAX Central',
     front_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576398/frente-remax_zhorik.png',
     back_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576399/reverso-remax_agzjhe.png',
-    is_sunrise:false,
+    name_lines:2,
     /* Foto: área blanca medida pixel a pixel
        Borde izq: x=79 (estable desde y=88)
        Borde der: x=590
@@ -484,12 +486,24 @@ const TEMPLATES = [
     id:'team-sunrise', label:'Team Sunrise',
     front_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576399/frente-sunrise_tl2bst.png',
     back_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774576401/reverso-sunrise_fofnuw.png',
-    is_sunrise:true,
+    name_lines:1,
     photo:{x:79,y:28,w:511,h:797,rTL:60,rTR:0,rBR:0,rBL:89},
     band:{y:826,h:114},
     back:{wx:46,cx:319,textY:730,textEndY:855},
   }
 ];
+let TEMPLATES = TEMPLATES_FALLBACK;
+
+async function loadTemplates(){
+  try{
+    const { data, error } = await sb.from('tool_templates')
+      .select('slug,label,config').eq('kind','tarjetas').eq('active',true).order('position');
+    if(error) throw error;
+    if(Array.isArray(data) && data.length){
+      TEMPLATES = data.map(r => ({ id:r.slug, label:r.label, ...(r.config||{}) }));
+    }
+  }catch(e){ console.warn('[tarjetas] plantillas desde DB no disponibles, usando fallback', e.message); }
+}
 
 /* ── Estado ── */
 let currentUser=null,currentProfile=null,currentTenant=null;
@@ -580,7 +594,9 @@ async function loadContext(){
     el('btn-login').disabled=false;el('btn-login').textContent='Ingresar';
     if(el('db-dot')) el('db-dot').className='db-dot ok';
     if(el('db-status-text')) el('db-status-text').textContent='Conectado';
-    buildGrid();setTpl(TEMPLATES[0]);
+    await loadTemplates();
+    buildGrid();
+    if(TEMPLATES.length) setTpl(TEMPLATES[0]);
     await loadSaved();loadFonts();
   }catch(e){
     el('login-error').textContent=e.message;el('login-error').style.display='block';
@@ -604,6 +620,10 @@ async function saveProfile(){
 
 /* ── Grid templates ── */
 function buildGrid(){
+  if(!TEMPLATES.length){
+    el('template-grid').innerHTML='<p style="font-size:13px;color:#888;margin:0;grid-column:1/-1">Esta oficina todavía no tiene plantillas de tarjetas. Un administrador general puede crearlas.</p>';
+    return;
+  }
   el('template-grid').innerHTML=TEMPLATES.map(t=>`
     <button class="tpl-btn" data-id="${t.id}">
       <img src="${t.front_url}" crossorigin="anonymous" alt="${t.label}">
@@ -676,7 +696,7 @@ async function renderFront(canvas){
   const fn=fontsReady?'GothamNarrowBold':'Arial Black,Arial';
   ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
 
-  if(currentTpl.is_sunrise){
+  if(currentTpl.name_lines===1){
     let fs=Math.round(58*s);
     ctx.font=`bold ${fs}px ${fn}`;
     while(fs>11&&ctx.measureText(name.toUpperCase()).width>W*0.92){fs--;ctx.font=`bold ${fs}px ${fn}`;}

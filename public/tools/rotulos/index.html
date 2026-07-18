@@ -425,23 +425,38 @@ const H = {
   qrY:    3886,
 };
 
-/* Templates */
-const TEMPLATES = [
+/* Templates — vienen de tool_templates (genéricas + las del tenant).
+   La RLS filtra: cada quien ve las genéricas y las suyas.
+   FALLBACK: si la tabla aún no existe (ventana entre deploy y migración)
+   se usan estas dos, que es el comportamiento anterior. */
+const TEMPLATES_FALLBACK = [
   {
     id:'remax-central', label:'REMAX Central',
     v_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988162/vertical-remax_no6qeh.png',
     h_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988162/horizontal-remax_e5rnn6.png',
-    is_sunrise: false,
-    h_name_lines: 2,  /* nombre en 2 líneas horizontal */
+    agent_start_y: 1715,
+    h_name_lines: 2,
   },
   {
     id:'team-sunrise', label:'Team Sunrise',
     v_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988163/vertical-sunrise_i6ssjf.png',
     h_url:'https://res.cloudinary.com/dlgrhr6lh/image/upload/v1774988163/horizontal-sunrise_s62rqt.png',
-    is_sunrise: true,
-    h_name_lines: 1,  /* nombre en 1 línea horizontal */
+    agent_start_y: 1700,
+    h_name_lines: 1,
   },
 ];
+let TEMPLATES = TEMPLATES_FALLBACK;
+
+async function loadTemplates(){
+  try{
+    const { data, error } = await sb.from('tool_templates')
+      .select('slug,label,config').eq('kind','rotulos').eq('active',true).order('position');
+    if(error) throw error;
+    if(Array.isArray(data) && data.length){
+      TEMPLATES = data.map(r => ({ id:r.slug, label:r.label, ...(r.config||{}) }));
+    }
+  }catch(e){ console.warn('[rotulos] plantillas desde DB no disponibles, usando fallback', e.message); }
+}
 
 /* Fuentes */
 const F_NARROW_BOLD = 'https://res.cloudinary.com/dlgrhr6lh/raw/upload/v1774650941/Gotham_Narrow_Bold_arzjpl.otf';
@@ -456,7 +471,7 @@ let currentUser    = null;
 let currentProfile = null;
 let currentTenant  = null;
 let currentOri     = 'vertical';
-let currentTpl     = TEMPLATES[0];
+let currentTpl     = TEMPLATES[0];   /* se re-asigna tras loadTemplates() */
 let mainText       = 'SE VENDE';
 let fontsReady     = false;
 const imgCache     = {};
@@ -546,6 +561,8 @@ async function loadContext(){
     if(el('db-dot')) el('db-dot').className='db-dot ok';
     if(el('db-status-text')) el('db-status-text').textContent='Conectado';
 
+    await loadTemplates();
+    currentTpl = TEMPLATES[0] || null;
     buildTemplateGrid();
     await loadSaved();
     await loadFonts();
@@ -566,8 +583,12 @@ async function loadContext(){
 ═══════════════════════════════════════════════════ */
 function buildTemplateGrid(){
   const grid=el('template-grid');
+  if(!TEMPLATES.length){
+    grid.innerHTML='<p style="font-size:13px;color:#888;margin:0">Esta oficina todavía no tiene plantillas de rótulos. Un administrador general puede crearlas.</p>';
+    return;
+  }
   grid.innerHTML=TEMPLATES.map(t=>`
-    <button class="tpl-btn${t.id===currentTpl.id?' active':''}" data-id="${t.id}">
+    <button class="tpl-btn${currentTpl&&t.id===currentTpl.id?' active':''}" data-id="${t.id}">
       <img src="${currentOri==='vertical'?t.v_url:t.h_url}" crossorigin="anonymous" alt="${t.label}">
       <div class="tpl-btn-label">${t.label}</div>
     </button>`).join('');
@@ -664,6 +685,7 @@ function makeQRCanvas(text, sizePx){
 const PREVIEW_MAX=740;
 
 async function renderPreview(){
+  if(!currentTpl) return;   /* tenant sin plantillas: nada que dibujar */
   const W=currentOri==='vertical'?V_W:H_W;
   const Ht=currentOri==='vertical'?V_H:H_H;
   const scale=PREVIEW_MAX/Math.max(W,Ht);
@@ -782,7 +804,7 @@ async function drawHorizontal(ctx, s, fn, W, Ht){
   {
     const agCX  = lay.textZoneCX * s;
     const maxW  = lay.textZoneW * s;
-    const agStartRaw = currentTpl.is_sunrise ? lay.agentStartY_sunrise : lay.agentStartY_remax;
+    const agStartRaw = currentTpl.agent_start_y ?? lay.agentStartY_remax;
     const startY= agStartRaw * s;
     const endY  = lay.whiteEnd * s;
 
