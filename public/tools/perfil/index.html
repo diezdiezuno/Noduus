@@ -467,25 +467,21 @@ function uploadPhoto(file) {
   if(!file) return;
   const btn = el('btn-save');
   const slug = (v('f-name')||'agente').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  const fd = new FormData();
-  fd.append('file', file); fd.append('upload_preset', PRESET);
-  fd.append('public_id', `agentes/${slug}-${Date.now()}`);
   toast('Subiendo foto...');
-  fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, { method:'POST', body:fd })
-    .then(r => r.json()).then(async d => {
-      if(d.secure_url) {
-        photoDataUrl = d.secure_url;
-        const img = document.createElement('img');
-        img.src = d.secure_url;
-        img.alt = '';
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-        el('avatar-wrap').replaceChildren(img);
-        /* Guardar inmediatamente en perfil */
-        if(currentProfile) {
-          await sb.from('users').update({ photo_url: d.secure_url }).eq('id', currentProfile.id);
-          toast('Foto actualizada ✓');
-        }
-      } else throw new Error(d.error?.message || 'Error');
+  const uid = currentProfile?.id || currentUser?.id;
+  window.__ptUploadAgentPhoto(file, uid)
+    .then(async url => {
+      photoDataUrl = url;
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      el('avatar-wrap').replaceChildren(img);
+      /* Guardar inmediatamente en perfil */
+      if(currentProfile) {
+        await sb.from('users').update({ photo_url: url }).eq('id', currentProfile.id);
+        toast('Foto actualizada ✓');
+      }
     }).catch(e => toast('Error subiendo foto: ' + e.message));
 }
 

@@ -6,12 +6,12 @@ import { getClimaTz } from '@/components/admin/DateTimeWeather'
 import ContactVCardModal, { type VCardViewType } from '../propiedades/ContactVCardModal'
 import ProximosEventos from './ProximosEventos'
 import { glass } from '@/lib/theme'
+import { uploadAgentPhoto } from '@/lib/upload'
 
 // Dashboard "Mi perfil": info del agente (editable inline), material de
 // impresión guardado (rótulos/tarjetas) y propiedades asignadas en el CRM.
 // La info vive en `users` (la misma que consumen firmas, tarjetas y rótulos).
 
-const CLOUD = 'dlgrhr6lh', PRESET = 'firmas' // Cloudinary — mismo que PropTools
 
 // ── Íconos ──────────────────────────────────────────────────
 const ic = (d: string, fill = false, color?: string) => (
@@ -154,11 +154,10 @@ export default function PerfilPage() {
     if (!profile) return
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file); fd.append('upload_preset', PRESET)
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, { method: 'POST', body: fd })
-      const json = await res.json()
-      if (json.secure_url) await saveField('photo_url', json.secure_url)
+      const url = await uploadAgentPhoto(file, profile.id)
+      await saveField('photo_url', url)
+    } catch (e) {
+      console.error('[dashboard] foto:', e)
     } finally { setUploading(false) }
   }
 

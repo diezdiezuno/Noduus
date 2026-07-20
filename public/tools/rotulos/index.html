@@ -1084,11 +1084,7 @@ async function makeThumb(srcCanvas){
     c.getContext('2d').drawImage(src, 0, 0, W, H);
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
     if(!blob) return null;
-    const fd = new FormData();
-    fd.append('file', blob); fd.append('upload_preset', 'firmas');
-    const res = await fetch('https://api.cloudinary.com/v1_1/dlgrhr6lh/image/upload', { method:'POST', body: fd });
-    const j = await res.json();
-    return j.secure_url || null;
+    return await window.__ptUploadThumb(blob, currentTenant.id, 'rotulos');
   }catch(e){ console.error('thumb', e); return null; }
 }
 

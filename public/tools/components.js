@@ -487,4 +487,34 @@ window.__ptLogout = async function () {
   window.location.href = '/admin/login';
 };
 
+/* ── Subida de archivos a Supabase Storage ────────────────────────
+   Reemplaza los uploads a Cloudinary, que usaban un preset unsigned:
+   el cloud name y el preset viajaban en este JS público, así que
+   cualquiera podía subir archivos arbitrarios a la cuenta. Estas
+   subidas van con el JWT del usuario y las controla la policy del bucket.
+────────────────────────────────────────────────────────────────── */
+
+// Foto de perfil del agente → bucket agent-photos (público).
+// Devuelve la URL pública, o lanza el error de storage.
+window.__ptUploadAgentPhoto = async function (file, userId) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${userId}/${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('agent-photos')
+    .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' });
+  if (error) throw new Error(error.message);
+  return sb.storage.from('agent-photos').getPublicUrl(path).data.publicUrl;
+};
+
+// Thumbnail de material guardado (rótulos / tarjetas) → tenant-assets.
+// Devuelve la URL pública, o null si falla (el thumbnail no es crítico).
+window.__ptUploadThumb = async function (blob, tenantId, kind) {
+  try {
+    const path = `${tenantId}/${kind}-thumbs/${Date.now()}.jpg`;
+    const { error } = await sb.storage.from('tenant-assets')
+      .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+    if (error) throw new Error(error.message);
+    return sb.storage.from('tenant-assets').getPublicUrl(path).data.publicUrl;
+  } catch (e) { console.warn('[PropTools] thumb upload', e.message); return null; }
+};
+
 // export { renderHeader, renderSidebar, renderFooter, initComponents };

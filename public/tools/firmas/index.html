@@ -794,18 +794,14 @@ function uploadPhoto(file) {
   reader.readAsDataURL(file);
   const tEl=el('upload-title'), sEl=el('upload-status'), aEl=el('upload-area');
   tEl.textContent='Subiendo...'; sEl.textContent='Por favor espera'; aEl.style.borderColor='#f0a500'; aEl.style.pointerEvents='none';
-  const slug=(v('f-name')||'agente').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  const fd=new FormData();
-  fd.append('file',file); fd.append('upload_preset',PRESET); fd.append('public_id',`agentes/${slug}-${Date.now()}`);
-  fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`,{method:'POST',body:fd})
-    .then(r=>r.json()).then(async d=>{
-      if(d.secure_url){
-        photoDataUrl=d.secure_url;
-        tEl.textContent='Foto subida';sEl.textContent='Click para cambiar';aEl.style.borderColor='#22c55e';
-        updatePreview();
-        /* Guardar foto en perfil compartido */
-        if(currentProfile) await sb.from('users').update({photo_url:d.secure_url}).eq('id',currentProfile.id);
-      } else throw new Error(d.error?.message||'Error');
+  const uid = currentProfile?.id || currentUser?.id;
+  window.__ptUploadAgentPhoto(file, uid)
+    .then(async url=>{
+      photoDataUrl=url;
+      tEl.textContent='Foto subida';sEl.textContent='Click para cambiar';aEl.style.borderColor='#22c55e';
+      updatePreview();
+      /* Guardar foto en perfil compartido */
+      if(currentProfile) await sb.from('users').update({photo_url:url}).eq('id',currentProfile.id);
     }).catch(e=>{tEl.textContent='Error';sEl.textContent=e.message;aEl.style.borderColor='#ef4444';})
     .finally(()=>{aEl.style.pointerEvents='auto';});
 }

@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import PageHeader from '@/components/admin/PageHeader'
+import { uploadAgentPhoto } from '@/lib/upload'
 
 // Agentes = usuarios (PropTools). Esta página controla su ficha pública y el
 // toggle "Mostrar en web" (users.show_on_web). Los agentes se agregan por
 // invitación (Administración › Agentes), no acá.
 
-const CLOUD = 'dlgrhr6lh', PRESET = 'firmas' // Cloudinary — mismo que el dashboard/tools
 const POSITIONS = ['Broker', 'Team Leader', 'Asesor Inmobiliario', 'Administrativo', 'Asistente'] as const
 
 interface AgentUser {
@@ -104,11 +104,10 @@ export default function AgentesPage() {
     if (photoFile) {
       setUploadingPhoto(true)
       try {
-        const fd = new FormData()
-        fd.append('file', photoFile); fd.append('upload_preset', PRESET)
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, { method: 'POST', body: fd })
-        const json = await res.json()
-        if (json.secure_url) photoUrl = json.secure_url
+        photoUrl = await uploadAgentPhoto(photoFile, editing.id)
+      } catch (err) {
+        setSaveError(`No se pudo subir la foto: ${(err as Error).message}`)
+        setUploadingPhoto(false); setSaving(false); return
       } finally { setUploadingPhoto(false) }
     }
 
