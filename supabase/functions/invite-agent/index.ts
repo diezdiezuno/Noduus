@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
   }
 })
 
-// ── Email Noduus (negro limpio, sin branding PropTools) ────────────────────
+// ── Email Noduus (negro limpio, sin branding Noduus) ────────────────────
 function emailHtml({ who, office, extra, link }: { who: string; office: string; extra: string; link: string }) {
   return `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">

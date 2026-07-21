@@ -27,7 +27,7 @@ export default async function AgentesPage() {
   if (pageCfg && !pageCfg.visible) notFound()
 
   // Fetch agents — try with social columns, fallback if not migrated yet
-  // Agentes = usuarios (PropTools) marcados para mostrarse en web (show_on_web).
+  // Agentes = usuarios (Noduus) marcados para mostrarse en web (show_on_web).
   // `job_title` es el puesto público (equivale al viejo agents.position).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let agents: any[] = []

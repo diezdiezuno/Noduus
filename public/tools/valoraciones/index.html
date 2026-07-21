@@ -5,7 +5,7 @@
 <script src="/tools/cookie-storage.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valoraciones — PropTools</title>
+<title>Valoraciones — Noduus</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;700&family=DM+Mono&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -451,7 +451,7 @@ function generarPDF(d, logoUrl) {
     var pgs = doc.getNumberOfPages();
     for (var p=1; p<=pgs; p++) {
       doc.setPage(p); doc.setFontSize(8); doc.setTextColor(150,150,150);
-      doc.text('Fuente: Tipologia ONT / Min. Hacienda CR - PropTools - Pag. '+p+'/'+pgs, M, 290);
+      doc.text('Fuente: Tipologia ONT / Min. Hacienda CR - Noduus - Pag. '+p+'/'+pgs, M, 290);
     }
     var fname = 'valoracion_' + ((d.ref||d.obra||'propiedad').replace(/\s+/g,'_')) + '.pdf';
     doc.save(fname);

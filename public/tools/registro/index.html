@@ -4,7 +4,7 @@
 <script src="/tools/cookie-storage.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Activar cuenta · PropTools</title>
+  <title>Activar cuenta · Noduus</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;900&family=DM+Mono:wght@400&display=swap" rel="stylesheet" />
@@ -335,7 +335,7 @@
       Tu cuenta ya está activa. Podés iniciar sesión directamente.
     </div>
     <a href="/tools/perfil/" class="btn btn-primary" style="text-decoration:none;margin-top:16px;">
-      Ir a PropTools →
+      Ir a Noduus →
     </a>
   </div>
 
@@ -386,7 +386,7 @@
     </button>
 
     <div style="font-size:12px;color:var(--ink-light);text-align:center;margin-top:16px;line-height:1.6;">
-      Al activar tu cuenta aceptás los términos de uso de PropTools.
+      Al activar tu cuenta aceptás los términos de uso de Noduus.
     </div>
   </div>
 
@@ -399,7 +399,7 @@
     </div>
     <div class="card-title" style="text-align:center;">¡Cuenta activada!</div>
     <div class="card-subtitle" style="text-align:center;">
-      Tu cuenta está lista. En un momento te redirigimos a PropTools.
+      Tu cuenta está lista. En un momento te redirigimos a Noduus.
     </div>
     <div style="text-align:center;margin-top:8px;">
       <div class="loader" style="width:20px;height:20px;border-width:2px;"></div>
@@ -496,7 +496,7 @@ async function validateToken() {
 
   $('reg-email').value           = invite.email;
   $('reg-name').value            = invite.name || '';
-  $('form-tenant-name').textContent = invite.tenant_name || 'PropTools';
+  $('form-tenant-name').textContent = invite.tenant_name || 'Noduus';
   $('form-invited-by').textContent  = invite.invited_by   || 'tu equipo';
 
   show('state-form');

@@ -1,5 +1,5 @@
 /**
- * PropTools ↔ Noduus — sesión compartida.
+ * Noduus ↔ Noduus — sesión compartida.
  * Adapter de storage para supabase-js que lee/escribe la MISMA cookie
  * que usa @supabase/ssr en el admin de Noduus (prefijo "base64-",
  * chunking .0/.1/...). Así el login de Noduus sirve para las

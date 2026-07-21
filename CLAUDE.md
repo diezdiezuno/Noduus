@@ -1,7 +1,7 @@
 # Noduus — Documentación del sistema
 
 Plataforma inmobiliaria multi-tenant: sitio web público + panel admin con CRM +
-herramientas para agentes (PropTools), todo sobre una sola base de datos y un
+herramientas para agentes (Noduus), todo sobre una sola base de datos y un
 solo login.
 
 ## Stack
@@ -18,8 +18,8 @@ solo login.
 - `getTenantByDomain(domain)` / `getTenantConfig(tenantId)` en `src/lib/tenant.ts` resuelven el tenant. `getTenantConfig` usa `publicClient()` (anon, sin cookies) para las páginas públicas.
 - **Tres niveles de usuario**:
   - **Superadmin** (`superadmin/`) — gestiona tenants (crear, dominios, admins). Ver `src/lib/superadmin.ts`, verificación server-side.
-  - **Admin de tenant** (`tenant_admins`) — ve todo el panel: sitio web, CRM completo, PropTools + administración, métricas, reclutamiento.
-  - **Agente** (`users`, modelo PropTools) — ve solo CRM (sin Configuración) + herramientas PropTools. Los agentes de PropTools **son** los agentes de Noduus.
+  - **Admin de tenant** (`tenant_admins`) — ve todo el panel: sitio web, CRM completo, Noduus + administración, métricas, reclutamiento.
+  - **Agente** (`users`, modelo Noduus) — ve solo CRM (sin Configuración) + herramientas Noduus. Los agentes de Noduus **son** los agentes de Noduus.
 - El rol se resuelve en `admin/(protected)/layout.tsx` (admin vía `tenant_admins`, si no, agente vía `users`) y se pasa a `AdminShell`. `src/lib/membership.ts` (`getMembership()`) hace lo mismo del lado cliente.
 - **Aislamiento**: toda tabla lleva `tenant_id` y su RLS usa `is_tenant_member(tenant_id)`. El guard de rol en `AdminShell` es solo UI; la seguridad real es RLS.
 
@@ -36,7 +36,7 @@ Templates exclusivos Sunrise: `NosotrosClientSunrise`, `ContactoClientSunrise`, 
 - `dashboard/` — **página principal post-login** (ver abajo).
 - **Sitio web** (admin): `general/`, `mapa/`, `visualizacion/` (config de display de propiedades), `paginas/` + `paginas/[slug]/`, `fuentes/`, `agentes/`, `seo/`.
 - **CRM**: `propiedades/` (listado + `nueva/` + `[id]/`), `clientes/`, `empresas/`, `leads/`, `crm-config/` (solo admin).
-- **PropTools**: `tools/[slug]/` — iframe que embebe las herramientas estáticas.
+- **Noduus**: `tools/[slug]/` — iframe que embebe las herramientas estáticas.
 - Standalone (admin): `metricas/`, `reclutamiento/`.
 
 ### Superadmin — `src/app/superadmin/`
@@ -55,7 +55,7 @@ Página nativa (no iframe). Es lo primero que se ve tras login (`/admin/login`, 
 - **Material de impresión**: rótulos y tarjetas guardados; click abre el guardado en su herramienta (deep-link `?id=`).
 - **Propiedades asignadas**: cruce agente↔propiedad por email (`users.email` ↔ `agents.email` ↔ `properties.agent_id`).
 
-## PropTools — herramientas embebidas
+## Noduus — herramientas embebidas
 Herramientas estáticas (HTML/JS sin framework) en `public/tools/`, servidas vía rewrites de `next.config.ts` y embebidas por iframe en `admin/tools/[slug]`.
 - **Un solo login**: `public/tools/cookie-storage.js` es un adapter que lee/escribe la misma cookie de `@supabase/ssr` que el admin → sesión compartida.
 - **`public/tools/components.js`**: header/sidebar/footer compartidos + `initComponents()`. En modo `EMBEDDED` (iframe o `?embed`) oculta su propio chrome y usa el shell de Noduus; el título estilo CRM lo pone `tools/[slug]/page.tsx`.
@@ -76,7 +76,7 @@ Herramientas estáticas (HTML/JS sin framework) en `public/tools/`, servidas ví
 `crm_contacts` (clientes), `crm_companies` (empresas), `contact_types`, `contact_sources` (con `position` para orden drag&drop).
 Junctions: `crm_contact_types` (un contacto → varios tipos), `crm_contact_companies` (contacto ↔ empresas).
 
-### PropTools
+### Noduus
 `signatures`, `tenant_templates`, `tarjetas`, `rotulos` (todas con `user_id → users(id)`), `avaluos` (`user_id` = auth uid), `calendarios`, `eventos_calendario`, `equipos`, `reservas`, `reserva_equipos`.
 
 ### Helpers RLS (security definer, `search_path=public`)
@@ -86,7 +86,7 @@ Junctions: `crm_contact_types` (un contacto → varios tipos), `crm_contact_comp
 ## Migraciones SQL (`supabase/`)
 Orden base: `schema.sql` → `admin-migration` → `admin-features-migration` → `analytics-migration` → `seo-migration` → `recruit-migration` → `translations-migration` → `zones-pages-migration` → `superadmin-migration` → `crm-contact-types-migration` → `detail-layout-migration` → `proptools-migration` → `proptools-full-migration`.
 Parches: `patch-tarjetas-rotulos-cols` (columnas planas de tarjetas/rótulos), `security-patch-invitations` (ver Seguridad), `link-admin-user` (vincular admin ↔ usuario migrado).
-Migración de datos PropTools→Noduus: `scripts/migrate-proptools-data.mjs` (recrea usuarios en auth nuevo, remapea tenant/auth ids, omite huérfanos).
+Migración de datos Noduus→Noduus: `scripts/migrate-proptools-data.mjs` (recrea usuarios en auth nuevo, remapea tenant/auth ids, omite huérfanos).
 
 ## Seguridad (revisión aplicada)
 - **Invitaciones**: la lectura anónima abierta se reemplazó por RPC `get_invitation(token)` (security definer) que devuelve solo la fila del token exacto. Borrado restringido a `is_tenant_member`. → correr `security-patch-invitations.sql`.

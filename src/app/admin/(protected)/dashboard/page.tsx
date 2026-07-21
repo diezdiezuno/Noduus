@@ -99,7 +99,7 @@ export default function PerfilPage() {
     if (!user) return
     let { data: p } = await sb.from('users').select('*').eq('auth_id', user.id).single()
     if (!p) {
-      // admin de Noduus sin fila en users → auto-provisionar (igual que PropTools)
+      // admin sin fila en users → auto-provisionar (igual que en las herramientas)
       const { data: adm } = await sb.from('tenant_admins').select('tenant_id, role').eq('user_id', user.id).single()
       if (adm) {
         await sb.from('users').upsert({
@@ -239,7 +239,7 @@ export default function PerfilPage() {
               </div>
             )
             : material.length === 0
-            ? <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>Sin material guardado aún — creá rótulos y tarjetas desde el menú PropTools.</p>
+            ? <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>Sin material guardado aún — creá rótulos y tarjetas desde el menú Herramientas.</p>
             : (
               <div style={{ columns: '130px', columnGap: 12 }}>
                 {material.map(m => (

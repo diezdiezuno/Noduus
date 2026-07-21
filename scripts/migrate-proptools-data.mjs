@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ══════════════════════════════════════════════════════════════
-   Migración de datos: PropTools (base vieja) → Noduus.
+   Migración de datos: Noduus (base vieja) → Noduus.
 
    Copia usuarios (recreándolos en el auth de Noduus), firmas,
    plantillas, tarjetas, rótulos, avalúos, calendarios, eventos,

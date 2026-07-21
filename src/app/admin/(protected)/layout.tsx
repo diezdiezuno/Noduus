@@ -39,7 +39,7 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
   let tenant = (adminRecord as any)?.tenants
   let role: 'admin' | 'agent' = 'admin'
 
-  // No es admin → ¿es agente (usuario PropTools)?
+  // No es admin → ¿es agente (usuario Noduus)?
   if (!adminRecord) {
     const { data: agentRecord } = await supabase
       .from('users')

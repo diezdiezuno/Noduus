@@ -1,7 +1,7 @@
 # Noduus
 
 Plataforma inmobiliaria multi-tenant: sitio web público + panel admin con CRM +
-herramientas para agentes (PropTools), sobre una sola base de datos y un solo login.
+herramientas para agentes (Noduus), sobre una sola base de datos y un solo login.
 
 Documentación completa del sistema (arquitectura, roles, tablas, migraciones,
 seguridad): **[CLAUDE.md](CLAUDE.md)**.
@@ -25,9 +25,9 @@ Mapbox · Resend · Cloudinary. Deploy en Vercel (`main` → auto-deploy).
 ## Estructura
 
 - `src/app/(public)/` — sitio web público del tenant
-- `src/app/admin/(protected)/` — panel admin (CRM, sitio, PropTools) por rol
+- `src/app/admin/(protected)/` — panel admin (CRM, sitio, Noduus) por rol
 - `src/app/superadmin/` — gestión de tenants
 - `src/app/api/` — endpoints (leads, reclutamiento, propiedades, superadmin)
-- `public/tools/` — herramientas PropTools (estáticas, embebidas por iframe)
+- `public/tools/` — herramientas Noduus (estáticas, embebidas por iframe)
 - `supabase/` — esquema y migraciones SQL
-- `scripts/` — migración de datos PropTools → Noduus
+- `scripts/` — migración de datos Noduus → Noduus

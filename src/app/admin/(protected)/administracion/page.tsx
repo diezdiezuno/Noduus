@@ -2,7 +2,7 @@
 import PageHeader from '@/components/admin/PageHeader'
 
 // Hub de Administración: agrupa la configuración del sitio, ajustes del CRM,
-// gestión de oficina (PropTools admin), métricas y reclutamiento — para no
+// gestión de oficina (Noduus admin), métricas y reclutamiento — para no
 // saturar el sidebar con todo lo administrativo.
 
 const card: React.CSSProperties = {

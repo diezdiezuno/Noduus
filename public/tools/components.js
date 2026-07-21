@@ -1,5 +1,5 @@
 /**
- * PropTools – Shared UI Components
+ * Noduus – Shared UI Components
  * ─────────────────────────────────
  * Uso en cada página (una sola llamada):
  *
@@ -313,7 +313,7 @@ function renderFooter() {
   const year = new Date().getFullYear();
   el.innerHTML = `
     <div class="pt-footer-left">
-      <span class="pt-footer-proptools-name">PropTools</span>
+      <span class="pt-footer-proptools-name">Noduus</span>
       <span class="pt-footer-version">v${PT_VERSION}</span>
     </div>
     <div class="pt-footer-center">
@@ -353,7 +353,7 @@ async function initComponents({ active = '', version = '' } = {}) {
   if (!EMBEDDED) injectComponentStyles();
 
   if (typeof sb === 'undefined') {
-    console.error('[PropTools] initComponents: `sb` no está definido.');
+    console.error('[Noduus] initComponents: `sb` no está definido.');
     return null;
   }
 
@@ -399,7 +399,7 @@ async function initComponents({ active = '', version = '' } = {}) {
   }
 
   if (!profile) {
-    console.warn('[PropTools] No se encontró perfil.');
+    console.warn('[Noduus] No se encontró perfil.');
     if (!EMBEDDED) {
       renderHeader();
       renderSidebar({ apps: [], active, role: 'agent' });
@@ -483,7 +483,7 @@ window.__ptToggleSidebar = function (force) {
 
 window.__ptLogout = async function () {
   try { if (typeof sb !== 'undefined') await sb.auth.signOut(); }
-  catch (e) { console.warn('[PropTools] Logout error:', e); }
+  catch (e) { console.warn('[Noduus] Logout error:', e); }
   window.location.href = '/admin/login';
 };
 
@@ -514,7 +514,7 @@ window.__ptUploadThumb = async function (blob, tenantId, kind) {
       .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
     if (error) throw new Error(error.message);
     return sb.storage.from('tenant-assets').getPublicUrl(path).data.publicUrl;
-  } catch (e) { console.warn('[PropTools] thumb upload', e.message); return null; }
+  } catch (e) { console.warn('[Noduus] thumb upload', e.message); return null; }
 };
 
 // export { renderHeader, renderSidebar, renderFooter, initComponents };

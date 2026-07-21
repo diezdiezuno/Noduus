@@ -1,6 +1,6 @@
 -- Patch: columnas planas de tenant_templates.
 -- El esquema inicial la creó con name/html/config, pero la herramienta de
--- firmas lee columnas planas del PropTools viejo (template_id decide el
+-- firmas lee columnas planas del Noduus viejo (template_id decide el
 -- layout, logo_url y extra_website por template). Correr una vez, luego
 -- re-correr migrate-proptools-data.mjs para poblarlas.
 

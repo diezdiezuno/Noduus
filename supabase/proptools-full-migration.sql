@@ -1,12 +1,12 @@
 -- ══════════════════════════════════════════════════════════════
--- PropTools → Noduus: migración completa de esquema.
+-- Noduus → Noduus: migración completa de esquema.
 -- Herramientas: firmas, tarjetas, rótulos, valoraciones,
 --               calendario, equipos (+ perfil, registro, admin).
--- Usuarios de PropTools = agentes de Noduus (tabla users).
+-- Usuarios de Noduus = agentes de Noduus (tabla users).
 -- Ejecutar en la base de Noduus.
 -- ══════════════════════════════════════════════════════════════
 
--- ── Usuarios (agentes) — modelo PropTools tal cual ─────────────
+-- ── Usuarios (agentes) — modelo Noduus tal cual ─────────────
 create table if not exists users (
   id         uuid default gen_random_uuid() primary key,
   auth_id    uuid unique not null,

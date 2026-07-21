@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-browser'
 import PageHeader from '@/components/admin/PageHeader'
 import { uploadAgentPhoto } from '@/lib/upload'
 
-// Agentes = usuarios (PropTools). Esta página controla su ficha pública y el
+// Agentes = usuarios (Noduus). Esta página controla su ficha pública y el
 // toggle "Mostrar en web" (users.show_on_web). Los agentes se agregan por
 // invitación (Administración › Agentes), no acá.
 

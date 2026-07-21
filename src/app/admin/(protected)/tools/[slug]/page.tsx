@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/admin/PageHeader'
 
-// Herramientas PropTools embebidas dentro del shell de Noduus.
+// Herramientas embebidas dentro del shell de Noduus.
 // La sesión se comparte vía cookie (public/tools/cookie-storage.js).
 // El título estilo CRM lo pone esta página; la herramienta oculta el suyo
 // en modo embebido (ver public/tools/components.js).
@@ -16,7 +16,7 @@ const TOOLS: Record<string, { title: string; subtitle: string }> = {
   calendario:   { title: 'Calendario',    subtitle: 'Tus eventos y los calendarios de la oficina.' },
   equipos:      { title: 'Equipos',       subtitle: 'Reservá equipos de la oficina.' },
   perfil:       { title: 'Mi perfil',     subtitle: 'Tu información de agente — se usa en firmas, tarjetas, rótulos, CRM y web.' },
-  admin:        { title: 'Administración PropTools', subtitle: 'Gestión de agentes, invitaciones y equipos de oficina.' },
+  admin:        { title: 'Administración', subtitle: 'Gestión de agentes, invitaciones y equipos de oficina.' },
 }
 
 // Tabs internos de Administración, cada uno es un link del menú (?tab=)
@@ -75,7 +75,7 @@ function ToolFrame() {
           display: 'block',
           overflow: 'hidden',
         }}
-        title={`PropTools — ${heading.title}`}
+        title={`Noduus — ${heading.title}`}
       />
     </>
   )

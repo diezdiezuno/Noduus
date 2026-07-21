@@ -1,4 +1,4 @@
--- Vincular el admin de Noduus con su usuario migrado de PropTools.
+-- Vincular el admin de Noduus con su usuario migrado de Noduus.
 -- Reemplazá los dos emails y corré todo en el SQL editor.
 --
 -- ADMIN_EMAIL    = diezdiezuno.dev@gmail.com

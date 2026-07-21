@@ -1,4 +1,4 @@
--- Unificación de agentes: `users` (PropTools) pasa a ser la única fuente de
+-- Unificación de agentes: `users` (Noduus) pasa a ser la única fuente de
 -- agentes, tanto para el sitio web como para asignar a propiedades/clientes.
 -- La tabla `agents` queda deprecada (no se lee más; se conserva por respaldo).
 -- Correr una vez.

@@ -59,7 +59,7 @@ const ADMIN_HUB_ROUTES = [
   '/admin/metricas', '/admin/reclutamiento', '/admin/tools/admin',
 ]
 
-// Catálogo PropTools — el tenant solo ve las que tiene en tenants.proptools_apps
+// Catálogo de herramientas — el tenant solo ve las que tiene en tenants.proptools_apps
 const PROPTOOLS_CATALOG: Record<string, { icon: ReactNode; label: string; href: string }> = {
   firmas:       { icon: ICON.pen,      label: 'Firmas',       href: '/admin/tools/firmas' },
   tarjetas:     { icon: ICON.card,     label: 'Tarjetas',     href: '/admin/tools/tarjetas' },
@@ -106,11 +106,11 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
     })
   }
 
-  // Grupo PropTools según las apps activas del tenant.
+  // Grupo de herramientas según las apps activas del tenant.
   const ptApps = (tenant.proptools_apps ?? []).filter(s => PROPTOOLS_CATALOG[s])
   const ptItems = ptApps.map(s => ({ ...PROPTOOLS_CATALOG[s] }))
   const ptGroup = ptItems.length > 0
-    ? [{ key: 'proptools', label: 'PropTools', icon: ICON.wrench, items: ptItems }]
+    ? [{ key: 'proptools', label: 'Herramientas', icon: ICON.wrench, items: ptItems }]
     : []
   const navGroups = [...NAV_GROUPS, ...ptGroup]
   // Administración: link único al hub (solo admin).
@@ -134,7 +134,7 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
       const hasActive = group.items.some(item => pathname.startsWith(item.href))
       if (hasActive) setCollapsed(prev => ({ ...prev, [group.key]: false }))
     }
-    // PropTools no está en NAV_GROUPS (se arma por tenant); /admin/tools/admin
+    // El grupo de herramientas no está en NAV_GROUPS (se arma por tenant); /admin/tools/admin
     // se accede desde el hub, no resalta grupo del sidebar.
     if (pathname.startsWith('/admin/tools/') && pathname !== '/admin/tools/admin') {
       setCollapsed(prev => ({ ...prev, proptools: false }))
@@ -188,20 +188,16 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
 
         {/* Brand */}
         <div style={{ padding: open ? '22px 20px 18px' : '18px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center', transition: 'padding .2s', overflow: 'hidden', minHeight: 72 }}>
+          {/* La marca del sidebar es siempre Noduus; el tenant se identifica por
+              nombre debajo. Su logo vive en el sitio público y el material de
+              impresión, donde manda su marca y no la de la plataforma. */}
           {open ? (
             <div style={{ overflow: 'hidden' }}>
-              {tenant.logo_url && (
-                <img src={tenant.logo_url} alt="" style={{ height: 28, objectFit: 'contain', marginBottom: 8, display: 'block' }} />
-              )}
+              <img src="/noduus-logo.svg" alt="Noduus" style={{ height: 22, marginBottom: 8, display: 'block' }} />
               <div style={{ fontSize: 13, fontWeight: 700, color: '#111', lineHeight: 1.2, whiteSpace: 'nowrap' }}>{tenant.name}</div>
-              <div style={{ fontSize: 11, color: '#bbb', marginTop: 2, whiteSpace: 'nowrap' }}>Panel de administración</div>
             </div>
           ) : (
-            <div title={tenant.name} style={{ fontSize: 20 }}>
-              {tenant.logo_url
-                ? <img src={tenant.logo_url} alt="" style={{ width: 32, height: 32, objectFit: 'contain', display: 'block' }} />
-                : '🏠'}
-            </div>
+            <img src="/noduus-icon.svg" alt="Noduus" title={tenant.name} style={{ width: 28, height: 28, display: 'block' }} />
           )}
         </div>
 
