@@ -336,7 +336,7 @@
     <div class="card-subtitle" style="text-align:center;">
       Tu cuenta ya está activa. Podés iniciar sesión directamente.
     </div>
-    <a href="/tools/perfil/" class="btn btn-primary" style="text-decoration:none;margin-top:16px;">
+    <a href="/admin/dashboard" class="btn btn-primary" style="text-decoration:none;margin-top:16px;">
       Ir a Noduus →
     </a>
   </div>
@@ -421,6 +421,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, window.__ptAuthOpt
 const $ = id => document.getElementById(id);
 
 let _invite = null; // invitación validada
+let _destino = '/admin/dashboard'; // adónde ir tras activar (lo ajusta el tenant)
 
 // ── SHOW STATE ─────────────────────────────────────────────
 function show(id) {
@@ -540,9 +541,18 @@ async function register() {
     const { error: signInErr } = await sb.auth.signInWithPassword({ email, password });
     if (signInErr) throw signInErr;
 
+    // El admin resuelve el tenant por dominio. Si la invitacion se abrio desde
+    // otro host, el dashboard de aca la rebotaria con wrong_tenant, asi que se
+    // manda al dominio de su oficina. La sesion no cruza de dominio: alla
+    // entra con la contrasena que acaba de definir.
+    const bare = h => String(h || '').replace(/^www\./, '');
+    _destino = (out.domain && bare(out.domain) !== bare(location.host))
+      ? `https://${out.domain}/admin/login`
+      : '/admin/dashboard';
+
     // 5. Mostrar éxito y redirigir
     show('state-success');
-    setTimeout(() => { window.location.href = '/tools/perfil/'; }, 2000);
+    setTimeout(() => { window.location.href = _destino; }, 2000);
 
   } catch (err) {
     console.error('register error:', err);
@@ -550,7 +560,7 @@ async function register() {
     // Mensajes de error amigables
     let msg = err.message || 'Error al activar la cuenta.';
     if (msg.includes('already registered') || msg.includes('User already registered')) {
-      msg = 'Este email ya tiene una cuenta. <a href="/tools/perfil/" style="color:inherit;font-weight:600;">Iniciá sesión aquí.</a>';
+      msg = 'Este email ya tiene una cuenta. <a href="/admin/login" style="color:inherit;font-weight:600;">Iniciá sesión aquí.</a>';
     } else if (msg.includes('Password should be')) {
       msg = 'La contraseña no cumple los requisitos mínimos.';
     }

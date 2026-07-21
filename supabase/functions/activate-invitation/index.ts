@@ -59,9 +59,12 @@ Deno.serve(async (req) => {
     )
 
     // El token es la credencial: se busca por coincidencia exacta.
+    // Se trae el dominio del tenant para decirle al cliente adónde mandar a la
+    // persona: el admin resuelve el tenant por dominio, asi que entrar al
+    // dashboard desde otro host la rebota con wrong_tenant.
     const { data: invite } = await sb
       .from('invitations')
-      .select('id, tenant_id, email, job_title, expires_at')
+      .select('id, tenant_id, email, job_title, expires_at, tenants(domain)')
       .eq('token', token)
       .single()
 
@@ -136,7 +139,9 @@ Deno.serve(async (req) => {
 
     await sb.from('invitations').delete().eq('id', invite.id)
 
-    return json({ ok: true, email: invite.email })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const domain = (invite as any).tenants?.domain ?? null
+    return json({ ok: true, email: invite.email, domain })
 
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Error interno' }, 500)
