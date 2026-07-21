@@ -123,5 +123,5 @@ APP_DOMAIN=noduus.com
 ## Deuda / pendientes
 - `my_tenant_id()` no soporta multi-tenant por usuario (documentado en la migración).
 - `/api/contact`: rate-limit en memoria — pasar a Upstash/Redis si escala a varias instancias.
-- Edge Functions `delete-user`, `reset-user-password`, `tipo-cambio` deben estar desplegadas en el proyecto Noduus.
+- Edge Functions desplegadas: `invite-agent`, `delete-user`, `reset-user-password`. `tipo-cambio` se menciona pero no la llama nadie.
 - Decommission/redirect de `proptools.app`.
