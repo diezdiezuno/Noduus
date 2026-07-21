@@ -15,7 +15,12 @@ const D = {
   benefitsEyebrow: 'Por qué nosotros',
   benefitsTitle:   'Todo el respaldo que necesitás para vender y crecer.',
   benefits: [] as { id: string; icon: string; title: string; desc: string }[],
-  zoneGroups: [] as { label: string; items: string[] }[],
+  // Las zonas no pueden faltar: el campo es obligatorio para enviar, así que
+  // un select vacío deja el formulario imposible de completar. Las provincias
+  // sirven de mínimo razonable hasta que la oficina cargue sus zonas.
+  zoneGroups: [
+    { label: 'Provincia', items: ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Guanacaste', 'Puntarenas', 'Limón', 'Otra zona'] },
+  ] as { label: string; items: string[] }[],
   successTitle: '¡Aplicación recibida!',
   successText:  'Gracias por tu interés. Te contactaremos en las próximas 24 horas.',
 }
