@@ -75,7 +75,9 @@ function LoginForm() {
 
         {authError && (
           <div style={{ background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#c53030', marginBottom: 16 }}>
-            {authError === 'no_tenant' ? 'Tu cuenta no está asociada a ningún tenant.' : 'Error de autenticación. Intentá de nuevo.'}
+            {authError === 'no_tenant'    ? 'Tu cuenta no está asociada a ningún tenant.'
+             : authError === 'wrong_tenant' ? 'Tu cuenta no tiene acceso a esta oficina. Verificá que estés entrando por el dominio correcto.'
+             : 'Error de autenticación. Intentá de nuevo.'}
           </div>
         )}
 
