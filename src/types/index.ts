@@ -16,6 +16,11 @@ export interface TenantTheme {
   fontHeading: string
   fontBody: string
   mapStyle: string
+  /** Escala del logo en el nav. 1 = tamaño original.
+   *  Es un factor y no una altura fija porque el nav usa tres tamaños según
+   *  la variante (32, 30 y 34 px); escalarlos mantiene esa proporción y deja
+   *  el sitio igual que hoy mientras nadie lo toque. */
+  logoScale?: number
   // Map display options
   autoLightPreset?: boolean
   show3dObjects?: boolean

@@ -41,6 +41,7 @@ export default function GeneralPage() {
 
   // Branding
   const [logoUrl, setLogoUrl] = useState('')
+  const [logoScale, setLogoScale] = useState(1)
   const [footerLogoMode, setFooterLogoMode] = useState<'same' | 'custom'>('same')
   const [footerLogoUrl, setFooterLogoUrl] = useState('')
   const [faviconUrl, setFaviconUrl] = useState('')
@@ -120,6 +121,7 @@ export default function GeneralPage() {
         setDomain(tenant.domain ?? '')
         setTagline(tenant.tagline ?? '')
         setLogoUrl(tenant.logo_url ?? '')
+        setLogoScale(tenant.theme?.logoScale ?? 1)
         setFaviconUrl(tenant.favicon_url ?? '')
         setPrimaryColor(tenant.theme?.primaryColor ?? '#6b2fa0')
         setAccentColor(tenant.theme?.accentColor ?? '#f59e0b')
@@ -174,7 +176,7 @@ export default function GeneralPage() {
       await supabase.from('tenants').update({
         logo_url: logoUrl || null,
         favicon_url: faviconUrl || null,
-        theme: { ...(tenantRow?.theme ?? {}), primaryColor, accentColor, fontHeading, fontBody },
+        theme: { ...(tenantRow?.theme ?? {}), primaryColor, accentColor, fontHeading, fontBody, logoScale },
       }).eq('id', tenantId)
       await supabase.from('tenant_config').upsert({
         tenant_id: tenantId,
@@ -300,6 +302,29 @@ export default function GeneralPage() {
                 uploading={uploading.nav}
                 hint="Se muestra en la barra de navegación. PNG o SVG con fondo transparente recomendado."
               />
+              <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #f0f0f0' }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+                  Tamaño del logo — {Math.round(logoScale * 100)}%
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <input type="range" min={50} max={250} step={5}
+                    value={Math.round(logoScale * 100)}
+                    onChange={e => setLogoScale(Number(e.target.value) / 100)}
+                    style={{ flex: 1, accentColor: 'var(--color-primary, #111)' }} />
+                  <button type="button" onClick={() => setLogoScale(1)}
+                    style={{ border: '1.5px solid #e0e0e0', background: '#fff', color: '#555', borderRadius: 20, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                    Restablecer
+                  </button>
+                </div>
+                {logoUrl && (
+                  <div style={{ marginTop: 16, background: '#fff', border: '1px solid #ebebeb', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', minHeight: 72 }}>
+                    <img src={logoUrl} alt="Vista previa" style={{ height: Math.round(34 * logoScale), objectFit: 'contain' }} />
+                  </div>
+                )}
+                <p style={{ fontSize: 12, color: '#aaa', margin: '10px 0 0' }}>
+                  La barra crece con el logo. El 100% es el tamaño original; la vista previa muestra el alto real del nav de escritorio.
+                </p>
+              </div>
             </Section>
 
             <Section title="Logo del footer">

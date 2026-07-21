@@ -107,6 +107,10 @@ function priceToStep(price: number, steps: number[]): number {
 }
 
 export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
+  // Escala configurable del logo. Se acota para que un valor extremo no
+  // desarme el nav: crece con --nav-h, pero no sin limite.
+  const logoScale = Math.min(2.5, Math.max(0.5, tenant?.theme?.logoScale ?? 1))
+  const logoH = (base: number) => Math.round(base * logoScale)
   const pathname = usePathname()
   const isMap = pathname === '/'
   const isListings = pathname === '/listings'
@@ -253,7 +257,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
         }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0, marginRight: 8 }}>
             {tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={tenant?.name} style={{ height: 32, objectFit: 'contain' }} />
+              <img src={tenant.logo_url} alt={tenant?.name} style={{ height: logoH(32), objectFit: 'contain' }} />
             ) : (
               <span style={{ fontWeight: 800, fontSize: 16, color: '#111', letterSpacing: '-.02em' }}>{tenant?.name ?? 'Noduus'}</span>
             )}
@@ -327,7 +331,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
         }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
             {tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={tenant.name} style={{ height: 30, objectFit: 'contain' }} />
+              <img src={tenant.logo_url} alt={tenant.name} style={{ height: logoH(30), objectFit: 'contain' }} />
             ) : (
               <span style={{ fontWeight: 800, fontSize: 16, color: '#111', letterSpacing: '-.02em' }}>{tenant?.name ?? 'Noduus'}</span>
             )}
@@ -488,7 +492,7 @@ export default function Nav({ tenant, zones, pagesConfig }: NavProps) {
       {/* Logo */}
       <Link href="/" style={{ display: 'flex', alignItems: 'center', padding: '0 20px 0 8px', flexShrink: 0, alignSelf: 'center', textDecoration: 'none', minWidth: 120 }}>
         {tenant?.logo_url ? (
-          <img src={tenant.logo_url} alt={tenant.name} style={{ height: 34, objectFit: 'contain' }} />
+          <img src={tenant.logo_url} alt={tenant.name} style={{ height: logoH(34), objectFit: 'contain' }} />
         ) : (
           <span style={{ fontWeight: 800, fontSize: 16, color: '#111', letterSpacing: '-.02em' }}>{tenant?.name ?? 'Noduus'}</span>
         )}
