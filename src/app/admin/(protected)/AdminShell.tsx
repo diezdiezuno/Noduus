@@ -193,7 +193,10 @@ export default function AdminShell({ tenant, userEmail, role = 'admin', children
               impresión, donde manda su marca y no la de la plataforma. */}
           {open ? (
             <div style={{ overflow: 'hidden' }}>
-              <img src="/noduus_logo.png" alt="Noduus" style={{ height: 22, width: 'auto', marginBottom: 8, display: 'block' }} />
+              {/* 30px de alto → 162 de ancho. El sidebar abierto deja 176
+                  útiles (216 menos los 20 de padding que alinean con el menú),
+                  así que llena el espacio sin rozar el borde. */}
+              <img src="/noduus_logo.png" alt="Noduus" style={{ height: 30, width: 'auto', marginBottom: 10, display: 'block' }} />
               <div style={{ fontSize: 13, fontWeight: 700, color: '#111', lineHeight: 1.2, whiteSpace: 'nowrap' }}>{tenant.name}</div>
             </div>
           ) : (
