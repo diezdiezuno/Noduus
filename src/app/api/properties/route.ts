@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fetchRemaxCCAProperties } from '@/lib/providers/remax-cca'
+import { domainCandidates } from '@/lib/tenant'
 import type { Property } from '@/types'
 
 const supabase = createClient(
@@ -17,7 +18,8 @@ export async function GET(request: NextRequest) {
     let { data: tenant, error: e1 } = await supabase
       .from('tenants')
       .select('id, slug')
-      .eq('domain', domain)
+      .in('domain', domainCandidates(domain))
+      .limit(1)
       .single()
 
     if (!tenant) {

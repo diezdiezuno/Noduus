@@ -14,6 +14,20 @@ function publicClient() {
  *  Set APP_DOMAIN in env vars. Defaults to noduus.com. */
 const APP_DOMAIN = process.env.APP_DOMAIN ?? 'noduus.com'
 
+/** Formas del host que pueden estar guardadas en tenants.domain.
+ *
+ *  Cada dominio se arma distinto en Vercel: sunrisecr.com sirve el apex y el
+ *  www por separado, forsale-re.com redirige el apex hacia www. El host que
+ *  llega depende de eso, y tenants.domain guarda una sola de las dos formas.
+ *  Exigir coincidencia exacta hace que la mitad de las visitas no encuentre su
+ *  tenant: en el sitio público caen en la landing, y en los formularios el lead
+ *  se guarda bajo el tenant equivocado por el fallback al primero de la lista.
+ */
+export function domainCandidates(domain: string): string[] {
+  const bare = domain.replace(/^www\./, '')
+  return bare === domain ? [domain, `www.${domain}`] : [domain, bare]
+}
+
 /** Resolve a request host to a tenant.
  *
  *  Rules (in order):
@@ -39,10 +53,12 @@ export async function getTenantByDomain(domain: string): Promise<Tenant | null> 
     return data ?? null
   }
 
-  // 3. Custom domain → lookup by exact domain match
+  // 3. Custom domain → lookup by domain, con o sin www.
   if (!domain.includes('localhost') && !domain.endsWith('.localhost')) {
     const { data } = await supabase
-      .from('tenants').select('*').eq('domain', domain).single()
+      .from('tenants').select('*')
+      .in('domain', domainCandidates(domain))
+      .limit(1).single()
     return data ?? null
   }
 

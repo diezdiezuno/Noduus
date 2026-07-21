@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { domainCandidates } from '@/lib/tenant'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +22,8 @@ export async function POST(request: NextRequest) {
 
     // Resolve tenant
     let { data: tenant } = await supabase
-      .from('tenants').select('id, name').eq('domain', domain).single()
+      .from('tenants').select('id, name')
+      .in('domain', domainCandidates(domain)).limit(1).single()
     if (!tenant) {
       const { data: fallback } = await supabase
         .from('tenants').select('id, name').limit(1).single()
