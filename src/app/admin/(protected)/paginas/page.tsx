@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import type { PageConfig } from '@/types'
 import PageHeader from '@/components/admin/PageHeader'
+import PageContentEditor from './PageContentEditor'
 
 const PREDEFINED_PAGES: PageConfig[] = [
   { slug: 'nosotros',      title: 'Nosotros',             visible: true,  order: 1, custom: false },
@@ -35,9 +36,6 @@ export default function PaginasPage() {
   const [addingPage, setAddingPage] = useState(false)
   const [newTitle,   setNewTitle]   = useState('')
   const newInputRef = useRef<HTMLInputElement>(null)
-
-  // Iframe reload key
-  const [iframeKey, setIframeKey] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -107,7 +105,15 @@ export default function PaginasPage() {
   async function save() {
     setSaving(true)
     const supabase = createClient()
-    await supabase.from('tenant_config').upsert({ tenant_id: tenantId, pages_config: pages }, { onConflict: 'tenant_id' })
+    // Este guardado es de estructura (orden, visibilidad, altas/bajas). El
+    // contenido de cada página lo guarda el editor embebido por su lado. Se
+    // relee y se preservan los `settings` de la base para no borrarlos —la
+    // lista solo conoce la estructura, no el contenido.
+    const { data: fresh } = await supabase.from('tenant_config')
+      .select('pages_config').eq('tenant_id', tenantId).single()
+    const bySlug = new Map(((fresh?.pages_config as PageConfig[] | null) ?? []).map(p => [p.slug, p]))
+    const merged = pages.map(p => ({ ...p, settings: bySlug.get(p.slug)?.settings }))
+    await supabase.from('tenant_config').upsert({ tenant_id: tenantId, pages_config: merged }, { onConflict: 'tenant_id' })
     setSaving(false); setSavedMsg(true); setTimeout(() => setSavedMsg(false), 3000)
   }
 
@@ -120,13 +126,15 @@ export default function PaginasPage() {
   return (
     <div>
       {/* Header */}
-      <PageHeader title="Páginas" subtitle="Seleccioná una página para ver su vista previa y opciones."
+      <PageHeader title="Páginas" subtitle="Editá el contenido de cada página. Abajo, el orden y la visibilidad."
         right={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {savedMsg && <span style={{ fontSize: 13, color: '#38a169' }}>✓ Guardado</span>}
+            {/* Este botón guarda estructura (orden, visibilidad, altas/bajas). El
+                contenido tiene su propio botón dentro de cada página. */}
             <button onClick={save} disabled={saving}
               style={{ background: 'var(--color-primary, #111)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
-              {saving ? 'Guardando…' : 'Guardar cambios'}
+              {saving ? 'Guardando…' : 'Guardar orden y visibilidad'}
             </button>
           </div>
         } />
@@ -248,22 +256,6 @@ export default function PaginasPage() {
               {activePage.visible ? '● Visible' : '○ Oculta'}
             </button>
 
-            {/* Edit */}
-            <a href={`/admin/paginas/${activePage.slug}`}
-              style={{
-                padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                border: '1.5px solid #111', background: 'var(--color-primary, #111)', color: '#fff',
-                textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
-              }}>
-              Editar contenido →
-            </a>
-
-            {/* Reload preview */}
-            <button type="button" onClick={() => setIframeKey(k => k + 1)}
-              style={{ ...ctrlBtn(false), padding: '5px 10px' }} title="Recargar vista previa">
-              ↺
-            </button>
-
             {/* Delete (custom only) */}
             {activePage.custom && (
               <button type="button" onClick={() => removePage(activePage.slug)}
@@ -278,16 +270,12 @@ export default function PaginasPage() {
             )}
           </div>
 
-          {/* Iframe preview */}
-          <iframe
-            key={`${activePage.slug}-${iframeKey}`}
-            src={`/${activePage.slug}`}
-            style={{
-              width: '100%', height: 680, border: 'none', display: 'block',
-              background: '#f9f9fb',
-            }}
-            title={`Vista previa: ${activePage.title}`}
-          />
+          {/* Editor de contenido — la página real, editable en el lugar. Sin el
+              chrome del sitio (menú, logo, footer): solo el contenido. `key` por
+              slug lo remonta al cambiar de tab, así carga el contenido correcto. */}
+          <div style={{ padding: '20px 20px 24px', background: '#f9f9fb' }}>
+            <PageContentEditor key={activePage.slug} slug={activePage.slug} embedded />
+          </div>
         </div>
       )}
     </div>
