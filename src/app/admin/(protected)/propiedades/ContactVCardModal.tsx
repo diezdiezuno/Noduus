@@ -172,13 +172,16 @@ export default function ContactVCardModal({ view, onClose, onEdit, showCrmLink =
           <div style={{
             position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 3,
             width: 108, height: 108, borderRadius: 30, overflow: 'hidden',
-            background: contactData?.photo_url ? '#fff' : avatarColor + '22',
+            background: contactData?.photo_url ? '#fff' : avatarColor,
             border: '4px solid #fff', boxShadow: '0 8px 22px rgba(0,0,0,.20)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {contactData?.photo_url
               ? <img src={contactData.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ fontSize: 38, fontWeight: 800, color: avatarColor, letterSpacing: '-1px' }}>
+              // Oscuro, no blanco: la paleta tiene 6 colores claros (ámbar, lima,
+              // cian…) donde el blanco baja de 3:1 y las iniciales se pierden.
+              // Contra el oscuro los 12 pasan de 4.3:1.
+              : <span style={{ fontSize: 38, fontWeight: 800, color: '#0d0f12', letterSpacing: '-1px' }}>
                   {contactData ? getInitials(contactData.name, contactData.last_name) : coInitials(companyData!.trade_name || companyData!.name)}
                 </span>}
           </div>
