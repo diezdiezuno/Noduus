@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
 import { domainCandidates } from '@/lib/tenant'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 // ponytail: rate-limit en memoria por IP — 5 envíos / 10 min. Suficiente
 // contra spam de un solo origen; si escala a varias instancias en Vercel
@@ -96,8 +93,7 @@ export async function POST(request: NextRequest) {
     if (insertError) console.error('[contact] DB insert error:', JSON.stringify(insertError))
 
     // Send email notification
-    if (resend && notifEmails.length > 0) {
-      const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@noduus.com'
+    if (notifEmails.length > 0) {
       const isProperty = source === 'propiedad' && property_title
       const isListar   = source === 'listar'
 
@@ -154,10 +150,6 @@ export async function POST(request: NextRequest) {
           ? `Nueva propiedad para listar — ${name}`
           : `Nuevo mensaje de contacto — ${name}`
 
-      const logoHtml = (tenant as Record<string, string | null>).logo_url
-        ? `<img src="${(tenant as Record<string, string | null>).logo_url}" alt="${tenant.name}" style="height:36px;object-fit:contain;display:block;margin-bottom:16px;">`
-        : `<div style="font-size:18px;font-weight:700;color:#111;margin-bottom:16px;">${tenant.name}</div>`
-
       const propertyBlock = isProperty ? `
         <div style="margin-bottom:28px;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;">
           <div style="padding:16px 20px 12px;">
@@ -167,49 +159,34 @@ export async function POST(request: NextRequest) {
           </div>
         </div>` : ''
 
-      const html = `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f0f0f2;font-family:system-ui,-apple-system,sans-serif;">
-  <div style="max-width:720px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e0e0e0;">
+      // El envoltorio (encabezado, marca, pie) lo pone send-email; aca solo el contenido.
+      const html = `
+        ${propertyBlock}
+        <div style="font-size:13px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;">Datos del contacto</div>
+        <table style="width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1px solid #ebebeb;">
+          ${tableRows}
+        </table>`
 
-    <!-- Header — blanco con logo -->
-    <div style="background:#fff;padding:28px 48px 24px;border-bottom:1px solid #ebebeb;">
-      ${logoHtml}
-      <div style="font-size:22px;font-weight:700;color:#111;line-height:1.2;">${isProperty ? 'Nueva consulta de propiedad' : isListar ? 'Nueva propiedad para listar' : 'Nuevo mensaje de contacto'}</div>
-      <div style="font-size:13px;color:#999;margin-top:4px;">${tenant.name}</div>
-    </div>
-
-    <!-- Body -->
-    <div style="padding:36px 48px;">
-      ${propertyBlock}
-      <div style="font-size:13px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;">Datos del contacto</div>
-      <table style="width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1px solid #ebebeb;">
-        ${tableRows}
-      </table>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:20px 48px 28px;border-top:1px solid #f0f0f0;background:#fafafa;">
-      <p style="font-size:12px;color:#bbb;margin:0;line-height:1.6;">
-        Enviado automáticamente desde ${tenant.name}. Respondé este email para contactar al cliente directamente.
-      </p>
-    </div>
-  </div>
-</body>
-</html>`
-
-      // El SDK no lanza: devuelve { error } y hay que mirarlo a mano, o un
-      // rechazo (dominio sin verificar, API key inválida) pasa desapercibido.
-      // No abortamos: el lead ya está guardado y el visitante no puede hacer nada.
-      const { error: mailError } = await resend.emails.send({
-        from: fromEmail,
-        to: notifEmails,
-        replyTo: email ?? undefined,
-        subject,
-        html,
+      // Todo el correo transaccional sale por send-email: un solo layout y un
+      // solo lugar donde queda registrado lo que se envio.
+      const mail = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          tenant_id: tenant.id,
+          to: notifEmails,
+          reply_to: email ?? undefined,
+          kind: source ?? 'contacto',
+          subject,
+          heading: isProperty ? 'Nueva consulta de propiedad' : isListar ? 'Nueva propiedad para listar' : 'Nuevo mensaje de contacto',
+          body_html: html,
+          footnote: 'Respondé este email para contactar al cliente directamente.',
+        }),
       })
-      if (mailError) console.error('[contact] Resend error:', JSON.stringify(mailError))
+      if (!mail.ok) console.error('[contact] send-email:', (await mail.text()).slice(0, 300))
     }
 
     return NextResponse.json({ ok: true })

@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
 import { domainCandidates } from '@/lib/tenant'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,8 +68,7 @@ export async function POST(request: NextRequest) {
     if (insertError) console.error('[recruit] DB insert error:', JSON.stringify(insertError))
 
     // Send email notification
-    if (resend && notifEmails.length > 0) {
-      const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@noduus.com'
+    if (notifEmails.length > 0) {
       const perfilLabel: Record<string, string> = {
         nuevo: 'Nuevo en bienes raíces',
         experiencia: 'Agente con experiencia',
@@ -97,44 +93,34 @@ export async function POST(request: NextRequest) {
           <td style="padding:12px 20px;font-size:14px;color:#111;border-bottom:1px solid #f0f0f0;line-height:1.6;word-break:break-word;">${value}</td>
         </tr>`).join('')
 
-      const html = `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f0f0f2;font-family:system-ui,-apple-system,sans-serif;">
-  <div style="max-width:720px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e0e0e0;">
-    <!-- Header -->
-    <div style="background:#111;padding:32px 48px;">
-      <div style="font-size:12px;font-weight:500;color:rgba(255,255,255,.45);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;">${tenant.name}</div>
-      <div style="font-size:24px;font-weight:700;color:#fff;line-height:1.2;">Nueva aplicación de reclutamiento</div>
-    </div>
-    <!-- Body -->
-    <div style="padding:36px 48px;">
-      <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.7;">
-        Se recibió una nueva aplicación. A continuación los datos del candidato:
-      </p>
-      <table style="width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1px solid #ebebeb;">
-        ${tableRows}
-      </table>
-    </div>
-    <!-- Footer -->
-    <div style="padding:20px 48px 28px;border-top:1px solid #f0f0f0;background:#fafafa;">
-      <p style="font-size:12px;color:#bbb;margin:0;line-height:1.6;">
-        Enviado automáticamente desde ${tenant.name}. Respondé este email para contactar al candidato.
-      </p>
-    </div>
-  </div>
-</body>
-</html>`
+      // El envoltorio (encabezado, marca, pie) lo pone send-email.
+      const html = `
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.7;">
+          Se recibió una nueva aplicación. A continuación los datos del candidato:
+        </p>
+        <table style="width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1px solid #ebebeb;">
+          ${tableRows}
+        </table>`
 
-      // Ver nota en api/contact: el SDK no lanza, devuelve { error }.
-      const { error: mailError } = await resend.emails.send({
-        from: fromEmail,
-        to: notifEmails,
-        replyTo: email,
-        subject: `Nueva aplicación — ${nombre} ${apellido} (${perfilLabel[perfil] ?? perfil})`,
-        html,
+      // Todo el correo transaccional sale por send-email.
+      const mail = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          tenant_id: tenant.id,
+          to: notifEmails,
+          reply_to: email,
+          kind: 'reclutamiento',
+          subject: `Nueva aplicación — ${nombre} ${apellido} (${perfilLabel[perfil] ?? perfil})`,
+          heading: 'Nueva aplicación de reclutamiento',
+          body_html: html,
+          footnote: 'Respondé este email para contactar al candidato.',
+        }),
       })
-      if (mailError) console.error('[recruit] Resend error:', JSON.stringify(mailError))
+      if (!mail.ok) console.error('[recruit] send-email:', (await mail.text()).slice(0, 300))
     }
 
     return NextResponse.json({ ok: true })

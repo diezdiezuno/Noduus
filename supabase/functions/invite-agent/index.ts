@@ -93,18 +93,28 @@ Deno.serve(async (req) => {
     const extra  = message
       ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#374151;">${esc(message)}</p>`
       : ''
-    const from   = Deno.env.get('RESEND_FROM_EMAIL') || 'noreply@noduus.com'
 
-    const html = emailHtml({ who, office, extra, link })
-
-    const mail = await fetch('https://api.resend.com/emails', {
+    // El armado y el envio viven en send-email: aca solo se define el contenido.
+    const mail = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
       body: JSON.stringify({
-        from: `${office} <${from}>`,
-        to: [email],
+        tenant_id,
+        to: email,
+        kind: 'invitacion',
         subject: `Invitación para unirte a ${office}`,
-        html,
+        heading: `${who}, te invitamos a unirte al equipo`,
+        body_html: `
+          <p style="margin:0 0 16px;font-size:15px;color:#111;">Hola <strong>${who}</strong>,</p>
+          ${extra}
+          <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#374151;">
+            Has sido invitado/a a unirte a <strong>${office}</strong> en Noduus, la plataforma para profesionales inmobiliarios.
+          </p>`,
+        cta: { label: 'Crear mi cuenta →', url: link },
+        footnote: 'Si no esperabas esta invitación, podés ignorar este mensaje.<br/>El enlace expirará en 7 días.',
       }),
     })
 
@@ -119,40 +129,6 @@ Deno.serve(async (req) => {
     return json({ error: err instanceof Error ? err.message : 'Error interno' }, 500)
   }
 })
-
-// ── Email Noduus (negro limpio, sin branding Noduus) ────────────────────
-function emailHtml({ who, office, extra, link }: { who: string; office: string; extra: string; link: string }) {
-  return `<!doctype html>
-<html><body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e2e5ea;">
-        <tr><td style="background:#111;padding:28px 32px;">
-          <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#fff;margin-bottom:12px;">Noduus</div>
-          <div style="color:#fff;font-size:17px;font-weight:700;">${who}, te invitamos a unirte al equipo</div>
-        </td></tr>
-        <tr><td style="padding:28px 32px;">
-          <p style="margin:0 0 16px;font-size:15px;color:#111;">Hola <strong>${who}</strong>,</p>
-          ${extra}
-          <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#374151;">
-            Has sido invitado/a a unirte a <strong>${office}</strong> en Noduus, la plataforma para profesionales inmobiliarios.
-          </p>
-          <a href="${link}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 28px;border-radius:10px;">Crear mi cuenta →</a>
-          <div style="height:1px;background:#eceef1;margin:24px 0;"></div>
-          <p style="margin:0;font-size:12px;color:#9aa1ad;line-height:1.6;">
-            Si no esperabas esta invitación, podés ignorar este mensaje.<br/>
-            El enlace expirará en 7 días.
-          </p>
-        </td></tr>
-        <tr><td style="background:#f4f5f7;border-top:1px solid #e2e5ea;padding:14px 32px;">
-          <span style="font-size:12px;font-weight:800;color:#111;">Noduus</span>
-          <span style="font-size:11px;color:#9aa1ad;float:right;">${office}</span>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
