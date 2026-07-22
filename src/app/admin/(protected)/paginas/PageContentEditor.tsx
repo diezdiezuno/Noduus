@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase-browser'
 import type { PageConfig, PageSettings, NosotrosContent, ContactoContent, ReclutamientoContent } from '@/types'
 import PageHeader from '@/components/admin/PageHeader'
 import NosotrosTemplate from '@/app/(public)/nosotros/NosotrosTemplate'
+import ContactoTemplate from '@/app/(public)/contacto/ContactoTemplate'
+import ReclutamientoTemplate from '@/app/(public)/reclutamiento/ReclutamientoTemplate'
 import { EditableProvider, escribirRuta } from '@/components/public/EdicionEnVivo'
 
 const PREDEFINED_SLUGS = ['nosotros', 'agentes', 'contacto', 'listar', 'reclutamiento']
@@ -143,6 +145,10 @@ export default function PageContentEditor({ slug, embedded = false }: { slug: st
   // en el mismo estado que usan los controles de listas.
   const setNRuta = (ruta: string, valor: string) =>
     setNosotrosContent(c => escribirRuta(c as Record<string, unknown>, ruta, valor) as NosotrosContent)
+  const setCRuta = (ruta: string, valor: string) =>
+    setContactoContent(c => escribirRuta(c as Record<string, unknown>, ruta, valor) as ContactoContent)
+  const setRRuta = (ruta: string, valor: string) =>
+    setReclutamientoContent(c => escribirRuta(c as Record<string, unknown>, ruta, valor) as ReclutamientoContent)
   const setC = (patch: Partial<ContactoContent>) => setContactoContent(c => ({ ...c, ...patch }))
   const setR = (patch: Partial<ReclutamientoContent>) => setReclutamientoContent(c => ({ ...c, ...patch }))
 
@@ -258,23 +264,19 @@ export default function PageContentEditor({ slug, embedded = false }: { slug: st
               </Section>
             )}
             {contactoTemplate === 'estandar' && (
-              <Section title="Textos de la página">
-                <Inp label="Título" value={contactoContent.hero?.title ?? ''}
-                  onChange={v => setC({ hero: { ...contactoContent.hero, title: v } })}
-                  placeholder="Hablemos." />
-                <div style={{ height: 14 }} />
-                <Inp label="Palabras destacadas" value={contactoContent.hero?.accent ?? ''}
-                  onChange={v => setC({ hero: { ...contactoContent.hero, accent: v } })}
-                  placeholder="Estamos aquí."
-                  hint="Se muestran con el degradado de color, al final del título." />
-                <div style={{ height: 14 }} />
-                <Txt label="Texto de presentación" rows={3} value={contactoContent.hero?.text ?? ''}
-                  onChange={v => setC({ hero: { ...contactoContent.hero, text: v } })} />
-                <Inp label="Título del formulario" value={contactoContent.form?.title ?? ''}
-                  onChange={v => setC({ form: { ...contactoContent.form, title: v } })} />
-                <div style={{ height: 14 }} />
-                <Txt label="Texto del formulario" rows={2} value={contactoContent.form?.text ?? ''}
-                  onChange={v => setC({ form: { ...contactoContent.form, text: v } })} />
+              <Section title="Contenido de la página">
+                <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 14 }}>
+                  Hacé clic sobre cualquier texto para editarlo. Los datos de contacto
+                  (WhatsApp, email, dirección, redes) se configuran en General.
+                </p>
+                <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, overflowX: 'auto', '--nav-h': '0px' } as React.CSSProperties}>
+                  <EditableProvider editando onChange={setCRuta}>
+                    <ContactoTemplate content={contactoContent}
+                      whatsapp={null} email={null} address={null}
+                      instagram={null} facebook={null} linkedin={null}
+                      youtube={null} tiktok={null} twitter={null} />
+                  </EditableProvider>
+                </div>
               </Section>
             )}
             <Section title="Información de contacto">
@@ -519,33 +521,22 @@ export default function PageContentEditor({ slug, embedded = false }: { slug: st
             </Section>
             {reclutamientoTemplate === 'estandar' && (
               <>
-                <Section title="Encabezado">
-                  <Inp label="Título" value={reclutamientoContent.hero?.title ?? ''}
-                    onChange={v => setR({ hero: { ...reclutamientoContent.hero, title: v } })}
-                    placeholder="Tu carrera en" />
-                  <div style={{ height: 14 }} />
-                  <Inp label="Palabras destacadas" value={reclutamientoContent.hero?.accent ?? ''}
-                    onChange={v => setR({ hero: { ...reclutamientoContent.hero, accent: v } })}
-                    placeholder="bienes raíces"
-                    hint="Se muestran con el degradado de color, en medio del título." />
-                  <div style={{ height: 14 }} />
-                  <Inp label="Cierre del título" value={reclutamientoContent.hero?.tail ?? ''}
-                    onChange={v => setR({ hero: { ...reclutamientoContent.hero, tail: v } })}
-                    placeholder="empieza aquí."
-                    hint="Va en la línea de abajo, después de las palabras destacadas." />
-                  <div style={{ height: 14 }} />
-                  <Txt label="Texto de presentación" rows={3} value={reclutamientoContent.hero?.text ?? ''}
-                    onChange={v => setR({ hero: { ...reclutamientoContent.hero, text: v } })} />
+                <Section title="Contenido de la página">
+                  <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 14 }}>
+                    Hacé clic sobre cualquier texto para editarlo. Los beneficios y las zonas
+                    —que son listas— se manejan abajo.
+                  </p>
+                  <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, overflowX: 'auto', '--nav-h': '0px' } as React.CSSProperties}>
+                    <EditableProvider editando onChange={setRRuta}>
+                      <ReclutamientoTemplate content={reclutamientoContent} />
+                    </EditableProvider>
+                  </div>
                 </Section>
 
                 <Section title="Beneficios">
-                  <Inp label="Antetítulo" value={reclutamientoContent.benefits?.eyebrow ?? ''}
-                    onChange={v => setR({ benefits: { ...reclutamientoContent.benefits, eyebrow: v } })}
-                    placeholder="Por qué nosotros" />
-                  <div style={{ height: 14 }} />
-                  <Inp label="Título" value={reclutamientoContent.benefits?.title ?? ''}
-                    onChange={v => setR({ benefits: { ...reclutamientoContent.benefits, title: v } })} />
-                  <div style={{ height: 14 }} />
+                  <p style={{ fontSize: 12, color: '#888', marginTop: 0, marginBottom: 14 }}>
+                    Tarjetas de la sección de beneficios. El antetítulo y el título se editan arriba, en la vista previa.
+                  </p>
                   <ObjList label="Beneficios" items={reclutamientoContent.benefits?.items ?? []}
                     onChange={v => setR({ benefits: { ...reclutamientoContent.benefits, items: v } })}
                     fields={[

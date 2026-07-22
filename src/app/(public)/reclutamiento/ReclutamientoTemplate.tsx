@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { track } from '@/lib/gtag'
 import { createClient } from '@/lib/supabase-browser'
 import type { ReclutamientoContent } from '@/types'
+import { Editable } from '@/components/public/EdicionEnVivo'
 
 // Defaults genericos: el copy y las zonas de cada oficina viven en la base
 // (pages_config.settings.reclutamiento_content), no en el componente.
@@ -112,21 +113,21 @@ export default function ReclutamientoClient({ content = {} }: { content?: Reclut
           fontWeight: 900, lineHeight: .93,
           letterSpacing: '-.03em', marginBottom: 28,
         }}>
-          {heroTitle}{' '}
+          <Editable ruta="hero.title">{heroTitle}</Editable>{' '}
           <span style={{
             background: 'linear-gradient(90deg,var(--primary,#6b2fa0),#D44E2A,#E8920A)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-          }}>{heroAccent}</span><br />
-          {heroTail}
+          }}><Editable ruta="hero.accent">{heroAccent}</Editable></span><br />
+          <Editable ruta="hero.tail">{heroTail}</Editable>
         </h1>
 
         <p style={{
           fontSize: 'clamp(16px,1.8vw,20px)', fontWeight: 300,
           color: '#888480', maxWidth: 720, lineHeight: 1.65, marginBottom: 44,
         }}>
-          {heroText}
+          <Editable ruta="hero.text" bloque>{heroText}</Editable>
         </p>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 64 }}>
@@ -168,7 +169,7 @@ export default function ReclutamientoClient({ content = {} }: { content?: Reclut
         borderTop: '1px solid #e8e4df',
       }}>
         <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--primary,#6b2fa0)', marginBottom: 14, textAlign: 'center', width: '100%' }}>
-          {benefitsEyebrow}
+          <Editable ruta="benefits.eyebrow">{benefitsEyebrow}</Editable>
         </p>
         <h2 style={{
           fontFamily: 'var(--font-heading,serif)',
@@ -176,7 +177,7 @@ export default function ReclutamientoClient({ content = {} }: { content?: Reclut
           lineHeight: 1.1, letterSpacing: '-.02em',
           marginBottom: 52, textAlign: 'center', width: '100%',
         }}>
-          {benefitsTitle}
+          <Editable ruta="benefits.title" bloque>{benefitsTitle}</Editable>
         </h2>
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(2,1fr)',

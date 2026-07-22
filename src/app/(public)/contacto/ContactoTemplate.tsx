@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { track } from '@/lib/gtag'
 import type { ContactoContent } from '@/types'
+import { Editable } from '@/components/public/EdicionEnVivo'
 
 // Defaults genericos: el copy de cada oficina vive en la base
 // (pages_config.settings.contacto_content), no en el componente.
@@ -81,19 +82,19 @@ export default function ContactoTemplate({ content = {}, whatsapp, email, addres
             fontWeight: 900, lineHeight: .93,
             letterSpacing: '-.03em', marginBottom: 28,
           }}>
-            {heroTitle}{' '}
+            <Editable ruta="hero.title">{heroTitle}</Editable>{' '}
             <span style={{
               background: 'linear-gradient(90deg,var(--primary,#6b2fa0),#D44E2A,#E8920A)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-            }}>{heroAccent}</span>
+            }}><Editable ruta="hero.accent">{heroAccent}</Editable></span>
           </h1>
           <p style={{
             fontSize: 'clamp(16px,1.8vw,20px)', fontWeight: 300,
             color: '#888480', lineHeight: 1.65, maxWidth: 580,
           }}>
-            {heroText}
+            <Editable ruta="hero.text" bloque>{heroText}</Editable>
           </p>
         </div>
       </section>
@@ -148,10 +149,10 @@ export default function ContactoTemplate({ content = {}, whatsapp, email, addres
               lineHeight: 1.15, letterSpacing: '-.02em',
               color: '#111', margin: '0 0 20px',
             }}>
-              {formTitle}
+              <Editable ruta="form.title" bloque>{formTitle}</Editable>
             </h2>
             <p style={{ fontSize: 14, color: '#888', lineHeight: 1.7, margin: '0 0 36px' }}>
-              {formText}
+              <Editable ruta="form.text" bloque>{formText}</Editable>
             </p>
 
             {/* Social */}
