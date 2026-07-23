@@ -1695,9 +1695,14 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
   // El mantenimiento se edita en Características.
   const [price,      setPrice]      = useState<string | number>(prop.price ?? '')
   const [currency,   setCurrency]   = useState(prop.currency ?? 'USD')
-  // Solo para transaction = 'sale_rent': precio de alquiler (vive en features).
-  const [rentPrice,  setRentPrice]  = useState<string | number>(prop.features?.rent_price ?? '')
-  const [rentCurr,   setRentCurr]   = useState(prop.features?.rent_currency ?? 'USD')
+  // Precio de alquiler. En 'sale_rent' vive en features (distinto de la venta).
+  // En alquiler-solo el precio de display es properties.price, así que si no hay
+  // rent_price se cae a él (si no, editar una propiedad de alquiler mostraría vacío
+  // y guardar borraría el precio).
+  const [rentPrice,  setRentPrice]  = useState<string | number>(
+    prop.features?.rent_price || (prop.transaction === 'rent' ? String(prop.price ?? '') : ''))
+  const [rentCurr,   setRentCurr]   = useState(
+    prop.features?.rent_currency || (prop.transaction === 'rent' ? (prop.currency ?? 'USD') : 'USD'))
   const [saving,     setSaving]     = useState(false)
   const [saved,      setSaved]      = useState(false)
   const [saveError,  setSaveError]  = useState<string | null>(null)
@@ -1731,11 +1736,11 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
     return () => { cancelled = true }
   }, [prop.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Venta (o único negocio) y alquiler se calculan igual; el alquiler solo
-  // se usa/guarda en 'sale_rent'.
-  const saleDeal = computeDeal(price, commMode, commission, splitMode, splitValue)
+  // Negocio principal (columnas commission*/split*): base el precio de venta,
+  // salvo alquiler-solo donde la base es el de alquiler. El de alquiler aparte
+  // (columnas *_rent) solo se usa en 'sale_rent'.
+  const mainDeal = computeDeal(prop.transaction === 'rent' ? rentPrice : price, commMode, commission, splitMode, splitValue)
   const rentDeal = computeDeal(rentPrice, commModeR, commissionR, splitModeR, splitValueR)
-  const priceNum = saleDeal.priceNum
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setSaveError(null); setSaved(false)
@@ -1745,15 +1750,20 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
     //    vive en features: se mergea con lo existente para no borrar el
     //    mantenimiento que se edita en Características.
     const esVentaAlquiler = prop.transaction === 'sale_rent'
+    const conAlquiler = prop.transaction === 'rent' || esVentaAlquiler
     const feat: Record<string, string> = { ...(prop.features ?? {}) }
-    if (esVentaAlquiler) {
+    if (conAlquiler) {
       feat.rent_price = String(rentPrice).trim()
       feat.rent_currency = rentCurr
     } else {
       feat.rent_price = ''; feat.rent_currency = ''
     }
+    // El precio de display (lo que muestra el sitio) es el de venta, o el de
+    // alquiler si es alquiler-solo. mainDeal ya tiene esa base.
     const { data: pData, error: pErr } = await sb.from('properties').update({
-      price: priceNum, currency, features: feat,
+      price: mainDeal.priceNum,
+      currency: prop.transaction === 'rent' ? rentCurr : currency,
+      features: feat,
     }).eq('id', prop.id).select('*').single()
     if (pErr) { setSaveError(`Error: ${pErr.message}`); setSaving(false); return }
 
@@ -1761,14 +1771,14 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
     const payload = {
       tenant_id: prop.tenant_id, property_id: prop.id,
       kind, start_date: startDate || null, end_date: endDate || null,
-      price: priceNum, currency,
+      price: mainDeal.priceNum, currency: prop.transaction === 'rent' ? rentCurr : currency,
       // commission se conserva como % (lo leen otros lugares); guardamos también
       // el monto y qué modo eligió el usuario para reabrirlo igual.
-      commission:        saleDeal.commissionPct ? Math.round(saleDeal.commissionPct * 100) / 100 : null,
+      commission:        mainDeal.commissionPct ? Math.round(mainDeal.commissionPct * 100) / 100 : null,
       commission_type:   commMode,
-      commission_amount: saleDeal.commissionAmt ? Math.round(saleDeal.commissionAmt) : null,
+      commission_amount: mainDeal.commissionAmt ? Math.round(mainDeal.commissionAmt) : null,
       split_type:        splitMode,
-      split_value:       saleDeal.splitInput || null,
+      split_value:       mainDeal.splitInput || null,
       // El set de alquiler solo aplica a 'sale_rent'; si no, se limpia.
       commission_rent:        esVentaAlquiler && rentDeal.commissionPct ? Math.round(rentDeal.commissionPct * 100) / 100 : null,
       commission_rent_type:   commModeR,
@@ -1848,10 +1858,15 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
         </>
       ) : (
         <FormSection title="Precio, comisión y negocio externo">
-          <DealRow priceLabel={trans === 'rent' ? 'Precio de alquiler' : 'Precio de venta'}
-            price={price} setPrice={setPrice} currency={currency} setCurrency={setCurrency}
-            commMode={commMode} setCommMode={setCommMode} commission={commission} setCommission={setCommission}
-            splitMode={splitMode} setSplitMode={setSplitMode} splitValue={splitValue} setSplitValue={setSplitValue} />
+          {trans === 'rent'
+            ? <DealRow priceLabel="Precio de alquiler"
+                price={rentPrice} setPrice={setRentPrice} currency={rentCurr} setCurrency={setRentCurr}
+                commMode={commMode} setCommMode={setCommMode} commission={commission} setCommission={setCommission}
+                splitMode={splitMode} setSplitMode={setSplitMode} splitValue={splitValue} setSplitValue={setSplitValue} />
+            : <DealRow priceLabel="Precio de venta"
+                price={price} setPrice={setPrice} currency={currency} setCurrency={setCurrency}
+                commMode={commMode} setCommMode={setCommMode} commission={commission} setCommission={setCommission}
+                splitMode={splitMode} setSplitMode={setSplitMode} splitValue={splitValue} setSplitValue={setSplitValue} />}
         </FormSection>
       )}
 
