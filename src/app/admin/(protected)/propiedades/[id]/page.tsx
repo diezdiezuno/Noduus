@@ -290,7 +290,7 @@ export default function PropiedadPage() {
       {!canEdit && <style>{'fieldset[disabled] button[type="submit"]{display:none}'}</style>}
       <fieldset disabled={!canEdit} style={{ border: 'none', margin: 0, padding: 0, minInlineSize: 0 }}>
         {activeTab === 1 && <Tab1Captacion prop={prop} propTypes={propTypes} onSaved={setProp} />}
-        {activeTab === 2 && <Tab2CaracteristicasAmenidades prop={prop} amenities={amenities} onSaved={setProp} />}
+        {activeTab === 2 && <Tab2CaracteristicasAmenidades prop={prop} amenities={amenities} isAdmin={isAdmin} onSaved={setProp} />}
         {activeTab === 3 && <Tab7Estudios  prop={prop} />}
         {activeTab === 4 && <TabContrato   prop={prop} onSaved={setProp} />}
         {activeTab === 5 && <Tab5Descripcion prop={prop} onSaved={setProp} />}
@@ -663,8 +663,8 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
 // Medidas + amenidades + precio en un solo tab y un solo guardado.
 // El precio vive acá (y no en Contrato) porque es insumo del contrato:
 // se define antes de firmarlo.
-function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
-  prop: PropertyFull; amenities: string[]; onSaved: (p: PropertyFull) => void
+function Tab2CaracteristicasAmenidades({ prop, amenities, isAdmin, onSaved }: {
+  prop: PropertyFull; amenities: string[]; isAdmin: boolean; onSaved: (p: PropertyFull) => void
 }) {
   const [bedrooms,   setBedrooms]   = useState(prop.bedrooms   ?? '')
   const [bathrooms,  setBathrooms]  = useState(prop.bathrooms  ?? '')
@@ -743,19 +743,23 @@ function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
             )
           })}
         </div>
-        <div>
-          <FieldLabel>Agregar amenidad personalizada</FieldLabel>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input value={custom} onChange={e => setCustom(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
-              placeholder="Escribí y presioná Enter o Agregar…"
-              style={{ ...inputSt, flex: 1 }} />
-            <button type="button" onClick={addCustom}
-              style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-              + Agregar
-            </button>
+        {/* Solo el admin agrega amenidades nuevas al catálogo. El agente elige
+            entre las existentes pero no inventa nuevas. */}
+        {isAdmin && (
+          <div>
+            <FieldLabel>Agregar amenidad personalizada</FieldLabel>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={custom} onChange={e => setCustom(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+                placeholder="Escribí y presioná Enter o Agregar…"
+                style={{ ...inputSt, flex: 1 }} />
+              <button type="button" onClick={addCustom}
+                style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                + Agregar
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         {selected.filter(a => !amenities.includes(a)).length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
             {selected.filter(a => !amenities.includes(a)).map(a => (
