@@ -176,6 +176,12 @@ Al cerrar uno, borrarlo de acá; esta lista es el estado, no el historial.
   valores de retorno ignorados. Es el patrón que más veces mordió este proyecto.
 
 ### P2
+- **Sistema de contratos automáticos + firma.** El estado del contrato (vigente/
+  vencido/…) se sacó del tab de Contrato porque debe ser automático: el CRM enviará
+  el contrato a firma con lo ya recopilado, y las fechas/vencimientos se derivan solos.
+  Hoy `contracts.status` queda en el valor existente o 'vigente' al guardar. Falta:
+  generar el documento, mandarlo a firma y mover el estado según lo que pase (firmado,
+  vencido, cancelado). El tab ya guarda tipo, fechas, precio, comisión y split.
 - **Flujos sin probar de punta a punta**: formulario de contacto (deja rastro en
   `email_log`, ahí se ve si falla) y listar propiedad con PDF adjunto.
 - **Correos de auth fuera de `email_log`**: los manda Supabase y su único rastro es
