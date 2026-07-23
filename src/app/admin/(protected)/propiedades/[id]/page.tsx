@@ -221,7 +221,7 @@ export default function PropiedadPage() {
               ? <EditableTitle value={prop.title} onSave={saveTitle} />
               : <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>{prop.title || <span style={{ color: '#bbb', fontWeight: 400 }}>Sin título</span>}</h1>}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {prop.provincia && <span style={{ fontSize: 13, color: '#888' }}>📍 {[prop.canton, prop.provincia].filter(Boolean).join(', ')}</span>}
+              {prop.provincia && <span style={{ fontSize: 13, color: '#888' }}>{[prop.canton, prop.provincia].filter(Boolean).join(', ')}</span>}
               {canEdit
                 ? <StatusSelect value={prop.crm_status} statuses={statuses} onChange={saveStatus} />
                 : (() => { const c = statusColor(prop.crm_status); return <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: c.bg, color: c.color }}>{statuses.find(s => s.value === prop.crm_status)?.label ?? prop.crm_status}</span> })()}
@@ -265,8 +265,7 @@ export default function PropiedadPage() {
             fontWeight: activeTab === t.id ? 600 : 400,
             fontSize: 13, fontFamily: 'inherit', transition: 'color .15s',
           }}>
-            <span style={{ fontSize: 15 }}>{t.icon}</span>
-            {t.id}. {t.label}
+            {t.label}
             <span title={progress[t.id] ? 'Con datos' : 'Pendiente'} style={{
               width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
               background: progress[t.id] ? '#10B981' : '#d5d9e0',
@@ -281,7 +280,7 @@ export default function PropiedadPage() {
         {activeTab === 1 && <Tab1Captacion prop={prop} propTypes={propTypes} onSaved={setProp} />}
         {activeTab === 2 && <Tab2CaracteristicasAmenidades prop={prop} amenities={amenities} onSaved={setProp} />}
         {activeTab === 3 && <Tab7Estudios  prop={prop} />}
-        {activeTab === 4 && <TabContrato   prop={prop} />}
+        {activeTab === 4 && <TabContrato   prop={prop} onSaved={setProp} />}
         {activeTab === 5 && <Tab5Descripcion prop={prop} onSaved={setProp} />}
         {activeTab === 6 && <Tab6Media     prop={prop} onSaved={setProp} />}
         {activeTab === 7 && <TabPortales />}
@@ -546,7 +545,10 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
 
       {/* El Estado CRM vive en el header (visible en todos los tabs). */}
 
-      {/* ── 1. Datos básicos ──────────────────────────────── */}
+      {/* Dueños primero: es lo que abre la captación. */}
+      <OwnerSection prop={prop} />
+
+      {/* ── Datos básicos ──────────────────────────────── */}
       <FormSection title="Datos básicos">
         <FieldLabel>Tipo de transacción</FieldLabel>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -562,7 +564,7 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
           {propTypes.map(t => (
             <button key={t.value} type="button" onClick={() => setPropType(t.value)}
               style={{ padding: '8px 16px', borderRadius: 100, border: '2px solid', borderColor: propType === t.value ? '#111' : '#e0e0e0', background: propType === t.value ? '#111' : '#fff', color: propType === t.value ? '#fff' : '#555', fontSize: 13, fontWeight: propType === t.value ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, transition: 'all .15s' }}>
-              {t.icon && <span>{t.icon}</span>} {t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -599,7 +601,7 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
           <div ref={mapContainerRef} style={{ height: 340, width: '100%' }} />
           <button type="button" onClick={useMyLocation} disabled={geoLoading}
             style={{ position: 'absolute', top: 12, left: 12, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, padding: '7px 13px', fontSize: 12, fontWeight: 500, cursor: geoLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(0,0,0,.1)', fontFamily: 'inherit' }}>
-            <span>{geoLoading ? '…' : '📍'}</span>{geoLoading ? 'Localizando…' : 'Mi ubicación'}
+            {geoLoading ? 'Localizando…' : 'Mi ubicación'}
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -638,9 +640,6 @@ function Tab1Captacion({ prop, propTypes, onSaved }: {
         </div>
       </FormSection>
 
-      {/* ── 4. Dueños ─────────────────────────────────────── */}
-      <OwnerSection prop={prop} />
-
       <SaveBar saving={saving} saved={saved} error={saveError} />
     </form>
   )
@@ -662,12 +661,9 @@ function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
   const [parking,    setParking]    = useState(prop.parking    ?? '')
   const [floors,     setFloors]     = useState(prop.floors     ?? '')
   const [yearBuilt,  setYearBuilt]  = useState(prop.year_built ?? '')
+  const [halfBaths,  setHalfBaths]  = useState(prop.features?.half_baths ?? '')
   const [selected,   setSelected]   = useState<string[]>(prop.amenities ?? [])
   const [custom,     setCustom]     = useState('')
-  const [price,      setPrice]      = useState<string | number>(prop.price ?? '')
-  const [currency,   setCurrency]   = useState(prop.currency ?? 'USD')
-  const [maintFee,   setMaintFee]   = useState(prop.features?.maintenance_fee ?? '')
-  const [maintCurr,  setMaintCurr]  = useState(prop.features?.maintenance_currency ?? 'USD')
   const [saving,     setSaving]     = useState(false)
   const [saved,      setSaved]      = useState(false)
   const [saveError,  setSaveError]  = useState<string | null>(null)
@@ -681,16 +677,13 @@ function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
     setSelected(prev => [...prev, v]); setCustom('')
   }
 
-  // El área en edición, no la guardada: si la cambiás, el precio/m² sigue.
-  const priceNum   = Number(String(price).replace(/,/g, ''))
-  const areaNum    = areaM2 !== '' ? Number(areaM2) : 0
-  const pricePerM2 = (priceNum > 0 && areaNum > 0) ? (priceNum / areaNum).toFixed(0) : null
-
   async function save(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setSaveError(null); setSaved(false)
+    // Medios baños no tiene columna propia: vive en features. El precio y el
+    // mantenimiento ya no se tocan acá — se editan en el tab de Contrato.
     const newFeatures = {
       ...(prop.features ?? {}),
-      ...(maintFee ? { maintenance_fee: maintFee, maintenance_currency: maintCurr } : { maintenance_fee: '', maintenance_currency: '' }),
+      half_baths: halfBaths !== '' ? Number(halfBaths) : null,
     }
     const { data, error } = await createClient().from('properties').update({
       bedrooms:   bedrooms   !== '' ? Number(bedrooms)  : null,
@@ -701,8 +694,6 @@ function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
       floors:     floors     !== '' ? Number(floors)    : null,
       year_built: yearBuilt  !== '' ? Number(yearBuilt) : null,
       amenities:  selected,
-      price:      priceNum || 0,
-      currency:   currency,
       features:   newFeatures,
     }).eq('id', prop.id).select('*').single()
     if (error) { setSaveError(`Error: ${error.message}`); setSaving(false); return }
@@ -718,11 +709,12 @@ function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
           <NumberField label="Área del terreno (m²)" value={lotM2}     onChange={setLotM2}     placeholder="Ej: 300" />
           <NumberField label="Año de construcción"   value={yearBuilt} onChange={setYearBuilt} placeholder="Ej: 2018" />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-          <NumberField label="Habitaciones"  value={bedrooms}  onChange={setBedrooms}  placeholder="Ej: 3" icon="🛏️" />
-          <NumberField label="Baños"         value={bathrooms} onChange={setBathrooms} placeholder="Ej: 2" icon="🚿" />
-          <NumberField label="Parqueos"      value={parking}   onChange={setParking}   placeholder="Ej: 1" icon="🚗" />
-          <NumberField label="Plantas / Pisos" value={floors}  onChange={setFloors}   placeholder="Ej: 2" icon="🏠" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+          <NumberField label="Habitaciones"    value={bedrooms}  onChange={setBedrooms}  placeholder="Ej: 3" />
+          <NumberField label="Baños"           value={bathrooms} onChange={setBathrooms} placeholder="Ej: 2" />
+          <NumberField label="Medios baños"    value={halfBaths} onChange={setHalfBaths} placeholder="Ej: 1" />
+          <NumberField label="Parqueos"        value={parking}   onChange={setParking}   placeholder="Ej: 1" />
+          <NumberField label="Plantas / Pisos" value={floors}    onChange={setFloors}    placeholder="Ej: 2" />
         </div>
       </FormSection>
 
@@ -763,37 +755,6 @@ function Tab2CaracteristicasAmenidades({ prop, amenities, onSaved }: {
             ))}
           </div>
         )}
-      </FormSection>
-
-      <FormSection title="Precio de venta / alquiler">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 14, marginBottom: 8 }}>
-          <div>
-            <FieldLabel>Precio</FieldLabel>
-            <input type="text" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)}
-              placeholder="Ej: 150000" style={{ ...inputSt, fontSize: 22, fontWeight: 700, padding: '12px 14px' }} />
-          </div>
-          <div>
-            <FieldLabel>Moneda</FieldLabel>
-            <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...inputSt, height: 50 }}>
-              {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
-          </div>
-        </div>
-        {pricePerM2 && (
-          <p style={{ fontSize: 12, color: '#6b2fa0', margin: '0 0 16px', fontWeight: 500 }}>
-            ≈ {currency === 'USD' ? '$' : '₡'}{Number(pricePerM2).toLocaleString()} por m²
-          </p>
-        )}
-        <div style={{ height: 1, background: '#f0f0f0', margin: '16px 0' }} />
-        <FieldLabel>Cuota de mantenimiento (opcional)</FieldLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 14 }}>
-          <input type="text" inputMode="numeric" value={maintFee} onChange={e => setMaintFee(e.target.value)}
-            placeholder="Ej: 80000" style={inputSt} />
-          <select value={maintCurr} onChange={e => setMaintCurr(e.target.value)} style={inputSt}>
-            {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-        </div>
-        <p style={{ fontSize: 11, color: '#aaa', margin: '6px 0 0' }}>Se mostrará como información adicional en el sitio.</p>
       </FormSection>
 
       <SaveBar saving={saving} saved={saved} error={saveError} />
@@ -932,7 +893,6 @@ function Tab6Media({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Propert
           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#6b2fa0'}
           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#e0e0e0'}
         >
-          <div style={{ fontSize: 32, marginBottom: 8 }}>{uploading ? '⏳' : '📸'}</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#444', marginBottom: 4 }}>
             {uploading ? 'Subiendo…' : 'Clic para subir fotos'}
           </div>
@@ -1071,7 +1031,6 @@ function Tab7Estudios({ prop }: { prop: PropertyFull }) {
     return (
       <FormSection title="Estudios">
         <div style={{ textAlign: 'center', padding: '28px 12px', color: '#888' }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>🔎</div>
           <p style={{ fontSize: 13, margin: 0 }}>Aún no hay estudios para esta propiedad.</p>
           <p style={{ fontSize: 12, color: '#aaa', margin: '6px 0 0' }}>
             Los agentes (Vera, Vega) los generan automáticamente cuando se registra la finca.
@@ -1594,17 +1553,21 @@ interface Contract {
   status: string; notes: string | null
 }
 
-function TabContrato({ prop }: { prop: PropertyFull }) {
+function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: PropertyFull) => void }) {
   const [row,        setRow]        = useState<Contract | null>(null)
   const [loading,    setLoading]    = useState(true)
   const [kind,       setKind]       = useState('exclusiva')
   const [startDate,  setStartDate]  = useState('')
   const [endDate,    setEndDate]    = useState('')
-  const [price,      setPrice]      = useState<string | number>('')
-  const [currency,   setCurrency]   = useState('USD')
-  const [commission, setCommission] = useState<string | number>('')
   const [status,     setStatus]     = useState('vigente')
   const [notes,      setNotes]      = useState('')
+  const [commission, setCommission] = useState<string | number>('')
+  // Precio y mantenimiento son de la propiedad (antes vivían en Características).
+  // El precio es la base sobre la que se calcula la comisión.
+  const [price,      setPrice]      = useState<string | number>(prop.price ?? '')
+  const [currency,   setCurrency]   = useState(prop.currency ?? 'USD')
+  const [maintFee,   setMaintFee]   = useState(prop.features?.maintenance_fee ?? '')
+  const [maintCurr,  setMaintCurr]  = useState(prop.features?.maintenance_currency ?? 'USD')
   const [saving,     setSaving]     = useState(false)
   const [saved,      setSaved]      = useState(false)
   const [saveError,  setSaveError]  = useState<string | null>(null)
@@ -1622,35 +1585,52 @@ function TabContrato({ prop }: { prop: PropertyFull }) {
       if (c) {
         setRow(c); setKind(c.kind ?? 'exclusiva')
         setStartDate(c.start_date ?? ''); setEndDate(c.end_date ?? '')
-        setPrice(c.price ?? ''); setCurrency(c.currency ?? 'USD')
-        setCommission(c.commission ?? ''); setStatus(c.status); setNotes(c.notes ?? '')
-      } else {
-        // El precio de la propiedad es el insumo del contrato: se prellena.
-        setPrice(prop.price || ''); setCurrency(prop.currency || 'USD')
+        setStatus(c.status); setNotes(c.notes ?? '')
+        setCommission(c.commission ?? '')
       }
       setLoading(false)
     })()
     return () => { cancelled = true }
   }, [prop.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const priceNum      = Number(String(price).replace(/,/g, '')) || 0
+  const commissionPct = Number(String(commission).replace(/,/g, '')) || 0
+  const commissionAmt = priceNum > 0 && commissionPct > 0 ? priceNum * commissionPct / 100 : 0
+  const money = (n: number) => `${currency === 'USD' ? '$' : '₡'}${Math.round(n).toLocaleString()}`
+
   async function save(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setSaveError(null); setSaved(false)
+    const sb = createClient()
+
+    // 1. Precio y mantenimiento van en la propiedad.
+    const newFeatures = {
+      ...(prop.features ?? {}),
+      ...(maintFee ? { maintenance_fee: maintFee, maintenance_currency: maintCurr } : { maintenance_fee: '', maintenance_currency: '' }),
+    }
+    const { data: pData, error: pErr } = await sb.from('properties').update({
+      price: priceNum, currency, features: newFeatures,
+    }).eq('id', prop.id).select('*').single()
+    if (pErr) { setSaveError(`Error: ${pErr.message}`); setSaving(false); return }
+
+    // 2. El contrato: mismo precio como base, y la comisión pactada.
     const payload = {
       tenant_id: prop.tenant_id, property_id: prop.id,
       kind, start_date: startDate || null, end_date: endDate || null,
-      price:      price      !== '' ? Number(price)      : null,
-      currency,
-      commission: commission !== '' ? Number(commission) : null,
+      price: priceNum, currency,
+      commission: commissionPct || null,
       status, notes: notes.trim() || null,
       updated_at: new Date().toISOString(),
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = createClient() as any
-    const { data, error } = row
-      ? await sb.from('contracts').update(payload).eq('id', row.id).select('*').single()
-      : await sb.from('contracts').insert(payload).select('*').single()
-    if (error) { setSaveError(`Error: ${error.message}`); setSaving(false); return }
-    setRow(data as Contract); setSaving(false); setSaved(true)
+    const sbAny = sb as any
+    const { data: cData, error: cErr } = row
+      ? await sbAny.from('contracts').update(payload).eq('id', row.id).select('*').single()
+      : await sbAny.from('contracts').insert(payload).select('*').single()
+    if (cErr) { setSaveError(`Error en el contrato: ${cErr.message}`); setSaving(false); return }
+
+    setRow(cData as Contract)
+    onSaved(pData as PropertyFull)
+    setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
 
@@ -1660,7 +1640,7 @@ function TabContrato({ prop }: { prop: PropertyFull }) {
 
   return (
     <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <FormSection title="Contrato de captación">
+      <FormSection title="Contrato">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
             <FieldLabel>Tipo de contrato</FieldLabel>
@@ -1690,33 +1670,58 @@ function TabContrato({ prop }: { prop: PropertyFull }) {
             {dias < 0 ? `Venció hace ${Math.abs(dias)} días` : dias === 0 ? 'Vence hoy' : `Vence en ${dias} días`}
           </p>
         )}
-      </FormSection>
-
-      <FormSection title="Condiciones">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr', gap: 14 }}>
-          <div>
-            <FieldLabel>Precio pactado</FieldLabel>
-            <input type="text" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)}
-              placeholder="Ej: 150000" style={inputSt} />
-          </div>
-          <div>
-            <FieldLabel>Moneda</FieldLabel>
-            <select value={currency} onChange={e => setCurrency(e.target.value)} style={inputSt}>
-              {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <FieldLabel>Comisión (%)</FieldLabel>
-            <input type="text" inputMode="decimal" value={commission} onChange={e => setCommission(e.target.value)}
-              placeholder="Ej: 5" style={inputSt} />
-          </div>
-        </div>
         <div style={{ marginTop: 16 }}>
           <FieldLabel>Notas</FieldLabel>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
             placeholder="Condiciones particulares, acuerdos…"
             style={{ ...inputSt, resize: 'vertical', fontFamily: 'inherit' }} />
         </div>
+      </FormSection>
+
+      <FormSection title="Precio y mantenimiento">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 14, marginBottom: 16 }}>
+          <div>
+            <FieldLabel>Precio</FieldLabel>
+            <input type="text" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)}
+              placeholder="Ej: 150000" style={{ ...inputSt, fontSize: 22, fontWeight: 700, padding: '12px 14px' }} />
+          </div>
+          <div>
+            <FieldLabel>Moneda</FieldLabel>
+            <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...inputSt, height: 50 }}>
+              {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <FieldLabel>Cuota de mantenimiento (opcional)</FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 14 }}>
+          <input type="text" inputMode="numeric" value={maintFee} onChange={e => setMaintFee(e.target.value)}
+            placeholder="Ej: 80000" style={inputSt} />
+          <select value={maintCurr} onChange={e => setMaintCurr(e.target.value)} style={inputSt}>
+            {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </div>
+        <p style={{ fontSize: 11, color: '#aaa', margin: '6px 0 0' }}>El precio es el que se muestra en el sitio y la base de la comisión.</p>
+      </FormSection>
+
+      <FormSection title="Comisión">
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 14, alignItems: 'end' }}>
+          <div>
+            <FieldLabel>Comisión (%)</FieldLabel>
+            <input type="text" inputMode="decimal" value={commission} onChange={e => setCommission(e.target.value)}
+              placeholder="Ej: 5" style={inputSt} />
+          </div>
+          <div style={{ padding: '10px 14px', background: '#f7f6f9', border: '1px solid #ece9f2', borderRadius: 10 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>Comisión estimada</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: commissionAmt > 0 ? '#111' : '#c5cad3' }}>
+              {commissionAmt > 0 ? money(commissionAmt) : '—'}
+            </div>
+          </div>
+        </div>
+        {commissionAmt > 0 && (
+          <p style={{ fontSize: 12, color: '#6b2fa0', margin: '10px 0 0', fontWeight: 500 }}>
+            {commissionPct}% de {money(priceNum)} = {money(commissionAmt)}
+          </p>
+        )}
       </FormSection>
 
       <SaveBar saving={saving} saved={saved} error={saveError} />
@@ -1728,7 +1733,6 @@ function TabPortales() {
   return (
     <FormSection title="Portales inmobiliarios">
       <div style={{ textAlign: 'center', padding: '28px 12px', color: '#888' }}>
-        <div style={{ fontSize: 32, marginBottom: 10 }}>🌐</div>
         <p style={{ fontSize: 14, margin: '0 0 6px', fontWeight: 600, color: '#5a6070' }}>Pendiente de definir</p>
         <p style={{ fontSize: 13, margin: 0, maxWidth: 460, marginInline: 'auto', lineHeight: 1.6 }}>
           Falta decidir los portales concretos y si la publicación va por feed JSON/XML que ellos consumen,
