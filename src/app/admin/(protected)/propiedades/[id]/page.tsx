@@ -224,7 +224,7 @@ export default function PropiedadPage() {
               ? <EditableTitle value={prop.title} onSave={saveTitle} />
               : <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>{prop.title || <span style={{ color: '#bbb', fontWeight: 400 }}>Sin título</span>}</h1>}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {prop.provincia && <span style={{ fontSize: 13, color: '#888' }}>{[prop.canton, prop.provincia].filter(Boolean).join(', ')}</span>}
+              {prop.provincia && <span style={{ fontSize: 13, color: '#888' }}>📍 {[prop.canton, prop.provincia].filter(Boolean).join(', ')}</span>}
               {canEdit
                 ? <StatusSelect value={prop.crm_status} statuses={statuses} onChange={saveStatus} />
                 : (() => { const c = statusColor(prop.crm_status); return <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: c.bg, color: c.color }}>{statuses.find(s => s.value === prop.crm_status)?.label ?? prop.crm_status}</span> })()}

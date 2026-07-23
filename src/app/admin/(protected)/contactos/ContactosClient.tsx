@@ -131,6 +131,19 @@ function openWhatsapp(phone: string | null, country: string | null) {
   window.open(whatsappHref(phone, country), '_blank')
 }
 
+// Los teléfonos se cargaron de cualquier forma: unos con código de país y otros
+// sin él. Se muestran siempre con código, usando el mismo criterio que WhatsApp
+// (hasta 8 dígitos es local). No toca lo guardado, solo cómo se ve.
+function phoneDisplay(phone: string | null, country: string | null): string {
+  if (!phone) return ''
+  const num = phone.replace(/\D/g, '')
+  if (!num) return phone
+  const c = COUNTRIES.find(x => x.iso === (country || 'CR'))
+  const dial = c?.dialCode?.replace(/\D/g, '') ?? '506'
+  const full = num.length <= 8 ? dial + num : num
+  return full.startsWith(dial) ? `+${dial} ${full.slice(dial.length)}` : `+${full}`
+}
+
 function formatDateEsCR(dateStr: string | null): string {
   if (!dateStr) return ''
   try {
@@ -723,7 +736,7 @@ export default function ContactosClient() {
                         </td>
                         <td style={{ padding: '8px 12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {c.phone
-                            ? <a href={whatsappHref(c.phone, c.phone_country)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ color: '#0d0f12', textDecoration: 'none' }}>{c.phone}</a>
+                            ? <a href={whatsappHref(c.phone, c.phone_country)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ color: '#0d0f12', textDecoration: 'none' }}>{phoneDisplay(c.phone, c.phone_country)}</a>
                             : <span style={{ color: '#c5cad3' }}>—</span>}
                         </td>
                         <td style={{ padding: '8px 12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><CompanyCell c={c} /></td>

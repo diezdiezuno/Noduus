@@ -56,6 +56,12 @@ const TrashIcon = () => (
   </svg>
 )
 
+// El tipo se guardó de cualquier forma ('casa', 'Casa'…). Se muestra siempre
+// con la primera en mayúscula, sin tocar lo guardado.
+function capitalizar(s: string | null | undefined) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
+}
+
 function formatPrice(price: number, currency: string) {
   if (currency === 'USD') return `$${price.toLocaleString('en-US')}`
   return `₡${price.toLocaleString('es-CR')}`
@@ -329,7 +335,7 @@ export default function PropiedadesPage() {
                               {p.title || <span style={{ color: '#bbb', fontWeight: 400 }}>Sin título</span>}
                             </div>
                             <div style={{ fontSize: 12, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {[p.type, p.transaction === 'sale' ? 'Venta' : p.transaction === 'rent' ? 'Alquiler' : p.transaction === 'sale_rent' ? 'Venta y alquiler' : ''].filter(Boolean).join(' · ')}
+                              {[capitalizar(p.type), p.transaction === 'sale' ? 'Venta' : p.transaction === 'rent' ? 'Alquiler' : p.transaction === 'sale_rent' ? 'Venta y alquiler' : ''].filter(Boolean).join(' · ')}
                             </div>
                           </div>
                         </div>
