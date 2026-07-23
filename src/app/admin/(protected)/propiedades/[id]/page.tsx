@@ -895,9 +895,7 @@ function Tab6Media({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Propert
         {/* Upload area */}
         <div
           onClick={() => fileInputRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = '#6b2fa0' }}
-          onDragLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#e0e0e0' }}
-          onDrop={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = '#e0e0e0'; if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files) }}
+          {...dropProps(handleFiles)}
           style={{ border: '2px dashed #e0e0e0', borderRadius: 12, padding: '32px 24px', textAlign: 'center', cursor: 'pointer', marginBottom: 20, transition: 'border-color .15s', background: '#fafafa' }}
           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#6b2fa0'}
           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#e0e0e0'}
@@ -1498,6 +1496,20 @@ async function abrirDocPrivado(url: string) {
   window.open(data?.signedUrl ?? url, '_blank')
 }
 
+// Arrastrar y soltar sobre una zona: resalta el borde y entrega los archivos.
+// Se usa en las fotos (Media) y en los adjuntos (Archivos).
+function dropProps(onFiles: (f: FileList) => void) {
+  const pintar = (e: React.DragEvent, color: string) => { (e.currentTarget as HTMLElement).style.borderColor = color }
+  return {
+    onDragOver:  (e: React.DragEvent) => { e.preventDefault(); pintar(e, '#6b2fa0') },
+    onDragLeave: (e: React.DragEvent) => pintar(e, '#e0e0e0'),
+    onDrop:      (e: React.DragEvent) => {
+      e.preventDefault(); pintar(e, '#e0e0e0')
+      if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files)
+    },
+  }
+}
+
 function FileUploadField({ label, file, onSelect, onClear, inputRef, accept, existingUrl }: {
   label: string; file: File | null; onSelect: (f: File) => void; onClear: () => void
   inputRef: React.RefObject<HTMLInputElement | null>; accept: string; existingUrl?: string
@@ -1506,6 +1518,7 @@ function FileUploadField({ label, file, onSelect, onClear, inputRef, accept, exi
     <div>
       <FieldLabel>{label}</FieldLabel>
       <div onClick={() => inputRef.current?.click()}
+        {...dropProps(fs => { const f = fs[0]; if (f) onSelect(f) })}
         style={{ border: '2px dashed #e0e0e0', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', background: (file || existingUrl) ? 'rgba(107,47,160,.04)' : '#fff', transition: 'border-color .15s', display: 'flex', alignItems: 'center', gap: 10 }}
         onMouseEnter={e => (e.currentTarget.style.borderColor = '#6b2fa0')}
         onMouseLeave={e => (e.currentTarget.style.borderColor = '#e0e0e0')}
@@ -1516,7 +1529,7 @@ function FileUploadField({ label, file, onSelect, onClear, inputRef, accept, exi
             ? <div style={{ fontSize: 13, color: '#333', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
             : existingUrl
               ? <div style={{ fontSize: 13, color: '#6b2fa0', fontWeight: 500 }}>Archivo guardado — clic para reemplazar</div>
-              : <div style={{ fontSize: 13, color: '#aaa' }}>Clic para adjuntar</div>
+              : <div style={{ fontSize: 13, color: '#aaa' }}>Clic o arrastrá el archivo acá</div>
           }
         </div>
         {existingUrl && !file && <button type="button" onClick={e => { e.stopPropagation(); abrirDocPrivado(existingUrl) }}
@@ -1949,11 +1962,12 @@ function TabArchivos({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
 
       <FormSection title={`Otros archivos (${docs.length})`}>
         <div onClick={() => genRef.current?.click()}
+          {...dropProps(subirGenerales)}
           style={{ border: '2px dashed #e0e0e0', borderRadius: 10, padding: '18px 16px', cursor: 'pointer', textAlign: 'center', color: '#888', background: '#fff', transition: 'border-color .15s' }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = '#6b2fa0')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = '#e0e0e0')}>
           <div style={{ fontSize: 22 }}>📎</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>Clic para adjuntar archivos — PDF, imágenes, documentos</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>Clic para adjuntar o arrastrá los archivos acá — PDF, imágenes, documentos</div>
         </div>
         <input ref={genRef} type="file" multiple style={{ display: 'none' }}
           onChange={e => { if (e.target.files?.length) subirGenerales(e.target.files) }} />
