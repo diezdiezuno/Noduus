@@ -105,8 +105,13 @@ Migración de datos Noduus→Noduus: `scripts/migrate-proptools-data.mjs` (recre
 - **Auditoría**: `audit-log.sql` cuelga un trigger de las tablas que importan y guarda quién cambió qué. Se ve en `/admin/auditoria`. Append-only: sin policy de insert, update ni delete. No registra lecturas — ningún trigger las ve.
 - **`contact-docs` se compartía entre oficinas** (ver Storage buckets).
 - **`/api/debug` eliminado** (filtraba tenants y prefijos de keys).
-- **`/api/contact`**: rate-limit por IP + validación/recorte de entradas.
+- **`/api/contact`** y **`/api/recruit`**: rate-limit por IP (5 / 10 min) + validación/recorte de entradas.
 - Ningún `service_role` en el código (todo `process.env`); `.env*` en `.gitignore`. Las anon keys embebidas en los HTML de tools son públicas por diseño.
+
+### Auditoría completa (2026-07) — hallazgos y veredictos
+- **`send-email` era un relay abierto** 🔴: se despliega con `--no-verify-jwt`, CORS `*` y metía `body_html` crudo. Sin verificar al llamador, cualquiera con la URL mandaba correos con HTML/links arbitrarios desde el dominio del tenant (SPF/DKIM válidos). Ahora exige `Authorization: Bearer <service_role>`; los tres llamadores (contact/recruit/invite-agent) ya lo enviaban. **Ojo: el fix vive en la edge function — hay que `supabase functions deploy send-email --no-verify-jwt` para que aplique.**
+- **XSS en JSON-LD de la ficha** 🟠 (`listings/[id]`): `JSON.stringify` sin escapar `<` dejaba a un agente inyectar `</script>…` vía título/descripción. Se escapa a `<`.
+- **No-problemas verificados** (no tocar, ya están bien): `x-tenant-domain` no es spoofeable — el middleware lo sobreescribe desde el `Host` real. `content_html` se renderiza crudo pero solo lo escribe un admin (RLS de `tenant_config`) → auto-XSS del dueño en su propio sitio, no amerita sanitizador. Las otras 4 edge functions (`delete-user`, `invite-agent`, `reset-user-password`, `activate-invitation`) validan admin + mismo tenant (o token de alta entropía). Sin secrets commiteados, sin `eval`, deps mínimas.
 
 ## Storage buckets
 Públicos (los sirve el sitio): `tenant-assets`, `agent-photos`, `property-photos`, `contact-photos`.
