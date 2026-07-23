@@ -1566,7 +1566,23 @@ const CONTRACT_STATUSES = [
 interface Contract {
   id: string; kind: string | null; start_date: string | null; end_date: string | null
   price: number | null; currency: string | null; commission: number | null
+  commission_type: string | null; commission_amount: number | null
+  split_type: string | null; split_value: number | null
   status: string; notes: string | null
+}
+
+/* Toggle % / Monto — se usa en Comisión y en la división del negocio externo. */
+function ModeToggle({ value, onChange }: { value: 'pct' | 'amount'; onChange: (v: 'pct' | 'amount') => void }) {
+  return (
+    <div style={{ display: 'inline-flex', border: '1px solid #e2e5ea', borderRadius: 8, overflow: 'hidden' }}>
+      {(['pct', 'amount'] as const).map(m => (
+        <button key={m} type="button" onClick={() => onChange(m)} style={{
+          padding: '6px 14px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+          border: 'none', background: value === m ? '#111' : '#fff', color: value === m ? '#fff' : '#6b7280',
+        }}>{m === 'pct' ? '%' : 'Monto'}</button>
+      ))}
+    </div>
+  )
 }
 
 function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: PropertyFull) => void }) {
@@ -1577,7 +1593,12 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
   const [endDate,    setEndDate]    = useState('')
   const [status,     setStatus]     = useState('vigente')
   const [notes,      setNotes]      = useState('')
+  // Comisión: se escribe como % o como monto (excluyentes). El otro se calcula.
+  const [commMode,   setCommMode]   = useState<'pct' | 'amount'>('pct')
   const [commission, setCommission] = useState<string | number>('')
+  // Negocio externo: parte de la comisión que se lleva la otra parte.
+  const [splitMode,  setSplitMode]  = useState<'pct' | 'amount'>('pct')
+  const [splitValue, setSplitValue] = useState<string | number>('')
   // Precio y mantenimiento son de la propiedad (antes vivían en Características).
   // El precio es la base sobre la que se calcula la comisión.
   const [price,      setPrice]      = useState<string | number>(prop.price ?? '')
@@ -1593,7 +1614,7 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
     ;(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (createClient() as any).from('contracts')
-        .select('id,kind,start_date,end_date,price,currency,commission,status,notes')
+        .select('id,kind,start_date,end_date,price,currency,commission,commission_type,commission_amount,split_type,split_value,status,notes')
         .eq('property_id', prop.id).eq('active', true)
         .order('created_at', { ascending: false }).limit(1)
       if (cancelled) return
@@ -1602,16 +1623,38 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
         setRow(c); setKind(c.kind ?? 'exclusiva')
         setStartDate(c.start_date ?? ''); setEndDate(c.end_date ?? '')
         setStatus(c.status); setNotes(c.notes ?? '')
-        setCommission(c.commission ?? '')
+        // Se muestra en el modo con que se guardó, con su valor original.
+        const cm = (c.commission_type === 'amount' ? 'amount' : 'pct') as 'pct' | 'amount'
+        setCommMode(cm)
+        setCommission((cm === 'amount' ? c.commission_amount : c.commission) ?? '')
+        const sm = (c.split_type === 'amount' ? 'amount' : 'pct') as 'pct' | 'amount'
+        setSplitMode(sm)
+        setSplitValue(c.split_value ?? '')
       }
       setLoading(false)
     })()
     return () => { cancelled = true }
   }, [prop.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const priceNum      = Number(String(price).replace(/,/g, '')) || 0
-  const commissionPct = Number(String(commission).replace(/,/g, '')) || 0
-  const commissionAmt = priceNum > 0 && commissionPct > 0 ? priceNum * commissionPct / 100 : 0
+  const num = (v: string | number) => Number(String(v).replace(/,/g, '')) || 0
+  const priceNum   = num(price)
+  const commInput  = num(commission)
+  // Un solo modo se escribe; el otro se deriva del precio.
+  const commissionPct = commMode === 'pct'
+    ? commInput
+    : (priceNum > 0 ? commInput / priceNum * 100 : 0)
+  const commissionAmt = commMode === 'amount'
+    ? commInput
+    : (priceNum > 0 ? priceNum * commInput / 100 : 0)
+  // Negocio externo: la otra parte se lleva split_value (% de la comisión o monto).
+  const splitInput = num(splitValue)
+  const splitAmt   = splitMode === 'amount'
+    ? splitInput
+    : (commissionAmt > 0 ? commissionAmt * splitInput / 100 : 0)
+  const splitPct   = splitMode === 'pct'
+    ? splitInput
+    : (commissionAmt > 0 ? splitInput / commissionAmt * 100 : 0)
+  const netoAmt = commissionAmt - splitAmt
   const money = (n: number) => `${currency === 'USD' ? '$' : '₡'}${Math.round(n).toLocaleString()}`
 
   async function save(e: React.FormEvent) {
@@ -1633,7 +1676,13 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
       tenant_id: prop.tenant_id, property_id: prop.id,
       kind, start_date: startDate || null, end_date: endDate || null,
       price: priceNum, currency,
-      commission: commissionPct || null,
+      // commission se conserva como % (lo leen otros lugares); guardamos también
+      // el monto y qué modo eligió el usuario para reabrirlo igual.
+      commission:        commissionPct ? Math.round(commissionPct * 100) / 100 : null,
+      commission_type:   commMode,
+      commission_amount: commissionAmt ? Math.round(commissionAmt) : null,
+      split_type:        splitMode,
+      split_value:       splitInput || null,
       status, notes: notes.trim() || null,
       updated_at: new Date().toISOString(),
     }
@@ -1720,24 +1769,58 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
       </FormSection>
 
       <FormSection title="Comisión">
+        <div style={{ marginBottom: 10 }}><ModeToggle value={commMode} onChange={setCommMode} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 14, alignItems: 'end' }}>
           <div>
-            <FieldLabel>Comisión (%)</FieldLabel>
+            <FieldLabel>{commMode === 'pct' ? 'Comisión (%)' : `Comisión (monto ${currency})`}</FieldLabel>
             <input type="text" inputMode="decimal" value={commission} onChange={e => setCommission(e.target.value)}
-              placeholder="Ej: 5" style={inputSt} />
+              placeholder={commMode === 'pct' ? 'Ej: 5' : 'Ej: 7500'} style={inputSt} />
           </div>
           <div style={{ padding: '10px 14px', background: '#f7f6f9', border: '1px solid #ece9f2', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>Comisión estimada</div>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
+              {commMode === 'pct' ? 'Comisión estimada' : 'Equivale a'}
+            </div>
             <div style={{ fontSize: 20, fontWeight: 700, color: commissionAmt > 0 ? '#111' : '#c5cad3' }}>
-              {commissionAmt > 0 ? money(commissionAmt) : '—'}
+              {commMode === 'pct'
+                ? (commissionAmt > 0 ? money(commissionAmt) : '—')
+                : (commissionPct > 0 ? `${Math.round(commissionPct * 100) / 100}%` : '—')}
             </div>
           </div>
         </div>
         {commissionAmt > 0 && (
           <p style={{ fontSize: 12, color: '#6b2fa0', margin: '10px 0 0', fontWeight: 500 }}>
-            {commissionPct}% de {money(priceNum)} = {money(commissionAmt)}
+            {Math.round(commissionPct * 100) / 100}% de {money(priceNum)} = {money(commissionAmt)}
           </p>
         )}
+      </FormSection>
+
+      <FormSection title="Negocio externo">
+        <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>
+          Parte de la comisión que se lleva la otra parte (co-broker). Lo que queda es de la oficina.
+        </p>
+        <div style={{ marginBottom: 10 }}><ModeToggle value={splitMode} onChange={setSplitMode} /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 14, alignItems: 'end' }}>
+          <div>
+            <FieldLabel>{splitMode === 'pct' ? 'Parte de la otra parte (% de la comisión)' : `Parte de la otra parte (monto ${currency})`}</FieldLabel>
+            <input type="text" inputMode="decimal" value={splitValue} onChange={e => setSplitValue(e.target.value)}
+              placeholder={splitMode === 'pct' ? 'Ej: 50' : 'Ej: 3750'} style={inputSt} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ padding: '10px 14px', background: '#f7f6f9', border: '1px solid #ece9f2', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>Otra parte</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: splitAmt > 0 ? '#111' : '#c5cad3' }}>
+                {splitAmt > 0 ? money(splitAmt) : '—'}
+              </div>
+              {splitAmt > 0 && <div style={{ fontSize: 11, color: '#9ca3af' }}>{Math.round(splitPct * 100) / 100}% de la comisión</div>}
+            </div>
+            <div style={{ padding: '10px 14px', background: '#eef7f1', border: '1px solid #d6ecdf', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>Nuestra parte</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: netoAmt > 0 ? '#0a7a3f' : '#c5cad3' }}>
+                {commissionAmt > 0 ? money(netoAmt) : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
       </FormSection>
 
       <SaveBar saving={saving} saved={saved} error={saveError} />
