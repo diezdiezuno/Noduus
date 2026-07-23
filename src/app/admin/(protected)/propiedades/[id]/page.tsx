@@ -1498,13 +1498,22 @@ async function abrirDocPrivado(url: string) {
 
 // Arrastrar y soltar sobre una zona: resalta el borde y entrega los archivos.
 // Se usa en las fotos (Media) y en los adjuntos (Archivos).
+//
+// Un div con onDrop no es un control de formulario, así que el <fieldset
+// disabled> de solo-lectura no lo desactiva solo: sin esto, quien no puede
+// editar igual subiría el archivo al bucket (la RLS le impide adjuntarlo, pero
+// el archivo queda). Se consulta el fieldset que ya envuelve los tabs en vez de
+// pasar canEdit por props hasta acá.
 function dropProps(onFiles: (f: FileList) => void) {
+  const bloqueado = (e: React.DragEvent) =>
+    Boolean((e.currentTarget as HTMLElement).closest('fieldset')?.disabled)
   const pintar = (e: React.DragEvent, color: string) => { (e.currentTarget as HTMLElement).style.borderColor = color }
   return {
-    onDragOver:  (e: React.DragEvent) => { e.preventDefault(); pintar(e, '#6b2fa0') },
+    onDragOver:  (e: React.DragEvent) => { e.preventDefault(); if (!bloqueado(e)) pintar(e, '#6b2fa0') },
     onDragLeave: (e: React.DragEvent) => pintar(e, '#e0e0e0'),
     onDrop:      (e: React.DragEvent) => {
       e.preventDefault(); pintar(e, '#e0e0e0')
+      if (bloqueado(e)) return
       if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files)
     },
   }
