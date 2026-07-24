@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { glassScrim } from '@/lib/theme'
 import { Icon, type IconName } from '@/lib/icons'
+import { openWhatsapp } from '@/lib/phone'
 
 /* ── Types ───────────────────────────────────────────────────── */
 interface DocUrl { path: string; name: string; size: number; uploaded_at: string }
@@ -80,13 +81,6 @@ function formatDateEsCR(dateStr: string | null): string {
   try {
     return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'long', year: 'numeric' })
   } catch { return dateStr }
-}
-function openWhatsapp(phone: string | null, country: string | null) {
-  if (!phone) return
-  const num = phone.replace(/[^0-9]/g, '')
-  const dialCode = country === 'US' ? '1' : country === 'MX' ? '52' : '506'
-  const full = num.length <= 8 ? dialCode + num : num
-  window.open(`https://wa.me/${full}`, '_blank')
 }
 
 // ── Social icons ──────────────────────────────────────────────

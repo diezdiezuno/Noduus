@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, type CSSProperties } from 're
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { COUNTRIES } from '@/data/countries'
+import { phoneDisplay, whatsappHref, openWhatsapp } from '@/lib/phone'
 import ContactForm from '@/components/crm/ContactForm'
 import { getMembership } from '@/lib/membership'
 import { glassScrim } from '@/lib/theme'
@@ -118,31 +119,6 @@ function nameToColor(name: string): string {
   return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
 }
 
-function whatsappHref(phone: string | null, country: string | null): string {
-  if (!phone) return '#'
-  const num = phone.replace(/[^0-9]/g, '')
-  const c = COUNTRIES.find(x => x.iso === (country || 'CR'))
-  const dialCode = c?.dialCode?.replace(/\D/g, '') ?? '506'
-  const full = num.length <= 8 ? dialCode + num : num
-  return `https://wa.me/${full}`
-}
-function openWhatsapp(phone: string | null, country: string | null) {
-  if (!phone) return
-  window.open(whatsappHref(phone, country), '_blank')
-}
-
-// Los teléfonos se cargaron de cualquier forma: unos con código de país y otros
-// sin él. Se muestran siempre con código, usando el mismo criterio que WhatsApp
-// (hasta 8 dígitos es local). No toca lo guardado, solo cómo se ve.
-function phoneDisplay(phone: string | null, country: string | null): string {
-  if (!phone) return ''
-  const num = phone.replace(/\D/g, '')
-  if (!num) return phone
-  const c = COUNTRIES.find(x => x.iso === (country || 'CR'))
-  const dial = c?.dialCode?.replace(/\D/g, '') ?? '506'
-  const full = num.length <= 8 ? dial + num : num
-  return full.startsWith(dial) ? `+${dial} ${full.slice(dial.length)}` : `+${full}`
-}
 
 function formatDateEsCR(dateStr: string | null): string {
   if (!dateStr) return ''
@@ -773,7 +749,7 @@ export default function ContactosClient() {
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
                       {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: '#5a6070', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="mail" size={13} /> {c.email}</a>}
-                      {c.phone && <a href={whatsappHref(c.phone, c.phone_country)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: '#5a6070', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="message" size={13} color="#128C48" /> {c.phone}</a>}
+                      {c.phone && <a href={whatsappHref(c.phone, c.phone_country)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: '#5a6070', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="message" size={13} color="#128C48" /> {phoneDisplay(c.phone, c.phone_country)}</a>}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <ContactActions c={c} />
@@ -937,7 +913,7 @@ export default function ContactosClient() {
                       <span style={{ display: 'flex', flexShrink: 0, color: "#128C48" }}><Icon name="smartphone" size={18} /></span>
                       <div>
                         <div style={{ fontSize: 11, color: '#9ca3af' }}>Teléfono</div>
-                        <div style={{ fontSize: 14, color: '#0d0f12' }}>{vcardData.phone}</div>
+                        <div style={{ fontSize: 14, color: '#0d0f12' }}>{phoneDisplay(vcardData.phone, vcardData.phone_country)}</div>
                       </div>
                     </div>
                   )}
@@ -947,7 +923,7 @@ export default function ContactosClient() {
                       <span style={{ display: 'flex', flexShrink: 0, color: "#16A34A" }}><Icon name="phone" size={18} /></span>
                       <div>
                         <div style={{ fontSize: 11, color: '#9ca3af' }}>Teléfono alternativo</div>
-                        <div style={{ fontSize: 14, color: '#0d0f12' }}>{vcardData.phone_alt}</div>
+                        <div style={{ fontSize: 14, color: '#0d0f12' }}>{phoneDisplay(vcardData.phone_alt, vcardData.phone_alt_country)}</div>
                       </div>
                     </div>
                   )}

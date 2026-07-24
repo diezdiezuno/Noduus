@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { Icon, type IconName } from '@/lib/icons'
+import { openWhatsapp } from '@/lib/phone'
 
 type Kind = 'evento' | 'cumple' | 'contrato'
 
@@ -69,12 +70,6 @@ function nextBirthday(birth: string, today: Date): { date: Date; turning: number
 }
 function initialsOf(name: string, last: string | null) {
   return ((name?.[0] ?? '') + (last?.[0] ?? '')).toUpperCase() || '?'
-}
-function openWhatsapp(phone: string | null | undefined, country: string | null | undefined) {
-  if (!phone) return
-  const num = phone.replace(/[^0-9]/g, '')
-  const dial = country === 'US' ? '1' : country === 'MX' ? '52' : '506'
-  window.open(`https://wa.me/${num.length <= 8 ? dial + num : num}`, '_blank')
 }
 
 /* ── Providers ────────────────────────────────────────────────── */
