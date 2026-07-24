@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import PageHeader from '@/components/admin/PageHeader'
 import { uploadAgentPhoto } from '@/lib/upload'
+import { getMembership } from '@/lib/membership'
+import { toInternational, phoneDisplay } from '@/lib/phone'
 
 // Agentes = usuarios (Noduus). Esta página controla su ficha pública y el
 // toggle "Mostrar en web" (users.show_on_web). Los agentes se agregan por
@@ -44,6 +46,8 @@ export default function AgentesPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // País de la oficina: interpreta un teléfono escrito sin código de país.
+  const [country, setCountry] = useState('CR')
   const photoInputRef = useRef<HTMLInputElement>(null)
 
   async function load(tid: string) {
@@ -54,6 +58,8 @@ export default function AgentesPage() {
       .eq('tenant_id', tid).order('name')
     setAgents((data ?? []) as AgentUser[])
   }
+
+  useEffect(() => { getMembership().then(m => { if (m) setCountry(m.country) }) }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -114,7 +120,9 @@ export default function AgentesPage() {
     const payload = {
       name: form.name.trim(),
       job_title: form.job_title || null,
-      phone: form.phone.trim() || null,
+      // Se guarda en formato internacional para que el enlace de WhatsApp del
+      // sitio público siempre resuelva, lo escriban con "+506" o sin él.
+      phone: toInternational(form.phone, country) || null,
       photo_url: photoUrl,
       bio: form.bio.trim() || null,
       instagram: form.instagram.trim() || null,
@@ -239,7 +247,7 @@ export default function AgentesPage() {
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{a.name || '—'}</div>
                 <div style={{ fontSize: 12, color: '#888' }}>{a.job_title ?? '—'}</div>
                 <div style={{ fontSize: 12, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.email ?? '—'}</div>
-                <div style={{ fontSize: 12, color: '#555' }}>{a.phone ?? '—'}</div>
+                <div style={{ fontSize: 12, color: '#555' }}>{a.phone ? phoneDisplay(a.phone, country) : '—'}</div>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <div onClick={() => toggleWeb(a)} title={a.show_on_web ? 'Visible en el sitio' : 'Oculto en el sitio'}
                     style={{ width: 40, height: 22, borderRadius: 11, background: a.show_on_web ? '#111' : '#e0e0e0', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background .2s' }}>

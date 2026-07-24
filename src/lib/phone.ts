@@ -35,6 +35,25 @@ export function phoneDisplay(phone: string | null | undefined, country: string |
   return p ? p.formatInternational() : phone
 }
 
+/**
+ * Normaliza a formato internacional: "+506 8868 9998".
+ *
+ * Se usa para guardar el teléfono de los agentes (users.phone / whatsapp).
+ * A diferencia de los contactos —que guardan el número NACIONAL y el país en
+ * una columna aparte— acá el número se guarda con el código adentro, así se
+ * describe solo y no hace falta una columna phone_country: un agente con
+ * número de otro país lo escribe con "+" y funciona igual.
+ *
+ * El país se usa solo para interpretar un número escrito sin código (lo normal:
+ * el agente teclea "8868-9998" y es de la oficina). Si no se puede interpretar,
+ * se devuelve tal cual en vez de inventarle un código.
+ */
+export function toInternational(phone: string | null | undefined, country: string | null | undefined): string {
+  if (!phone || !phone.trim()) return ''
+  const p = parsear(phone, country)
+  return p?.isValid() ? p.formatInternational() : phone.trim()
+}
+
 /** Enlace de WhatsApp (wa.me exige solo dígitos, con código de país). */
 export function whatsappHref(phone: string | null | undefined, country: string | null | undefined): string {
   const p = parsear(phone, country)

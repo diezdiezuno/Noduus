@@ -42,3 +42,4 @@ next-env.d.ts
 
 # respaldos de scripts de datos
 respaldo-telefonos-*.json
+respaldo-telefonos-agentes-*.json

@@ -7,6 +7,8 @@ import ContactVCardModal, { type VCardViewType } from '../propiedades/ContactVCa
 import ProximosEventos from './ProximosEventos'
 import { glass } from '@/lib/theme'
 import { uploadAgentPhoto } from '@/lib/upload'
+import { getMembership } from '@/lib/membership'
+import { toInternational } from '@/lib/phone'
 
 // Dashboard "Mi perfil": info del agente (editable inline), material de
 // impresión guardado (rótulos/tarjetas) y propiedades asignadas en el CRM.
@@ -89,6 +91,8 @@ export default function PerfilPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [clientView, setClientView] = useState<VCardViewType | null>(null)
   const [loading, setLoading] = useState(true)
+  // País de la oficina: sirve para interpretar un teléfono escrito sin código.
+  const [country, setCountry] = useState('CR')
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
@@ -143,11 +147,17 @@ export default function PerfilPage() {
     setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
+  useEffect(() => { getMembership().then(m => { if (m) setCountry(m.country) }) }, [])
 
   async function saveField(key: keyof Profile, v: string) {
     if (!profile) return
-    setProfile({ ...profile, [key]: v || null })
-    await createClient().from('users').update({ [key]: v || null }).eq('id', profile.id)
+    // Teléfono y WhatsApp se guardan en formato internacional ("+506 8868 9998").
+    // Antes era texto libre y el que no escribía el "+506" quedaba con un enlace
+    // de WhatsApp roto en el sitio público. Si no se puede interpretar, se guarda
+    // tal cual: mejor dejarlo como lo escribió que inventarle un código.
+    const valor = (key === 'phone' || key === 'whatsapp') ? toInternational(v, country) : v
+    setProfile({ ...profile, [key]: valor || null })
+    await createClient().from('users').update({ [key]: valor || null }).eq('id', profile.id)
   }
 
   async function uploadPhoto(file: File) {
