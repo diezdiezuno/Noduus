@@ -9,6 +9,8 @@ import type mapboxgl from 'mapbox-gl'
 import ContactVCardModal, { type VCardViewType } from '../ContactVCardModal'
 import { Icon } from '@/lib/icons'
 import NewOwnerModal, { type NewOwnerResult } from '../NewOwnerModal'
+import { renderContrato, type DatosContrato } from '@/lib/contract-render'
+import { imprimirContrato } from '@/lib/contract-pdf'
 
 /* ── Constants ───────────────────────────────────────────────── */
 const PROVINCIAS   = ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Guanacaste', 'Puntarenas', 'Limón']
@@ -1826,6 +1828,7 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
   const esVA = trans === 'sale_rent'
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Precio y comisión van arriba: es lo que se define primero y lo que
           después alimenta el contrato. */}
@@ -1894,6 +1897,10 @@ function TabContrato({ prop, onSaved }: { prop: PropertyFull; onSaved: (p: Prope
 
       <SaveBar saving={saving} saved={saved} error={saveError} />
     </form>
+    {/* Los documentos generados no son parte del form de términos: se guardan
+        solos al generar, así que van fuera del <form> para no dispararlo. */}
+    <ContractDocs prop={prop} />
+    </div>
   )
 }
 
@@ -2103,6 +2110,185 @@ function TabNotas({ prop, onCount }: { prop: PropertyFull; onCount: (n: number) 
             )}
       </FormSection>
     </div>
+  )
+}
+
+// Junta los datos de la propiedad para llenar una plantilla de contrato.
+// Lee de varias tablas —agente, dueños, oficina, términos del contrato— y los
+// arma en la forma que espera renderContrato.
+async function armarDatosContrato(prop: PropertyFull): Promise<DatosContrato> {
+  const sb = createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sbAny = sb as any
+  const [{ data: tenant }, { data: agente }, { data: owners }, { data: con }] = await Promise.all([
+    sb.from('tenants').select('name').eq('id', prop.tenant_id).maybeSingle(),
+    prop.agent_id
+      ? sb.from('users').select('name,email,phone').eq('id', prop.agent_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    sb.from('property_owners')
+      .select('crm_contacts(name,last_name), crm_companies(name)')
+      .eq('property_id', prop.id),
+    sbAny.from('contracts')
+      .select('start_date,end_date,commission,commission_amount,notes')
+      .eq('property_id', prop.id).eq('active', true)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+  ])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const duenos = ((owners ?? []) as any[]).map(o =>
+    o.crm_contacts ? [o.crm_contacts.name, o.crm_contacts.last_name].filter(Boolean).join(' ')
+      : o.crm_companies?.name).filter(Boolean).join(', ') || null
+
+  const a = agente as { name?: string; email?: string; phone?: string } | null
+  const c = con as { start_date?: string; end_date?: string; commission?: number; commission_amount?: number; notes?: string } | null
+
+  return {
+    propiedad: {
+      titulo: prop.title || null, tipo: prop.type || null, transaccion: prop.transaction || null,
+      precio: prop.price ?? null, moneda: prop.currency ?? null,
+      provincia: prop.provincia, canton: prop.canton, distrito: prop.distrito, direccion: prop.address,
+      finca: prop.finca_number, plano: prop.plano_number,
+      area_m2: prop.area_m2, lote_m2: prop.lot_m2,
+      habitaciones: prop.bedrooms, banos: prop.bathrooms,
+    },
+    contrato: {
+      fecha_inicio: c?.start_date ?? null, fecha_vencimiento: c?.end_date ?? null,
+      comision_pct: c?.commission ?? null, comision_monto: c?.commission_amount ?? null,
+      acuerdos: c?.notes ?? null,
+    },
+    oficina: { nombre: (tenant as { name?: string } | null)?.name ?? 'Noduus' },
+    agente:  { nombre: a?.name ?? null, email: a?.email ?? null, telefono: a?.phone ?? null },
+    duenos,
+  }
+}
+
+interface Plantilla { id: string; nombre: string; descripcion: string | null; cuerpo: string }
+interface DocGenerado { id: string; nombre: string; cuerpo: string; autor_nombre: string | null; created_at: string }
+
+// Documentos de contrato de la propiedad: se elige una plantilla, se genera con
+// los datos ya metidos (texto congelado) y se baja como PDF. Se pueden agregar
+// varios: captación, oferta, opción de compraventa…
+function ContractDocs({ prop }: { prop: PropertyFull }) {
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([])
+  const [docs,       setDocs]       = useState<DocGenerado[]>([])
+  const [elegida,    setElegida]    = useState('')
+  const [generando,  setGenerando]  = useState(false)
+  const [loading,    setLoading]    = useState(true)
+  const [error,      setError]      = useState<string | null>(null)
+  const [oficina,    setOficina]    = useState('')
+
+  const cargar = useCallback(async () => {
+    const sb = createClient()
+    const [{ data: pl }, { data: dc }, { data: tn }] = await Promise.all([
+      sb.from('contract_templates').select('id,nombre,descripcion,cuerpo')
+        .eq('tenant_id', prop.tenant_id).eq('active', true).order('position'),
+      sb.from('contract_documents').select('id,nombre,cuerpo,autor_nombre,created_at')
+        .eq('property_id', prop.id).order('created_at', { ascending: false }),
+      sb.from('tenants').select('name').eq('id', prop.tenant_id).maybeSingle(),
+    ])
+    setPlantillas((pl ?? []) as Plantilla[])
+    setDocs((dc ?? []) as DocGenerado[])
+    setOficina((tn as { name?: string } | null)?.name ?? 'Noduus')
+    setLoading(false)
+  }, [prop.id, prop.tenant_id])
+
+  useEffect(() => { cargar() }, [cargar])
+
+  async function generar() {
+    const tpl = plantillas.find(p => p.id === elegida)
+    if (!tpl) return
+    setGenerando(true); setError(null)
+    try {
+      const datos = await armarDatosContrato(prop)
+      const cuerpo = renderContrato(tpl.cuerpo, datos)   // texto ya resuelto, se congela
+      const sb = createClient()
+      const { data: { user } } = await sb.auth.getUser()
+      const { data: yo } = await sb.from('users').select('name')
+        .eq('auth_id', user?.id ?? '').eq('tenant_id', prop.tenant_id).maybeSingle()
+      const { error } = await sb.from('contract_documents').insert({
+        tenant_id: prop.tenant_id, property_id: prop.id, template_id: tpl.id,
+        nombre: tpl.nombre, cuerpo,
+        autor_id: user?.id ?? null,
+        autor_nombre: (yo as { name: string } | null)?.name ?? user?.email ?? null,
+      })
+      if (error) { setError(`No se pudo generar: ${error.message}`); return }
+      setElegida('')
+      await cargar()
+    } finally { setGenerando(false) }
+  }
+
+  async function quitar(id: string) {
+    const { error } = await createClient().from('contract_documents').delete().eq('id', id)
+    if (error) { setError(error.message); return }
+    setDocs(prev => prev.filter(d => d.id !== id))
+  }
+
+  function abrirPdf(d: DocGenerado) {
+    imprimirContrato({
+      titulo: d.nombre,
+      oficina,
+      cuerpo: d.cuerpo,
+      fecha: new Date(d.created_at).toLocaleDateString('es-CR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    })
+  }
+
+  const cuando = (iso: string) => new Date(iso).toLocaleString('es-CR', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+
+  return (
+    <FormSection title={`Documentos de contrato (${docs.length})`}>
+      {loading ? <p style={{ fontSize: 13, color: '#888', margin: 0 }}>Cargando…</p> : (
+        <>
+          {plantillas.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#888', margin: 0 }}>
+              No hay tipos de contrato definidos. El administrador los crea en <strong>Administración › Contratos</strong>.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <FieldLabel>Generar un contrato</FieldLabel>
+                <select value={elegida} onChange={e => setElegida(e.target.value)} style={inputSt}>
+                  <option value="">Elegí un tipo…</option>
+                  {plantillas.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+              </div>
+              <button type="button" onClick={generar} disabled={!elegida || generando}
+                style={{ background: 'var(--color-primary, #111)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: !elegida || generando ? 'not-allowed' : 'pointer', opacity: !elegida || generando ? .5 : 1, height: 38 }}>
+                {generando ? 'Generando…' : 'Generar'}
+              </button>
+            </div>
+          )}
+          <p style={{ fontSize: 11, color: '#aaa', margin: '8px 0 0' }}>
+            El contrato se llena con los datos de la propiedad y queda congelado. Si cambian los datos, generá uno nuevo.
+          </p>
+
+          {error && <p style={{ fontSize: 12, color: '#e53e3e', margin: '10px 0 0' }}>{error}</p>}
+
+          {docs.length > 0 && (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {docs.map(d => (
+                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', border: '1px solid #eceef1', borderRadius: 10 }}>
+                  <span style={{ fontSize: 18 }}>📄</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0d0f12' }}>{d.nombre}</div>
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{d.autor_nombre ?? 'Sistema'} · {cuando(d.created_at)}</div>
+                  </div>
+                  <button type="button" onClick={() => abrirPdf(d)}
+                    style={{ fontSize: 12, color: '#fff', background: 'var(--color-primary, #111)', border: 'none', borderRadius: 7, padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                    Descargar PDF
+                  </button>
+                  <button type="button" onClick={() => quitar(d.id)}
+                    style={{ fontSize: 12, color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Quitar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </FormSection>
   )
 }
 
