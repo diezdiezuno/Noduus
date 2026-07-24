@@ -1,5 +1,7 @@
 'use client'
 
+import { phoneDisplay, whatsappHref } from '@/lib/phone'
+
 interface Agent {
   id: string
   name: string
@@ -34,7 +36,7 @@ const POSITION_BADGE: Record<string, React.CSSProperties> = {
   'Administrativo':     { background: 'rgba(217,119,6,.08)',     color: '#b45309',  border: '1px solid rgba(217,119,6,.18)' },
 }
 
-export default function AgentGrid({ agents }: { agents: Agent[] }) {
+export default function AgentGrid({ agents, country }: { agents: Agent[]; country: string }) {
   if (agents.length === 0) {
     return (
       <div style={{ paddingTop: 60, textAlign: 'center', color: '#bbb', fontSize: 15 }}>
@@ -51,12 +53,12 @@ export default function AgentGrid({ agents }: { agents: Agent[] }) {
       border: '1px solid #e8e4df', borderRadius: 20, overflow: 'hidden',
       marginTop: 'clamp(36px,4vw,52px)',
     }}>
-      {agents.map(a => <AgentCard key={a.id} agent={a} />)}
+      {agents.map(a => <AgentCard key={a.id} agent={a} country={country} />)}
     </div>
   )
 }
 
-function AgentCard({ agent }: { agent: Agent }) {
+function AgentCard({ agent, country }: { agent: Agent; country: string }) {
   const socials = SOCIALS.map(s => ({ ...s, href: agent[s.key] as string | null })).filter(s => s.href)
 
   return (
@@ -84,10 +86,13 @@ function AgentCard({ agent }: { agent: Agent }) {
 
         {(agent.phone || agent.email) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {/* users.phone es texto libre: quien no escribió el "+506" generaba
+                un wa.me sin código de país, que WhatsApp no resuelve. Se arma
+                con el país de la oficina en vez de pelar dígitos. */}
             {agent.phone && (
-              <a href={`https://wa.me/${agent.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+              <a href={whatsappHref(agent.phone, country)} target="_blank" rel="noopener noreferrer"
                 style={{ fontSize: 13, color: '#555', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>💬</span> {agent.phone}
+                <span>💬</span> {phoneDisplay(agent.phone, country)}
               </a>
             )}
             {agent.email && (

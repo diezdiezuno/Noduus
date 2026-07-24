@@ -94,7 +94,7 @@ export default async function AgentesPage() {
         maxWidth: 1440, margin: '0 auto',
         borderTop: '1px solid #e8e4df',
       }}>
-        <AgentGrid agents={agents} />
+        <AgentGrid agents={agents} country={(tenant as { country?: string }).country ?? 'CR'} />
       </section>
     </div>
   )

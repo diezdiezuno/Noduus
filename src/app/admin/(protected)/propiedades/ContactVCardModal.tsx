@@ -31,7 +31,7 @@ function refName(u?: { name: string } | null, c?: { name: string; last_name: str
 }
 interface CompanyFull {
   id: string; name: string; trade_name: string | null; cedula_juridica: string | null
-  email: string | null; phone: string | null; notes: string | null; doc_urls: DocUrl[] | null
+  email: string | null; notes: string | null; doc_urls: DocUrl[] | null
 }
 interface LinkedContact {
   id: string; name: string; last_name: string | null; cedula: string | null; photo_url: string | null
@@ -135,7 +135,7 @@ export default function ContactVCardModal({ view, onClose, onEdit, showCrmLink =
         ))
     } else {
       Promise.all([
-        sb.from('crm_companies').select('id,name,trade_name,cedula_juridica,email,phone,notes,doc_urls').eq('id', view.id).single(),
+        sb.from('crm_companies').select('id,name,trade_name,cedula_juridica,email,notes,doc_urls').eq('id', view.id).single(),
         sb.from('crm_contact_companies').select('crm_contacts(id,name,last_name,cedula,photo_url)').eq('company_id', view.id),
       ]).then(([{ data: co }, { data: links }]) => {
         setCompanyData(co as CompanyFull)
@@ -375,21 +375,12 @@ export default function ContactVCardModal({ view, onClose, onEdit, showCrmLink =
                   <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20, background: '#F59E0B22', color: '#D97706' }}>Jurídico</span>
                 </div>
 
-                {/* Mismos botones que la ficha de contacto. Las empresas no
-                    guardan país del teléfono: se asume el del tenant. */}
-                {(companyData.phone || companyData.email) && (
+                {/* Las empresas no tienen teléfono: ningún formulario lo carga
+                    (el alta solo guarda nombre, nombre comercial y cédula
+                    jurídica), así que la columna estaba siempre vacía y estos
+                    botones nunca aparecían. */}
+                {companyData.email && (
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 18 }}>
-                    {companyData.phone && (
-                      <button onClick={() => openWhatsapp(companyData.phone, null)} title="WhatsApp"
-                        style={actionBtnStyle('#25D366')}>
-                        <WaGlyph />
-                      </button>
-                    )}
-                    {companyData.phone && (
-                      <a href={`tel:${companyData.phone}`} title="Llamar" style={actionBtnStyle('#0EA5E9')}>
-                        <Icon name="phone" size={20} color="#fff" />
-                      </a>
-                    )}
                     {companyData.email && (
                       <a href={`mailto:${companyData.email}`} title="Email" style={actionBtnStyle('#EA4335')}>
                         <Icon name="mail" size={20} color="#fff" />
@@ -403,9 +394,6 @@ export default function ContactVCardModal({ view, onClose, onEdit, showCrmLink =
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {companyData.cedula_juridica && (
                   <VCardRow icon="idCard" color="#5a6070" label="Cédula jurídica">{companyData.cedula_juridica}</VCardRow>
-                )}
-                {companyData.phone && (
-                  <VCardRow icon="phone" color="#0EA5E9" label="Teléfono">{companyData.phone}</VCardRow>
                 )}
                 {companyData.email && (
                   <VCardRow icon="mail" color="#EA4335" label="Email">
